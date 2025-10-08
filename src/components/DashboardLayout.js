@@ -51,13 +51,8 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
 
       {/* Main Content */}
       <Layout>
-        <Header style={{ background: "#fff", paddingLeft: 20 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            WinWay Dashboard
-          </Title>
-        </Header>
-
-        <Content style={{ margin: "20px", padding: 20, background: "#fff" }}>
+       
+            <Content style={{ margin: "20px", padding: 10, background: "#fff" }}>
           {children}
         </Content>
       </Layout>
