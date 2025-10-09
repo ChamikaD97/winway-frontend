@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Form,
   Upload,
@@ -19,7 +19,6 @@ import {
 import {
   LoadingOutlined,
   FileZipOutlined,
-  FileImageOutlined,
   FileTextOutlined,
   ReloadOutlined,
   ArrowLeftOutlined,
@@ -34,6 +33,13 @@ import {
 import axios from "axios";
 import ResultsView from "./ResultsView";
 import logo from "../assets/logo.png";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Tooltip,
+  Cell,
+} from "recharts";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -58,8 +64,19 @@ function FileUploadForm() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  const [lastGenerated, setLastGenerated] = useState(null);
 
-  // ---------------- MEMOIZED COMPUTATIONS ----------------
+  // ---------------- AUTO-SAVE PRIZES ----------------
+  useEffect(() => {
+    const savedPrizes = localStorage.getItem("lotteryPrizes");
+    if (savedPrizes) setLotteryPrizes(JSON.parse(savedPrizes));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("lotteryPrizes", JSON.stringify(lotteryPrizes));
+  }, [lotteryPrizes]);
+
+  // ---------------- COMPUTATIONS ----------------
   const totalPrizePool = useMemo(
     () =>
       Object.values(lotteryPrizes)
@@ -69,7 +86,8 @@ function FileUploadForm() {
   );
 
   const maxPrize = useMemo(
-    () => Math.max(...Object.values(lotteryPrizes).map((v) => parseInt(v) || 0)),
+    () =>
+      Math.max(...Object.values(lotteryPrizes).map((v) => parseInt(v) || 0)),
     [lotteryPrizes]
   );
 
@@ -94,13 +112,16 @@ function FileUploadForm() {
     setResults(null);
     setProgress(0);
     setError(null);
+    setLastGenerated(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleNextFromPrizes = () => {
-    const missingPrize = Object.values(lotteryPrizes).some((val) => !val.trim());
+    const missingPrize = Object.values(lotteryPrizes).some(
+      (val) => !val.trim() || parseInt(val) <= 0
+    );
     if (missingPrize) {
-      message.warning("⚠️ Please fill in all lottery prize fields!");
+      message.warning("⚠️ Please fill valid prize values for all lotteries!");
       return;
     }
     setStep(2);
@@ -108,13 +129,7 @@ function FileUploadForm() {
   };
 
   const handleSubmit = async () => {
-    if (
-      !files.ticket_sales ||
-      !files.prizes ||
-      !files.customers ||
-      !files.banner ||
-      !files.background
-    ) {
+    if (!files.ticket_sales || !files.prizes || !files.customers) {
       message.warning("⚠️ Please upload all required files before proceeding!");
       return;
     }
@@ -137,6 +152,7 @@ function FileUploadForm() {
 
       setResults(res.data);
       setStep(3);
+      setLastGenerated(new Date().toLocaleString());
       message.success("✅ Files processed successfully!");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -148,7 +164,20 @@ function FileUploadForm() {
     }
   };
 
-  // ---------------- RENDER HELPERS ----------------
+  // ---------------- EMAIL PREVIEW ----------------
+  const handlePreviewEmail = () => {
+    const sampleEmail = `
+      <h2 style="color:#722ed1;">Dear Valued Customer,</h2>
+      <p>We are thrilled to recognize you as one of our top supporters!</p>
+      <p>Your dedication has already brought you Rs. ${maxPrize.toLocaleString()} in winnings.</p>
+      <p>Keep the momentum going and check this week’s top prizes!</p>
+    `;
+    const emailWindow = window.open("", "_blank");
+    emailWindow.document.write(sampleEmail);
+    emailWindow.document.close();
+  };
+
+  // ---------------- RENDER UPLOAD ----------------
   const renderUpload = (label, name, accept, icon, successMsg) => {
     const hasFile = !!files[name];
     return (
@@ -162,10 +191,7 @@ function FileUploadForm() {
         }}
         bodyStyle={{ padding: 8 }}
       >
-        <Form.Item
-          label={<Text strong>{label}</Text>}
-          style={{ marginBottom: 8 }}
-        >
+        <Form.Item label={<Text strong>{label}</Text>} style={{ marginBottom: 8 }}>
           <div style={{ position: "relative" }}>
             {hasFile && (
               <CheckCircleTwoTone
@@ -191,7 +217,6 @@ function FileUploadForm() {
                 borderRadius: 10,
                 padding: "12px",
                 minHeight: "110px",
-                transition: "all 0.3s ease",
               }}
             >
               <p className="ant-upload-drag-icon" style={{ fontSize: 28 }}>
@@ -216,7 +241,7 @@ function FileUploadForm() {
 
   // ---------------- MAIN RETURN ----------------
   return (
-    <div style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 50 }}>
+    <div style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 20 }}>
       {/* ---------------- HEADER ---------------- */}
       <div
         style={{
@@ -241,20 +266,11 @@ function FileUploadForm() {
           style={{
             width: "clamp(90px, 12vw, 150px)",
             height: "auto",
-            objectFit: "contain",
             filter: "drop-shadow(0 0 5px rgba(255,255,255,0.7))",
           }}
         />
         <div>
-          <Title
-            level={2}
-            style={{
-              color: "white",
-              fontWeight: 700,
-              marginBottom: 0,
-              letterSpacing: 0.5,
-            }}
-          >
+          <Title level={2} style={{ color: "white", fontWeight: 700, marginBottom: 0 }}>
             WINWAY Personalized Email Generator
           </Title>
           <Text style={{ color: "#fffbe6", fontSize: 16 }}>
@@ -274,7 +290,6 @@ function FileUploadForm() {
         }}
         bordered
       >
-        {/* Steps */}
         <Steps
           current={step - 1}
           status={step === 3 ? "finish" : "process"}
@@ -286,7 +301,7 @@ function FileUploadForm() {
           ]}
         />
 
-        {/* ---------------- STEP 1: Prize Setup ---------------- */}
+        {/* ---------------- STEP 1 ---------------- */}
         {step === 1 && (
           <>
             <Title level={3} style={{ textAlign: "center", marginBottom: 10 }}>
@@ -328,6 +343,7 @@ function FileUploadForm() {
               </Col>
             </Row>
 
+
             <Divider />
 
             {/* Prize Inputs */}
@@ -340,24 +356,27 @@ function FileUploadForm() {
                     size="small"
                     title={<Text strong>{prize}</Text>}
                     actions={[
-                      <EditOutlined key="edit" onClick={() => setEditingPrize(prize)} />,
+                      <EditOutlined
+                        key="edit"
+                        onClick={() => setEditingPrize(prize)}
+                      />,
                     ]}
                     style={{
                       borderRadius: 10,
                       textAlign: "center",
                       boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-                      transition: "all 0.2s ease-in-out",
                     }}
                   >
                     {editingPrize === prize ? (
                       <Input
                         value={lotteryPrizes[prize]}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d]/g, "");
                           setLotteryPrizes({
                             ...lotteryPrizes,
-                            [prize]: e.target.value,
-                          })
-                        }
+                            [prize]: val,
+                          });
+                        }}
                         onBlur={() => setEditingPrize(null)}
                         autoFocus
                       />
@@ -382,74 +401,24 @@ function FileUploadForm() {
               >
                 Proceed to File Uploads
               </Button>
+            
             </div>
           </>
         )}
 
-        {/* ---------------- STEP 2: Uploads ---------------- */}
+        {/* ---------------- STEP 2 ---------------- */}
         {step === 2 && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
               📂 Upload Files & Review Prizes
             </Title>
             <Divider />
-
-            <Row gutter={[24, 24]}>
-              <Col xs={24} md={10}>
-                {/* Prize Summary */}
-                <Card
-                  bordered
-                  title="🎯 Lottery Prize Summary"
-                  style={{ borderRadius: 10 }}
-                >
-                  <Row gutter={[12, 12]}>
-                    {Object.keys(lotteryPrizes).map((key, idx) => (
-                      <Col xs={12} key={idx}>
-                        <Card
-                          size="small"
-                          hoverable
-                          style={{
-                            borderRadius: 8,
-                            background: "#ffffff",
-                            borderColor: "#d9d9d9",
-                          }}
-                          title={key}
-                          actions={[
-                            <EditOutlined
-                              key="edit"
-                              onClick={() => setEditingPrize(key)}
-                            />,
-                          ]}
-                        >
-                          {editingPrize === key ? (
-                            <Input
-                              value={lotteryPrizes[key]}
-                              onChange={(e) =>
-                                setLotteryPrizes({
-                                  ...lotteryPrizes,
-                                  [key]: e.target.value,
-                                })
-                              }
-                              onBlur={() => setEditingPrize(null)}
-                              autoFocus
-                            />
-                          ) : (
-                            <Text type="success">
-                              Rs. {parseInt(lotteryPrizes[key]).toLocaleString()}
-                            </Text>
-                          )}
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                </Card>
-              </Col>
-
-              <Col xs={24} md={14}>
+            <Row gutter={[24, 24]} justify="center">
+              <Col xs={24} lg={20}>
                 {/* Upload Files */}
                 <Form layout="vertical">
-                  <Row gutter={[12, 12]}>
-                    <Col span={12}>
+                  <Row gutter={[12, 12]} justify="center">
+                    <Col xs={24} sm={12} md={8}>
                       {renderUpload(
                         "Ticket Sales (.zip)",
                         "ticket_sales",
@@ -458,7 +427,7 @@ function FileUploadForm() {
                         "Ticket Sales attached"
                       )}
                     </Col>
-                    <Col span={12}>
+                    <Col xs={24} sm={12} md={8}>
                       {renderUpload(
                         "Prize Data (.zip)",
                         "prizes",
@@ -467,31 +436,13 @@ function FileUploadForm() {
                         "Prize Data attached"
                       )}
                     </Col>
-                    <Col span={12}>
+                    <Col xs={24} sm={12} md={8}>
                       {renderUpload(
                         "Customers (.csv)",
                         "customers",
                         ".csv",
                         <FileTextOutlined style={{ color: "#fa8c16" }} />,
                         "Customer list attached"
-                      )}
-                    </Col>
-                    <Col span={12}>
-                      {renderUpload(
-                        "Banner (.jpeg/.png)",
-                        "banner",
-                        ".jpeg,.png",
-                        <FileImageOutlined style={{ color: "#13c2c2" }} />,
-                        "Banner ready"
-                      )}
-                    </Col>
-                    <Col span={12}>
-                      {renderUpload(
-                        "Background (.jpeg/.png)",
-                        "background",
-                        ".jpeg,.png",
-                        <FileImageOutlined style={{ color: "#52c41a" }} />,
-                        "Background ready"
                       )}
                     </Col>
                   </Row>
@@ -511,6 +462,14 @@ function FileUploadForm() {
                       status={loading ? "active" : "normal"}
                       style={{ marginTop: 20 }}
                     />
+                  )}
+
+                  {lastGenerated && (
+                    <div style={{ textAlign: "center", marginTop: 10 }}>
+                      <Text type="secondary">
+                        🕒 Last generated on: {lastGenerated}
+                      </Text>
+                    </div>
                   )}
 
                   <div style={{ textAlign: "center", marginTop: 30 }}>
@@ -533,7 +492,7 @@ function FileUploadForm() {
                           <LoadingOutlined /> Generating...
                         </>
                       ) : (
-                        "Generate Emails & Images"
+                        "Generate Emails"
                       )}
                     </Button>
                     <Button icon={<ReloadOutlined />} danger onClick={handleReset}>
@@ -546,14 +505,14 @@ function FileUploadForm() {
           </>
         )}
 
-        {/* ---------------- STEP 3: Results ---------------- */}
+        {/* ---------------- STEP 3 ---------------- */}
         {step === 3 && results && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
               📊 Results
             </Title>
             <Divider />
-            <ResultsView results={results} />
+            <ResultsView results={results} lotteryPrizes={lotteryPrizes} />
             <div style={{ textAlign: "center", marginTop: 25 }}>
               <Button
                 icon={<ArrowLeftOutlined />}
@@ -562,11 +521,7 @@ function FileUploadForm() {
               >
                 Back to Uploads
               </Button>
-              <Button
-                type="primary"
-                onClick={handleReset}
-                style={{ marginRight: 10 }}
-              >
+              <Button type="primary" onClick={handleReset}>
                 Start Over
               </Button>
             </div>
@@ -583,14 +538,18 @@ function FileUploadForm() {
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "rgba(255,255,255,0.6)",
+            background: "rgba(255,255,255,0.8)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            flexDirection: "column",
             zIndex: 9999,
           }}
         >
-          <Spin size="large" tip="Processing data & generating results..." />
+          <Spin size="large" />
+          <Text strong style={{ marginTop: 20, color: "#722ed1" }}>
+            Generating personalized emails... ✨
+          </Text>
         </div>
       )}
     </div>
