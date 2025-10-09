@@ -25,7 +25,6 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   EditOutlined,
-  DownloadOutlined,
   CheckCircleTwoTone,
   GiftOutlined,
   InboxOutlined,
@@ -34,12 +33,14 @@ import {
 } from "@ant-design/icons";
 import axios from "axios";
 import ResultsView from "./ResultsView";
-import logo from "../assets/logo.png"; // ✅ WinWay logo
+import logo from "../assets/logo.png";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
+const API_BASE = "http://127.0.0.1:8000"; // ✅ centralized backend URL
 
 function FileUploadForm() {
+  // ---------------- STATE ----------------
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState({});
   const [lotteryPrizes, setLotteryPrizes] = useState({
@@ -58,6 +59,7 @@ function FileUploadForm() {
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
 
+  // ---------------- MEMOIZED COMPUTATIONS ----------------
   const totalPrizePool = useMemo(
     () =>
       Object.values(lotteryPrizes)
@@ -65,21 +67,24 @@ function FileUploadForm() {
         .reduce((a, b) => a + b, 0),
     [lotteryPrizes]
   );
+
   const maxPrize = useMemo(
     () => Math.max(...Object.values(lotteryPrizes).map((v) => parseInt(v) || 0)),
     [lotteryPrizes]
   );
 
-  // ✅ Handlers
+  // ---------------- HANDLERS ----------------
   const handleChange = (file, name) => {
-    setFiles({ ...files, [name]: file });
+    setFiles((prev) => ({ ...prev, [name]: file }));
     return false;
   };
 
   const handleRemove = (name) => {
-    const updatedFiles = { ...files };
-    delete updatedFiles[name];
-    setFiles(updatedFiles);
+    setFiles((prev) => {
+      const updated = { ...prev };
+      delete updated[name];
+      return updated;
+    });
   };
 
   const handleReset = () => {
@@ -115,11 +120,7 @@ function FileUploadForm() {
     }
 
     const formData = new FormData();
-    formData.append("ticket_sales", files.ticket_sales);
-    formData.append("prizes", files.prizes);
-    formData.append("customers", files.customers);
-    formData.append("banner", files.banner);
-    formData.append("background", files.background);
+    Object.entries(files).forEach(([key, file]) => formData.append(key, file));
     formData.append("lottery_prizes", JSON.stringify(lotteryPrizes));
 
     try {
@@ -127,7 +128,7 @@ function FileUploadForm() {
       setError(null);
       setProgress(0);
 
-      const res = await axios.post("http://127.0.0.1:8000/upload-files/", formData, {
+      const res = await axios.post(`${API_BASE}/upload-files/`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) => {
           if (e.total) setProgress(Math.round((100 * e.loaded) / e.total));
@@ -140,13 +141,14 @@ function FileUploadForm() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
-      setError("Error uploading files or running pipeline!");
-      message.error("❌ Something went wrong!");
+      setError("❌ Error uploading files or running pipeline!");
+      message.error("Error during processing!");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------- RENDER HELPERS ----------------
   const renderUpload = (label, name, accept, icon, successMsg) => {
     const hasFile = !!files[name];
     return (
@@ -160,7 +162,10 @@ function FileUploadForm() {
         }}
         bodyStyle={{ padding: 8 }}
       >
-        <Form.Item label={<Text strong>{label}</Text>} style={{ marginBottom: 8 }}>
+        <Form.Item
+          label={<Text strong>{label}</Text>}
+          style={{ marginBottom: 8 }}
+        >
           <div style={{ position: "relative" }}>
             {hasFile && (
               <CheckCircleTwoTone
@@ -176,7 +181,7 @@ function FileUploadForm() {
             )}
             <Dragger
               beforeUpload={(file) => handleChange(file, name)}
-              fileList={files[name] ? [files[name]] : []}
+              fileList={hasFile ? [files[name]] : []}
               onRemove={() => handleRemove(name)}
               accept={accept}
               maxCount={1}
@@ -184,20 +189,21 @@ function FileUploadForm() {
                 background: hasFile ? "#f6ffed" : "#fafafa",
                 borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
                 borderRadius: 10,
-                padding: "10px",
+                padding: "12px",
                 minHeight: "110px",
+                transition: "all 0.3s ease",
               }}
             >
-              <p className="ant-upload-drag-icon" style={{ fontSize: 26 }}>
+              <p className="ant-upload-drag-icon" style={{ fontSize: 28 }}>
                 {icon}
               </p>
               {hasFile ? (
                 <p style={{ color: "#52c41a", fontWeight: 500 }}>{successMsg}</p>
               ) : (
                 <>
-                  <p>Click or drag file here</p>
+                  <p>Click or drag file to this area</p>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    {accept}
+                    Accepts {accept}
                   </Text>
                 </>
               )}
@@ -208,9 +214,10 @@ function FileUploadForm() {
     );
   };
 
+  // ---------------- MAIN RETURN ----------------
   return (
     <div style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 50 }}>
-      {/* Header */}
+      {/* ---------------- HEADER ---------------- */}
       <div
         style={{
           background: "linear-gradient(270deg, #722ed1, #d4af37, #722ed1)",
@@ -245,7 +252,7 @@ function FileUploadForm() {
               color: "white",
               fontWeight: 700,
               marginBottom: 0,
-              letterSpacing: 1,
+              letterSpacing: 0.5,
             }}
           >
             WINWAY Personalized Email Generator
@@ -256,7 +263,7 @@ function FileUploadForm() {
         </div>
       </div>
 
-      {/* Main Card */}
+      {/* ---------------- MAIN CARD ---------------- */}
       <Card
         style={{
           maxWidth: 1300,
@@ -267,8 +274,10 @@ function FileUploadForm() {
         }}
         bordered
       >
+        {/* Steps */}
         <Steps
           current={step - 1}
+          status={step === 3 ? "finish" : "process"}
           style={{ marginBottom: 40 }}
           items={[
             { title: "Prize Setup", icon: <GiftOutlined /> },
@@ -277,12 +286,14 @@ function FileUploadForm() {
           ]}
         />
 
-        {/* ✅ Step 1 – Prize Setup */}
+        {/* ---------------- STEP 1: Prize Setup ---------------- */}
         {step === 1 && (
           <>
             <Title level={3} style={{ textAlign: "center", marginBottom: 10 }}>
               🎁 Lottery Prize Dashboard
             </Title>
+
+            {/* Stats Row */}
             <Row gutter={16} justify="center" style={{ marginBottom: 25 }}>
               <Col xs={24} sm={8}>
                 <Card bordered style={{ background: "#f0f5ff" }}>
@@ -318,6 +329,8 @@ function FileUploadForm() {
             </Row>
 
             <Divider />
+
+            {/* Prize Inputs */}
             <Row gutter={[16, 16]}>
               {Object.keys(lotteryPrizes).map((prize, idx) => (
                 <Col xs={24} sm={12} md={8} lg={6} key={idx}>
@@ -333,6 +346,7 @@ function FileUploadForm() {
                       borderRadius: 10,
                       textAlign: "center",
                       boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+                      transition: "all 0.2s ease-in-out",
                     }}
                   >
                     {editingPrize === prize ? (
@@ -358,6 +372,7 @@ function FileUploadForm() {
                 </Col>
               ))}
             </Row>
+
             <div style={{ textAlign: "center", marginTop: 30 }}>
               <Button
                 type="primary"
@@ -371,16 +386,22 @@ function FileUploadForm() {
           </>
         )}
 
-        {/* ✅ Step 2 – Uploads */}
+        {/* ---------------- STEP 2: Uploads ---------------- */}
         {step === 2 && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
               📂 Upload Files & Review Prizes
             </Title>
             <Divider />
+
             <Row gutter={[24, 24]}>
               <Col xs={24} md={10}>
-                <Card bordered title="🎯 Lottery Prize Summary" style={{ borderRadius: 10 }}>
+                {/* Prize Summary */}
+                <Card
+                  bordered
+                  title="🎯 Lottery Prize Summary"
+                  style={{ borderRadius: 10 }}
+                >
                   <Row gutter={[12, 12]}>
                     {Object.keys(lotteryPrizes).map((key, idx) => (
                       <Col xs={12} key={idx}>
@@ -425,6 +446,7 @@ function FileUploadForm() {
               </Col>
 
               <Col xs={24} md={14}>
+                {/* Upload Files */}
                 <Form layout="vertical">
                   <Row gutter={[12, 12]}>
                     <Col span={12}>
@@ -482,6 +504,7 @@ function FileUploadForm() {
                       style={{ marginTop: 15 }}
                     />
                   )}
+
                   {progress > 0 && (
                     <Progress
                       percent={progress}
@@ -523,8 +546,8 @@ function FileUploadForm() {
           </>
         )}
 
-        {/* ✅ Step 3 – Results */}
-        {step === 3 && (
+        {/* ---------------- STEP 3: Results ---------------- */}
+        {step === 3 && results && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
               📊 Results
@@ -539,38 +562,19 @@ function FileUploadForm() {
               >
                 Back to Uploads
               </Button>
-              <Button type="primary" onClick={handleReset} style={{ marginRight: 10 }}>
-                Start Over
-              </Button>
               <Button
                 type="primary"
-                icon={<DownloadOutlined />}
-                onClick={async () => {
-                  const recipient = prompt("Enter recipient email:");
-                  if (!recipient) return;
-                  try {
-                    const res = await fetch("http://127.0.0.1:8000/send-zip-email/", {
-                      method: "POST",
-                      body: new URLSearchParams({ recipient }),
-                    });
-                    const data = await res.json();
-                    if (data.status?.startsWith("✅")) {
-                      message.success(data.status);
-                    } else {
-                      message.error(data.status || "Error sending email");
-                    }
-                  } catch {
-                    message.error("❌ Error sending email!");
-                  }
-                }}
+                onClick={handleReset}
+                style={{ marginRight: 10 }}
               >
-                Email ZIP to User
+                Start Over
               </Button>
             </div>
           </>
         )}
       </Card>
 
+      {/* ---------------- LOADING OVERLAY ---------------- */}
       {loading && (
         <div
           style={{
