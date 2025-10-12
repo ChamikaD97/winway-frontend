@@ -271,7 +271,7 @@ function FileUploadForm() {
         />
         <div>
           <Title level={2} style={{ color: "white", fontWeight: 700, marginBottom: 0 }}>
-            WINWAY Personalized Email Generator
+           WinWay | Smart Lottery Manager
           </Title>
           <Text style={{ color: "#fffbe6", fontSize: 16 }}>
             Empowering marketing with automation and style ✨

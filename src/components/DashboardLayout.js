@@ -5,7 +5,9 @@ import {
   PieChartOutlined,
   FileTextOutlined,
   SettingOutlined,
+  CrownOutlined,
 } from "@ant-design/icons";
+import logo from "../assets/logo.png";
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -17,6 +19,8 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
     <Layout style={{ minHeight: "100vh", background: "#f8f9fa" }}>
       {/* 🟣 Sidebar */}
       <Sider
+        width={260} // ⬅️ custom width (you can set 260, 280, etc.)
+        collapsedWidth={80} // ⬅️ width when collapsed
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
@@ -24,6 +28,7 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
           background:
             "linear-gradient(180deg, #722ed1 0%, #a67efc 60%, #d4af37 100%)",
           boxShadow: "2px 0 12px rgba(0,0,0,0.15)",
+          transition: "all 0.3s ease",
         }}
       >
         {/* Logo / Title */}
@@ -42,7 +47,15 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
             transition: "all 0.3s ease",
           }}
         >
-          WINWAY
+          <img
+            src={logo}
+            alt="WinWay Logo"
+            style={{
+              width: "clamp(90px, 12vw, 150px)",
+              height: "auto",
+              filter: "drop-shadow(0 0 5px rgba(255,255,255,0.7))",
+            }}
+          />
         </div>
 
         {/* Menu */}
@@ -58,8 +71,8 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
           items={[
             {
               key: "1",
-              icon: <UploadOutlined />,
-              label: "Upload Files",
+              icon: <CrownOutlined />,
+              label: "Customers Of The Week",
             },
             {
               key: "2",
@@ -83,7 +96,7 @@ function DashboardLayout({ children, activeTab, onTabChange }) {
       {/* 🟣 Main Layout */}
       <Layout>
         {/* Header */}
-       
+
         {/* Content */}
         <Content
           style={{

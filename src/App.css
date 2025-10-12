@@ -27,6 +27,26 @@
 .App-link {
   color: #61dafb;
 }
+/* 🔴 Blink failed email rows */
+.failed-blink {
+  background: rgba(255, 77, 79, 0.1);
+  animation: blinkRed 1s ease-in-out infinite alternate;
+  transition: background 0.3s ease;
+}
+
+@keyframes blinkRed {
+  0% {
+    background-color: rgba(255, 77, 79, 0.2);
+  }
+  100% {
+    background-color: rgba(255, 0, 0, 0.4);
+  }
+}
+
+/* ✅ When retried and success, reset highlight smoothly */
+.ant-list-item:not(.failed-blink) {
+  transition: background 0.8s ease-in-out;
+}
 
 @keyframes App-logo-spin {
   from {
@@ -36,3 +56,5 @@
     transform: rotate(360deg);
   }
 }
+
+
