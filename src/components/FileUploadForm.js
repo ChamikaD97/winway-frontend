@@ -33,13 +33,7 @@ import {
 import axios from "axios";
 import ResultsView from "./ResultsView";
 import logo from "../assets/logo.png";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Tooltip,
-  Cell,
-} from "recharts";
+
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -164,18 +158,6 @@ function FileUploadForm() {
     }
   };
 
-  // ---------------- EMAIL PREVIEW ----------------
-  const handlePreviewEmail = () => {
-    const sampleEmail = `
-      <h2 style="color:#722ed1;">Dear Valued Customer,</h2>
-      <p>We are thrilled to recognize you as one of our top supporters!</p>
-      <p>Your dedication has already brought you Rs. ${maxPrize.toLocaleString()} in winnings.</p>
-      <p>Keep the momentum going and check this week’s top prizes!</p>
-    `;
-    const emailWindow = window.open("", "_blank");
-    emailWindow.document.write(sampleEmail);
-    emailWindow.document.close();
-  };
 
   // ---------------- RENDER UPLOAD ----------------
   const renderUpload = (label, name, accept, icon, successMsg) => {

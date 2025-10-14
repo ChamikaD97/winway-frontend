@@ -16,7 +16,6 @@ import {
   Tooltip,
 } from "antd";
 import {
-  TrophyOutlined,
   MailOutlined,
   ReloadOutlined,
   CheckCircleTwoTone,

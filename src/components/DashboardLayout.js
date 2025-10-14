@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Layout, Menu, Typography } from "antd";
+import { Layout, Menu } from "antd";
 import {
-  UploadOutlined,
   PieChartOutlined,
   FileTextOutlined,
   SettingOutlined,
@@ -9,8 +8,7 @@ import {
 } from "@ant-design/icons";
 import logo from "../assets/logo.png";
 
-const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
+const { Sider, Content } = Layout;
 
 function DashboardLayout({ children, activeTab, onTabChange }) {
   const [collapsed, setCollapsed] = useState(false);
