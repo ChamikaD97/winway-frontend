@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Form,
   Upload,
@@ -29,15 +29,15 @@ import {
   InboxOutlined,
   EyeOutlined,
   CrownOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import ResultsView from "./ResultsView";
 import logo from "../assets/logo.png";
 
-
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
-const API_BASE = "http://127.0.0.1:8000"; // ✅ centralized backend URL
+const API_BASE = "http://127.0.0.1:8000";
 
 function FileUploadForm() {
   // ---------------- STATE ----------------
@@ -45,14 +45,15 @@ function FileUploadForm() {
   const [files, setFiles] = useState({});
   const [lotteryPrizes, setLotteryPrizes] = useState({
     "Ada Sampatha": "250000",
-    "Dhana Nidhanaya": "124500000",
-    Govisetha: "62700000",
-    Handahana: "3100000",
-    "Mahajana Sampatha": "3030000",
-    "Mega Power": "162000000",
+    "Dhana Nidhanaya": "128106060",
+    Govisetha: "65826538",
+    Handahana: "3634057",
+    "Mahajana Sampatha": "36994984",
+    "Mega Power": "164006696",
     "NLB Jaya": "500000",
     "Suba Dawasak": "500000",
   });
+  const [numCustomers, setNumCustomers] = useState(""); // ✅ New input
   const [editingPrize, setEditingPrize] = useState(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -60,15 +61,21 @@ function FileUploadForm() {
   const [results, setResults] = useState(null);
   const [lastGenerated, setLastGenerated] = useState(null);
 
-  // ---------------- AUTO-SAVE PRIZES ----------------
+  // ---------------- LOCAL STORAGE ----------------
   useEffect(() => {
     const savedPrizes = localStorage.getItem("lotteryPrizes");
+    const savedNum = localStorage.getItem("numCustomers");
     if (savedPrizes) setLotteryPrizes(JSON.parse(savedPrizes));
+    if (savedNum) setNumCustomers(savedNum);
   }, []);
 
   useEffect(() => {
     localStorage.setItem("lotteryPrizes", JSON.stringify(lotteryPrizes));
   }, [lotteryPrizes]);
+
+  useEffect(() => {
+    if (numCustomers) localStorage.setItem("numCustomers", numCustomers);
+  }, [numCustomers]);
 
   // ---------------- COMPUTATIONS ----------------
   const totalPrizePool = useMemo(
@@ -86,20 +93,20 @@ function FileUploadForm() {
   );
 
   // ---------------- HANDLERS ----------------
-  const handleChange = (file, name) => {
+  const handleChange = useCallback((file, name) => {
     setFiles((prev) => ({ ...prev, [name]: file }));
     return false;
-  };
+  }, []);
 
-  const handleRemove = (name) => {
+  const handleRemove = useCallback((name) => {
     setFiles((prev) => {
       const updated = { ...prev };
       delete updated[name];
       return updated;
     });
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setStep(1);
     setFiles({});
     setEditingPrize(null);
@@ -107,8 +114,10 @@ function FileUploadForm() {
     setProgress(0);
     setError(null);
     setLastGenerated(null);
+    setNumCustomers("");
+    message.info("Form reset successfully");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
   const handleNextFromPrizes = () => {
     const missingPrize = Object.values(lotteryPrizes).some(
@@ -128,9 +137,15 @@ function FileUploadForm() {
       return;
     }
 
+    if (!numCustomers || parseInt(numCustomers) <= 0) {
+      message.warning("⚠️ Please enter a valid number of customers!");
+      return;
+    }
+
     const formData = new FormData();
     Object.entries(files).forEach(([key, file]) => formData.append(key, file));
     formData.append("lottery_prizes", JSON.stringify(lotteryPrizes));
+    formData.append("num_customers", numCustomers); // ✅ Added
 
     try {
       setLoading(true);
@@ -158,73 +173,75 @@ function FileUploadForm() {
     }
   };
 
-
-  // ---------------- RENDER UPLOAD ----------------
-  const renderUpload = (label, name, accept, icon, successMsg) => {
-    const hasFile = !!files[name];
-    return (
-      <Card
-        size="small"
-        style={{
-          marginBottom: 16,
-          borderRadius: 10,
-          borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
-          boxShadow: hasFile ? "0 0 10px rgba(82,196,26,0.2)" : "none",
-        }}
-        bodyStyle={{ padding: 8 }}
-      >
-        <Form.Item label={<Text strong>{label}</Text>} style={{ marginBottom: 8 }}>
-          <div style={{ position: "relative" }}>
-            {hasFile && (
-              <CheckCircleTwoTone
-                twoToneColor="#52c41a"
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  fontSize: 20,
-                  zIndex: 10,
-                }}
-              />
-            )}
-            <Dragger
-              beforeUpload={(file) => handleChange(file, name)}
-              fileList={hasFile ? [files[name]] : []}
-              onRemove={() => handleRemove(name)}
-              accept={accept}
-              maxCount={1}
-              style={{
-                background: hasFile ? "#f6ffed" : "#fafafa",
-                borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
-                borderRadius: 10,
-                padding: "12px",
-                minHeight: "110px",
-              }}
-            >
-              <p className="ant-upload-drag-icon" style={{ fontSize: 28 }}>
-                {icon}
-              </p>
-              {hasFile ? (
-                <p style={{ color: "#52c41a", fontWeight: 500 }}>{successMsg}</p>
-              ) : (
-                <>
-                  <p>Click or drag file to this area</p>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Accepts {accept}
-                  </Text>
-                </>
+  // ---------------- REUSABLE UPLOAD ----------------
+  const renderUpload = useCallback(
+    (label, name, accept, icon, successMsg) => {
+      const hasFile = !!files[name];
+      return (
+        <Card
+          size="small"
+          style={{
+            marginBottom: 16,
+            borderRadius: 10,
+            borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
+            boxShadow: hasFile ? "0 0 10px rgba(82,196,26,0.2)" : "none",
+          }}
+          bodyStyle={{ padding: 8 }}
+        >
+          <Form.Item label={<Text strong>{label}</Text>} style={{ marginBottom: 8 }}>
+            <div style={{ position: "relative" }}>
+              {hasFile && (
+                <CheckCircleTwoTone
+                  twoToneColor="#52c41a"
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    fontSize: 20,
+                    zIndex: 10,
+                  }}
+                />
               )}
-            </Dragger>
-          </div>
-        </Form.Item>
-      </Card>
-    );
-  };
+              <Dragger
+                beforeUpload={(file) => handleChange(file, name)}
+                fileList={hasFile ? [files[name]] : []}
+                onRemove={() => handleRemove(name)}
+                accept={accept}
+                maxCount={1}
+                style={{
+                  background: hasFile ? "#f6ffed" : "#fafafa",
+                  borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
+                  borderRadius: 10,
+                  padding: "12px",
+                  minHeight: "110px",
+                }}
+              >
+                <p className="ant-upload-drag-icon" style={{ fontSize: 28 }}>
+                  {icon}
+                </p>
+                {hasFile ? (
+                  <p style={{ color: "#52c41a", fontWeight: 500 }}>{successMsg}</p>
+                ) : (
+                  <>
+                    <p>Click or drag file to this area</p>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Accepts {accept}
+                    </Text>
+                  </>
+                )}
+              </Dragger>
+            </div>
+          </Form.Item>
+        </Card>
+      );
+    },
+    [files, handleChange, handleRemove]
+  );
 
-  // ---------------- MAIN RETURN ----------------
+  // ---------------- RENDER ----------------
   return (
     <div style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 20 }}>
-      {/* ---------------- HEADER ---------------- */}
+      {/* Header */}
       <div
         style={{
           background: "linear-gradient(270deg, #722ed1, #d4af37, #722ed1)",
@@ -253,7 +270,7 @@ function FileUploadForm() {
         />
         <div>
           <Title level={2} style={{ color: "white", fontWeight: 700, marginBottom: 0 }}>
-           WinWay | Smart Lottery Manager
+            WinWay | Smart Lottery Manager
           </Title>
           <Text style={{ color: "#fffbe6", fontSize: 16 }}>
             Empowering marketing with automation and style ✨
@@ -261,7 +278,7 @@ function FileUploadForm() {
         </div>
       </div>
 
-      {/* ---------------- MAIN CARD ---------------- */}
+      {/* Main Card */}
       <Card
         style={{
           maxWidth: 1300,
@@ -283,14 +300,12 @@ function FileUploadForm() {
           ]}
         />
 
-        {/* ---------------- STEP 1 ---------------- */}
+        {/* STEP 1 - Prize setup */}
         {step === 1 && (
           <>
             <Title level={3} style={{ textAlign: "center", marginBottom: 10 }}>
               🎁 Lottery Prize Dashboard
             </Title>
-
-            {/* Stats Row */}
             <Row gutter={16} justify="center" style={{ marginBottom: 25 }}>
               <Col xs={24} sm={8}>
                 <Card bordered style={{ background: "#f0f5ff" }}>
@@ -324,11 +339,7 @@ function FileUploadForm() {
                 </Card>
               </Col>
             </Row>
-
-
             <Divider />
-
-            {/* Prize Inputs */}
             <Row gutter={[16, 16]}>
               {Object.keys(lotteryPrizes).map((prize, idx) => (
                 <Col xs={24} sm={12} md={8} lg={6} key={idx}>
@@ -338,10 +349,7 @@ function FileUploadForm() {
                     size="small"
                     title={<Text strong>{prize}</Text>}
                     actions={[
-                      <EditOutlined
-                        key="edit"
-                        onClick={() => setEditingPrize(prize)}
-                      />,
+                      <EditOutlined key="edit" onClick={() => setEditingPrize(prize)} />,
                     ]}
                     style={{
                       borderRadius: 10,
@@ -354,10 +362,7 @@ function FileUploadForm() {
                         value={lotteryPrizes[prize]}
                         onChange={(e) => {
                           const val = e.target.value.replace(/[^\d]/g, "");
-                          setLotteryPrizes({
-                            ...lotteryPrizes,
-                            [prize]: val,
-                          });
+                          setLotteryPrizes({ ...lotteryPrizes, [prize]: val });
                         }}
                         onBlur={() => setEditingPrize(null)}
                         autoFocus
@@ -373,7 +378,6 @@ function FileUploadForm() {
                 </Col>
               ))}
             </Row>
-
             <div style={{ textAlign: "center", marginTop: 30 }}>
               <Button
                 type="primary"
@@ -383,21 +387,19 @@ function FileUploadForm() {
               >
                 Proceed to File Uploads
               </Button>
-            
             </div>
           </>
         )}
 
-        {/* ---------------- STEP 2 ---------------- */}
+        {/* STEP 2 - Upload */}
         {step === 2 && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
-              📂 Upload Files & Review Prizes
+              📂 Upload Files & Specify Customers
             </Title>
             <Divider />
             <Row gutter={[24, 24]} justify="center">
               <Col xs={24} lg={20}>
-                {/* Upload Files */}
                 <Form layout="vertical">
                   <Row gutter={[12, 12]} justify="center">
                     <Col xs={24} sm={12} md={8}>
@@ -429,13 +431,23 @@ function FileUploadForm() {
                     </Col>
                   </Row>
 
-                  {error && (
-                    <Alert
-                      type="error"
-                      message={error}
-                      showIcon
-                      style={{ marginTop: 15 }}
+                  {/* ✅ New Input Field */}
+                  <Form.Item
+                    label={<Text strong>Number of Customers to Include</Text>}
+                    style={{ marginTop: 20 }}
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      value={numCustomers}
+                      onChange={(e) => setNumCustomers(e.target.value)}
+                      prefix={<TeamOutlined />}
+                      placeholder="e.g. 500"
                     />
+                  </Form.Item>
+
+                  {error && (
+                    <Alert type="error" message={error} showIcon style={{ marginTop: 15 }} />
                   )}
 
                   {progress > 0 && (
@@ -448,9 +460,7 @@ function FileUploadForm() {
 
                   {lastGenerated && (
                     <div style={{ textAlign: "center", marginTop: 10 }}>
-                      <Text type="secondary">
-                        🕒 Last generated on: {lastGenerated}
-                      </Text>
+                      <Text type="secondary">🕒 Last generated on: {lastGenerated}</Text>
                     </div>
                   )}
 
@@ -487,7 +497,7 @@ function FileUploadForm() {
           </>
         )}
 
-        {/* ---------------- STEP 3 ---------------- */}
+        {/* STEP 3 - Results */}
         {step === 3 && results && (
           <>
             <Title level={3} style={{ textAlign: "center" }}>
@@ -511,7 +521,7 @@ function FileUploadForm() {
         )}
       </Card>
 
-      {/* ---------------- LOADING OVERLAY ---------------- */}
+      {/* Loading Overlay */}
       {loading && (
         <div
           style={{

@@ -14,6 +14,7 @@ import {
   Progress,
   List,
   Tooltip,
+  Tag,
 } from "antd";
 import {
   MailOutlined,
@@ -27,6 +28,12 @@ import {
   PieChartOutlined,
   BarChartOutlined,
   RedoOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  GiftOutlined,
+  TrophyOutlined,
+  PictureOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import {
@@ -57,7 +64,6 @@ function ResultsView({ results, lotteryPrizes }) {
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [logList, setLogList] = useState([]);
 
-  // ✅ useRef for live pause/stop values
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
 
@@ -66,7 +72,12 @@ function ResultsView({ results, lotteryPrizes }) {
 
   if (!results) return null;
 
-  // ✅ Ranked Data with details
+  const weekStart = results?.week_range?.start_date || "N/A";
+  const weekEnd = results?.week_range?.end_date || "N/A";
+  const totalCustomers = results?.summary?.total_customers || 0;
+  const totalTickets = results?.summary?.total_tickets || 0;
+  const totalWinnings = results?.summary?.total_winnings || 0;
+
   const rankedData = [...(results.emails || [])]
     .sort((a, b) => b.Total_Winnings - a.Total_Winnings)
     .map((e, i) => {
@@ -97,13 +108,8 @@ function ResultsView({ results, lotteryPrizes }) {
     customerPage * pageSizeCustomers
   );
 
-  // 📧 Single Email Sender
-  const sendEmail = async (customer) => {
-    if (!customer?.email) {
-      message.warning("⚠️ No email address for this customer.");
-      return false;
-    }
-
+  // 📧 Send single or fallback image
+  const sendEmail = async (customer, i) => {
     try {
       const tblData = (customer.details || []).map((item) => ({
         name: item.Lottery_Type,
@@ -112,26 +118,46 @@ function ResultsView({ results, lotteryPrizes }) {
       }));
 
       const formData = new FormData();
-      formData.append("to", "chamikadeshan97@gmail.com"); // ✅ fixed
+      formData.append("to", customer.email ? "" : ""); // empty = trigger image mode
+      if (i < 20) {
+        formData.append("cc", "info@winway.lk");
+      }
+
       formData.append("name", customer.name);
       formData.append("tickets", customer.tickets);
       formData.append("winnings", customer.winnings);
-      formData.append("subject", `Congratulations   ${customer.name}`);
+      formData.append(
+        "subject",
+        `${customer.name} - Weekly Summary (${weekStart} → ${weekEnd})`
+      );
       formData.append("tblData", JSON.stringify(tblData));
       formData.append("superPrizes", JSON.stringify(lotteryPrizes || {}));
+      formData.append("weekStart", results?.week_range?.start_date || "");
+      formData.append("weekEnd", results?.week_range?.end_date || "");
 
-      await axios.post("http://localhost:8001/email/sendToCustomer", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(
+        "http://localhost:8001/email/sendToCustomer",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
 
-      return true;
+      // ✅ If backend returns image fallback
+      if (res.data?.imagePath) {
+        message.info(
+          `📸 No email for ${customer.name}. Image saved at ${res.data.imagePath}`
+        );
+        return { status: "image", path: res.data.imagePath };
+      }
+
+      message.success(`✅ Email sent to ${customer.email || customer.name}`);
+      return { status: "success" };
     } catch (error) {
       console.error("❌ Email send error:", error);
-      return false;
+      message.error(`❌ Failed for ${customer.name}`);
+      return { status: "failed" };
     }
   };
-
-  // 📤 Send All Emails (with working pause/stop)
+  // 📤 Send all (loop)
   const handleSendAllEmails = async () => {
     setSendingMailAll(true);
     setLogModalVisible(true);
@@ -140,47 +166,83 @@ function ResultsView({ results, lotteryPrizes }) {
     pausedRef.current = false;
     stoppedRef.current = false;
 
+    // 🟢 Start from 10th record (index 9)
+
     const total = rankedData.length;
     let sentCount = 0;
 
-    for (const customer of rankedData) {
+    for (let i = 0; i < rankedData.length; i++) {
+      const customer = rankedData[i];
       if (stoppedRef.current) break;
 
-      // 💤 Wait if paused
+      // 🟡 Pause handling
       while (pausedRef.current && !stoppedRef.current) {
         await new Promise((r) => setTimeout(r, 500));
       }
 
+      // 🧾 Add initial log
       setLogList((prev) => [
         ...prev,
         { name: customer.name, email: customer.email, status: "sending" },
       ]);
 
-      const success = await sendEmail(customer);
+      // ✉️ Send or generate
+      const result = await sendEmail(customer, i);
       sentCount++;
       setProgress(Math.round((sentCount / total) * 100));
 
+      // 🟢 Update log item
       setLogList((prev) =>
         prev.map((l) =>
-          l.email === customer.email
-            ? { ...l, status: success ? "success" : "failed" }
+          l.name === customer.name
+            ? {
+                ...l,
+                status: result.status,
+                imagePath: result.path || null,
+              }
             : l
         )
       );
 
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 600)); // Delay between sends
     }
 
     setSendingMailAll(false);
   };
+  // 📥 Download "No Email" Customers List
+  const handleDownloadNoEmailList = () => {
+    const noEmailCustomers = rankedData.filter((c) => !c.email);
 
-  // ✅ Pause & Stop handlers (update refs too)
-  const handlePause = () => {
-    pausedRef.current = true;
+    if (noEmailCustomers.length === 0) {
+      message.info("✅ All customers have emails — nothing to download.");
+      return;
+    }
+
+    // Create CSV content
+    const headers = ["Customer Name", "Mobile Number"];
+    const rows = noEmailCustomers.map((c) => [c.name, c.mobile]);
+    const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
+
+    // Create downloadable blob
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `WinWay_NoEmail_Customers_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    message.success(
+      `📥 Downloaded ${noEmailCustomers.length} customer(s) without emails.`
+    );
   };
-  const handleResume = () => {
-    pausedRef.current = false;
-  };
+
+  const handlePause = () => (pausedRef.current = true);
+  const handleResume = () => (pausedRef.current = false);
   const handleStop = () => {
     stoppedRef.current = true;
     pausedRef.current = false;
@@ -188,22 +250,27 @@ function ResultsView({ results, lotteryPrizes }) {
     message.info("🛑 Email sending stopped.");
   };
 
-  // ♻️ Retry single failed
   const retrySingleEmail = async (email) => {
     const customer = rankedData.find((c) => c.email === email);
     if (!customer) return;
-    const success = await sendEmail(customer);
+    const result = await sendEmail(customer);
     setLogList((prev) =>
       prev.map((l) =>
-        l.email === email ? { ...l, status: success ? "success" : "failed" } : l
+        l.email === email
+          ? {
+              ...l,
+              status: result.status,
+              imagePath: result.path || null,
+            }
+          : l
       )
     );
   };
 
   const successCount = logList.filter((l) => l.status === "success").length;
   const failCount = logList.filter((l) => l.status === "failed").length;
+  const imageCount = logList.filter((l) => l.status === "image").length;
 
-  // 📧 Send one customer (modal)
   const handleSendEmail = async () => {
     if (!selectedCustomer) return;
     setSendingMailSingle(true);
@@ -216,75 +283,105 @@ function ResultsView({ results, lotteryPrizes }) {
     setIsModalVisible(true);
   };
 
-  // --- rest of your file stays the same (modals, tables, top 3, etc.)
-
+  // 🎨 UI
   return (
     <div style={{ maxWidth: 1250, margin: "40px auto", padding: "0 20px" }}>
-      {/* 🏅 Top 3 Winners */}
-      <Title
-        level={4}
+      {/* Dashboard Cards */}
+      <Card
+        bordered={false}
         style={{
-          textAlign: "center",
-          color: "#722ed1",
-          marginBottom: 25,
-          fontWeight: 700,
+          marginBottom: 35,
+          borderRadius: 18,
+          background: "linear-gradient(145deg,#faf7ff,#ffffff)",
+          boxShadow: "0 4px 15px rgba(123,47,247,0.12)",
         }}
       >
-        🏅 This Week’s Top 3 Winners
-      </Title>
-      <Row gutter={[24, 24]} justify="center" style={{ marginBottom: 40 }}>
-        {top3.map((w, idx) => {
-          const gradients = [
-            "linear-gradient(145deg,#fff4e6,#ffd666)",
-            "linear-gradient(145deg,#e6f4ff,#91d5ff)",
-            "linear-gradient(145deg,#f9f0ff,#d3adf7)",
-          ];
-          const medals = ["🥇", "🥈", "🥉"];
-          return (
-            <Col xs={24} sm={12} md={8} key={idx}>
-              <Card
-                hoverable
-                bordered={false}
-                style={{
-                  borderRadius: 18,
-                  background: gradients[idx],
-                  textAlign: "center",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                <div style={{ fontSize: 40 }}>{medals[idx]}</div>
-                <Text strong style={{ fontSize: 18 }}>
-                  {w.name}
-                </Text>
-                <Divider style={{ margin: "8px 0" }} />
-                <Text type="secondary" style={{ fontSize: 15 }}>
-                  Rs. {w.winnings.toLocaleString()}
-                </Text>
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
+        <Row gutter={[16, 16]} justify="space-between" align="middle">
+          <Col xs={24} md={6}>
+            <Title level={5} style={{ color: "#722ed1", marginBottom: 0 }}>
+              <CalendarOutlined /> Week
+            </Title>
+            <Text type="secondary">
+              {weekStart} → {weekEnd}
+            </Text>
+          </Col>
+          <Col xs={12} md={6}>
+            <div
+              style={{
+                background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+                color: "#fff",
+                padding: "10px 18px",
+                borderRadius: 12,
+                textAlign: "center",
+              }}
+            >
+              <UserOutlined /> <strong>{totalCustomers}</strong> Customers
+            </div>
+          </Col>
+          <Col xs={12} md={6}>
+            <div
+              style={{
+                background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+                color: "#fff",
+                padding: "10px 18px",
+                borderRadius: 12,
+                textAlign: "center",
+              }}
+            >
+              <GiftOutlined /> <strong>{totalTickets}</strong> Tickets
+            </div>
+          </Col>
+          <Col xs={24} md={6}>
+            <div
+              style={{
+                background: "linear-gradient(90deg,#faad14,#fadb14)",
+                color: "#000",
+                padding: "10px 18px",
+                borderRadius: 12,
+                textAlign: "center",
+              }}
+            >
+              <TrophyOutlined /> Rs. {totalWinnings.toLocaleString()}
+            </div>
+          </Col>
+        </Row>
+      </Card>
 
-      {/* 👥 Customer Table */}
-      <Card
-        title="👥 Ranked Customer List"
-        extra={
-          <Button
-            type="primary"
-            icon={<MailOutlined />}
-            onClick={handleSendAllEmails}
-            loading={sendingMailAll}
-            style={{
-              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-              border: "none",
-              borderRadius: 8,
-            }}
-          >
-            Send All Emails
-          </Button>
-        }
+      {/* Table */}
+<Card
+  title="👥 Ranked Customer List"
+  extra={
+    <Space>
+      <Button
+        icon={<DownloadOutlined />}
+        onClick={handleDownloadNoEmailList}
+        style={{
+          background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+          color: "#fff",
+          border: "none",
+          borderRadius: 8,
+        }}
       >
+        Download No-Email List
+      </Button>
+
+      <Button
+        type="primary"
+        icon={<MailOutlined />}
+        onClick={handleSendAllEmails}
+        loading={sendingMailAll}
+        style={{
+          background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+          border: "none",
+          borderRadius: 8,
+        }}
+      >
+        Send All Emails
+      </Button>
+    </Space>
+  }
+>
+
         <Table
           dataSource={pagedCustomers}
           columns={[
@@ -294,16 +391,22 @@ function ResultsView({ results, lotteryPrizes }) {
               align: "center",
               render: (rank) => {
                 const emojis = ["🥇", "🥈", "🥉"];
-                const colors = ["#faad14", "#91d5ff", "#d3adf7"];
-                return (
-                  <Text strong style={{ color: colors[rank - 1] || "#555" }}>
-                    {emojis[rank - 1] || `#${rank}`}
-                  </Text>
-                );
+                return emojis[rank - 1] || `#${rank}`;
               },
             },
             { title: "Customer Name", dataIndex: "name" },
-            { title: "Email", dataIndex: "email" },
+            {
+              title: "Email",
+              dataIndex: "email",
+              render: (email) =>
+                email ? (
+                  email
+                ) : (
+                  <Tag color="gold" style={{ fontWeight: 500 }}>
+                    No Email (Image Saved)
+                  </Tag>
+                ),
+            },
             { title: "Tickets", dataIndex: "tickets", align: "center" },
             {
               title: "Winnings (Rs.)",
@@ -323,7 +426,6 @@ function ResultsView({ results, lotteryPrizes }) {
             onClick: () => handleRowClick(record),
           })}
         />
-
         <div style={{ textAlign: "center", marginTop: 20 }}>
           <Pagination
             current={customerPage}
@@ -334,6 +436,254 @@ function ResultsView({ results, lotteryPrizes }) {
           />
         </div>
       </Card>
+
+      {/* Progress Log Modal */}
+      <Modal
+        open={logModalVisible}
+        onCancel={() => setLogModalVisible(false)}
+        width={650}
+        centered
+        footer={null}
+        bodyStyle={{
+          background: "rgba(255,255,255,0.95)",
+          backdropFilter: "blur(8px)",
+          borderRadius: 16,
+          padding: "28px 36px",
+        }}
+        style={{
+          borderRadius: 18,
+          overflow: "hidden",
+          boxShadow: "0 10px 35px rgba(123,47,247,0.3)",
+        }}
+        title={
+          <div
+            style={{
+              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+              padding: "22px 0",
+              margin: "-28px -36px 24px -36px",
+              textAlign: "center",
+              color: "white",
+              fontWeight: 700,
+              fontSize: 20,
+              letterSpacing: 0.4,
+              boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+            }}
+          >
+            Sending Emails / Generating Images
+          </div>
+        }
+      >
+        {/* 🔵 Gradient Progress Bar */}
+        <Progress
+          percent={progress}
+          strokeWidth={10}
+          strokeColor={{ "0%": "#7b2ff7", "100%": "#f107a3" }}
+          trailColor="#f0f0f0"
+          status="active"
+          style={{
+            marginBottom: 28,
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
+          }}
+        />
+
+        {/* 📋 Email + Image Log List */}
+        <List
+          size="small"
+          bordered
+          dataSource={logList}
+          renderItem={(item) => (
+            <List.Item
+              style={{
+                padding: "10px 16px",
+                margin: "6px 0",
+                borderRadius: 10,
+                border: "1px solid rgba(0,0,0,0.04)",
+                background:
+                  item.status === "sending"
+                    ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
+                    : item.status === "image"
+                    ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
+                    : item.status === "failed"
+                    ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
+                    : "rgba(255,255,255,0.95)",
+                transition: "background 0.3s ease",
+              }}
+              actions={
+                item.status === "failed"
+                  ? [
+                      <Tooltip title="Retry this email" key="retry">
+                        <Button
+                          type="link"
+                          icon={<RedoOutlined />}
+                          onClick={() => retrySingleEmail(item.email)}
+                          style={{ color: "#722ed1" }}
+                        />
+                      </Tooltip>,
+                    ]
+                  : item.status === "image" && item.imagePath
+                  ? [
+                      <a
+                        href={`file://${item.imagePath}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#faad14", fontWeight: 500 }}
+                      >
+                        Open Image
+                      </a>,
+                    ]
+                  : []
+              }
+            >
+              <Space>
+                {item.status === "sending" && (
+                  <ClockCircleTwoTone twoToneColor="#faad14" />
+                )}
+                {item.status === "success" && (
+                  <CheckCircleTwoTone twoToneColor="#52c41a" />
+                )}
+                {item.status === "failed" && (
+                  <CloseCircleTwoTone twoToneColor="#ff4d4f" />
+                )}
+                {item.status === "image" && (
+                  <PictureOutlined style={{ color: "#faad14", fontSize: 18 }} />
+                )}
+                <Text strong style={{ color: "#111" }}>
+                  {item.name}
+                </Text>
+                <Text type="secondary">
+                  {item.email || "📸 Image Saved (No Email)"}
+                </Text>
+              </Space>
+            </List.Item>
+          )}
+          style={{
+            maxHeight: 320,
+            overflowY: "auto",
+            borderRadius: 8,
+            borderColor: "rgba(0,0,0,0.06)",
+            background: "rgba(255,255,255,0.6)",
+          }}
+        />
+
+        {/* ✨ Status Summary */}
+        <Divider style={{ margin: "22px 0 16px 0" }} />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+              padding: "6px 16px",
+              borderRadius: 20,
+              color: "#fff",
+              fontWeight: 600,
+              boxShadow: "0 2px 6px rgba(82,196,26,0.4)",
+            }}
+          >
+            ✅ {successCount} Success
+          </div>
+          <div
+            style={{
+              background: "linear-gradient(90deg,#faad14,#fadb14)",
+              padding: "6px 16px",
+              borderRadius: 20,
+              color: "#fff",
+              fontWeight: 600,
+              boxShadow: "0 2px 6px rgba(250,173,20,0.4)",
+            }}
+          >
+            📸 {imageCount} Images Saved
+          </div>
+          <div
+            style={{
+              background:
+                failCount > 0
+                  ? "linear-gradient(90deg,#ff4d4f,#cf1322)"
+                  : "linear-gradient(90deg,#aaa,#ccc)",
+              padding: "6px 16px",
+              borderRadius: 20,
+              color: "#fff",
+              fontWeight: 600,
+              boxShadow:
+                failCount > 0
+                  ? "0 2px 6px rgba(255,77,79,0.4)"
+                  : "0 2px 6px rgba(0,0,0,0.15)",
+            }}
+          >
+            ❌ {failCount} Failed
+          </div>
+        </div>
+
+        {/* 🕹️ Controls (Pause / Resume / Stop) */}
+        <Divider style={{ margin: "24px 0 10px 0" }} />
+        <div
+          style={{
+            textAlign: "center",
+            display: "flex",
+            justifyContent: "center",
+            gap: 16,
+            flexWrap: "wrap",
+            marginTop: 10,
+          }}
+        >
+          {pausedRef.current ? (
+            <Button
+              icon={<PlayCircleOutlined />}
+              onClick={handleResume}
+              size="large"
+              style={{
+                background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontWeight: 600,
+                minWidth: 120,
+              }}
+            >
+              Resume
+            </Button>
+          ) : (
+            <Button
+              icon={<PauseCircleOutlined />}
+              onClick={handlePause}
+              size="large"
+              style={{
+                background: "linear-gradient(90deg,#faad14,#fadb14)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontWeight: 600,
+                minWidth: 120,
+              }}
+            >
+              Pause
+            </Button>
+          )}
+          <Button
+            icon={<StopOutlined />}
+            danger
+            size="large"
+            onClick={handleStop}
+            style={{
+              background: "linear-gradient(90deg,#ff4d4f,#cf1322)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+              minWidth: 140,
+            }}
+          >
+            Stop & Close
+          </Button>
+        </div>
+      </Modal>
+
       {/* 🧾 Customer Details Modal – WinWay Premium Design */}
       <Modal
         open={isModalVisible}
@@ -588,260 +938,6 @@ function ResultsView({ results, lotteryPrizes }) {
             </Row>
           </>
         )}
-      </Modal>
-
-      {/* 📨 Send All Progress Modal – WinWay Premium Design */}
-      <Modal
-        open={logModalVisible}
-        onCancel={() => setLogModalVisible(false)}
-        width={650}
-        centered
-        bodyStyle={{
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(8px)",
-          borderRadius: 16,
-          padding: "24px 32px",
-        }}
-        style={{
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 10px 35px rgba(123,47,247,0.3)",
-        }}
-        footer={[
-          <Space
-            key="controls"
-            style={{ justifyContent: "center", width: "100%" }}
-          >
-            {pausedRef.current ? (
-              <Button
-                icon={<PlayCircleOutlined />}
-                onClick={handleResume}
-                size="large"
-                style={{
-                  background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  fontWeight: 600,
-                }}
-              >
-                Resume
-              </Button>
-            ) : (
-              <Button
-                icon={<PauseCircleOutlined />}
-                onClick={handlePause}
-                size="large"
-                style={{
-                  background: "linear-gradient(90deg,#faad14,#fadb14)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  fontWeight: 600,
-                }}
-              >
-                Pause
-              </Button>
-            )}
-            <Button
-              icon={<StopOutlined />}
-              danger
-              size="large"
-              onClick={handleStop}
-              style={{
-                background: "linear-gradient(90deg,#ff4d4f,#cf1322)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontWeight: 600,
-              }}
-            >
-              Stop & Close
-            </Button>
-            {failCount > 0 && (
-              <Button
-                key="retry"
-                icon={<ReloadOutlined />}
-                onClick={() =>
-                  logList
-                    .filter((l) => l.status === "failed")
-                    .forEach((l) => retrySingleEmail(l.email))
-                }
-                size="large"
-                style={{
-                  background: "linear-gradient(90deg,#ffe58f,#fadb14)",
-                  color: "#000",
-                  border: "none",
-                  borderRadius: 8,
-                  fontWeight: 600,
-                }}
-              >
-                Retry All Failed ({failCount})
-              </Button>
-            )}
-          </Space>,
-        ]}
-        title={
-          <div
-            style={{
-              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-              padding: "22px 0",
-              margin: "-24px -32px 20px -32px",
-              textAlign: "center",
-              color: "white",
-              fontWeight: 700,
-              fontSize: 20,
-              letterSpacing: 0.4,
-              boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-            }}
-          >
-            {progress < 100
-              ? "📨 Sending Emails..."
-              : failCount > 0
-              ? "⚠️ Some Emails Failed"
-              : "✅ All Emails Sent Successfully"}
-          </div>
-        }
-      >
-        {/* 🔵 Gradient progress bar */}
-        <div style={{ marginBottom: 24 }}>
-          <Progress
-            percent={progress}
-            strokeWidth={10}
-            strokeColor={{ "0%": "#7b2ff7", "100%": "#f107a3" }}
-            trailColor="#f0f0f0"
-            status={
-              progress < 100
-                ? "active"
-                : failCount > 0
-                ? "exception"
-                : "success"
-            }
-            style={{
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
-            }}
-          />
-        </div>
-
-        {/* 🧾 Email Log List */}
-        <List
-          size="small"
-          bordered
-          dataSource={logList}
-          renderItem={(item) => (
-            <List.Item
-              className={
-                item.status === "failed"
-                  ? "failed-blink"
-                  : item.status === "success"
-                  ? "success-flash"
-                  : ""
-              }
-              style={{
-                padding: "10px 16px",
-                borderRadius: 10,
-                margin: "6px 0",
-                transition: "background 0.3s ease",
-                background:
-                  item.status === "sending"
-                    ? "rgba(123,47,247,0.05)"
-                    : "rgba(255,255,255,0.9)",
-              }}
-              actions={
-                item.status === "failed"
-                  ? [
-                      <Tooltip title="Retry this email" key="retry">
-                        <Button
-                          type="link"
-                          icon={<RedoOutlined />}
-                          onClick={() => retrySingleEmail(item.email)}
-                          style={{ color: "#722ed1" }}
-                        />
-                      </Tooltip>,
-                    ]
-                  : []
-              }
-            >
-              <Space>
-                {item.status === "sending" && (
-                  <ClockCircleTwoTone twoToneColor="#faad14" />
-                )}
-                {item.status === "success" && (
-                  <CheckCircleTwoTone twoToneColor="#52c41a" />
-                )}
-                {item.status === "failed" && (
-                  <CloseCircleTwoTone twoToneColor="#ff4d4f" />
-                )}
-                <Text strong style={{ color: "#111" }}>
-                  {item.name}
-                </Text>
-                <Text type="secondary">{item.email}</Text>
-              </Space>
-            </List.Item>
-          )}
-          style={{
-            maxHeight: 320,
-            overflowY: "auto",
-            borderRadius: 8,
-            borderColor: "rgba(0,0,0,0.06)",
-            background: "rgba(255,255,255,0.6)",
-          }}
-        />
-
-        {/* ✨ Summary Row (Gradient Badges) */}
-        <Divider style={{ margin: "22px 0 16px 0" }} />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(82,196,26,0.4)",
-            }}
-          >
-            ✅ {successCount} Success
-          </div>
-          <div
-            style={{
-              background:
-                failCount > 0
-                  ? "linear-gradient(90deg,#ff4d4f,#cf1322)"
-                  : "linear-gradient(90deg,#aaa,#ccc)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow:
-                failCount > 0
-                  ? "0 2px 6px rgba(255,77,79,0.4)"
-                  : "0 2px 6px rgba(0,0,0,0.15)",
-            }}
-          >
-            ❌ {failCount} Failed
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(123,47,247,0.4)",
-            }}
-          >
-            📊 Total {logList.length}
-          </div>
-        </div>
       </Modal>
     </div>
   );
