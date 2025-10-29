@@ -45,15 +45,19 @@ function FileUploadForm() {
   const [files, setFiles] = useState({});
   const [lotteryPrizes, setLotteryPrizes] = useState({
     "Ada Sampatha": "250000",
-    "Dhana Nidhanaya": "128106060",
-    Govisetha: "65826538",
-    Handahana: "3634057",
-    "Mahajana Sampatha": "36994984",
-    "Mega Power": "164006696",
+    "Dhana Nidhanaya": "130748295",
+    Govisetha: "68028793",
+    Handahana: "3232097",
+    "Mahajana Sampatha": "40278736",
+    "Mega Power": "165514392",
     "NLB Jaya": "500000",
     "Suba Dawasak": "500000",
   });
   const [numCustomers, setNumCustomers] = useState(""); // ✅ New input
+
+  const [min_val, setMinValue] = useState("0"); // ✅ New input
+
+  const [max_val, setMaxValue] = useState("10000"); // ✅ New input
   const [editingPrize, setEditingPrize] = useState(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -146,6 +150,8 @@ function FileUploadForm() {
     Object.entries(files).forEach(([key, file]) => formData.append(key, file));
     formData.append("lottery_prizes", JSON.stringify(lotteryPrizes));
     formData.append("num_customers", numCustomers); // ✅ Added
+    formData.append("min_val", min_val); // ✅ Added
+    formData.append("max_val", max_val); // ✅ Added
 
     try {
       setLoading(true);
@@ -188,7 +194,10 @@ function FileUploadForm() {
           }}
           bodyStyle={{ padding: 8 }}
         >
-          <Form.Item label={<Text strong>{label}</Text>} style={{ marginBottom: 8 }}>
+          <Form.Item
+            label={<Text strong>{label}</Text>}
+            style={{ marginBottom: 8 }}
+          >
             <div style={{ position: "relative" }}>
               {hasFile && (
                 <CheckCircleTwoTone
@@ -220,7 +229,9 @@ function FileUploadForm() {
                   {icon}
                 </p>
                 {hasFile ? (
-                  <p style={{ color: "#52c41a", fontWeight: 500 }}>{successMsg}</p>
+                  <p style={{ color: "#52c41a", fontWeight: 500 }}>
+                    {successMsg}
+                  </p>
                 ) : (
                   <>
                     <p>Click or drag file to this area</p>
@@ -240,311 +251,293 @@ function FileUploadForm() {
 
   // ---------------- RENDER ----------------
   return (
-    <div style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 20 }}>
-      {/* Header */}
-      <div
-        style={{
-          background: "linear-gradient(270deg, #722ed1, #d4af37, #722ed1)",
-          backgroundSize: "400% 400%",
-          animation: "gradientMove 10s ease infinite",
-          padding: "25px 40px",
-          borderRadius: "0 0 25px 25px",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-          color: "white",
-          marginBottom: 35,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "20px",
-          flexWrap: "wrap",
-        }}
-      >
-        <img
-          src={logo}
-          alt="WinWay Logo"
-          style={{
-            width: "clamp(90px, 12vw, 150px)",
-            height: "auto",
-            filter: "drop-shadow(0 0 5px rgba(255,255,255,0.7))",
-          }}
-        />
-        <div>
-          <Title level={2} style={{ color: "white", fontWeight: 700, marginBottom: 0 }}>
-            WinWay | Smart Lottery Manager
+    <>
+      {/* STEP 1 - Prize setup */}
+      {step === 1 && (
+        <>
+          <Spin
+            spinning={loading}
+            indicator={<LoadingOutlined spin />}
+            tip="Processing..."
+          />
+          <Title level={3} style={{ textAlign: "left" }}>
+            Update Lottery Super Prizes
           </Title>
-          <Text style={{ color: "#fffbe6", fontSize: 16 }}>
-            Empowering marketing with automation and style ✨
-          </Text>
-        </div>
-      </div>
+          <Divider />
+          <Row gutter={16} justify="center" style={{ marginBottom: 10 }}>
+            <Col xs={24} sm={8}>
+              <Card bordered style={{ background: "#f0f5ff" }}>
+                <Statistic
+                  title="Total Prize Pool"
+                  value={totalPrizePool.toLocaleString()}
+                  prefix="Rs."
+                  valueStyle={{ color: "#1890ff" }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card bordered style={{ background: "#fff7e6" }}>
+                <Statistic
+                  title="Highest Prize"
+                  value={maxPrize.toLocaleString()}
+                  prefix="Rs."
+                  valueStyle={{ color: "#fa8c16" }}
+                  suffix={<CrownOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card bordered style={{ background: "#f6ffed" }}>
+                <Statistic
+                  title="Total Lotteries"
+                  value={Object.keys(lotteryPrizes).length}
+                  valueStyle={{ color: "#52c41a" }}
+                  prefix={<GiftOutlined />}
+                />
+              </Card>
+            </Col>
+          </Row>
+          <Divider />
+          <Row gutter={[16, 16]}>
+            {Object.keys(lotteryPrizes).map((prize, idx) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={idx}>
+                <Card
+                  hoverable
+                  bordered
+                  size="small"
+                  title={<Text strong>{prize}</Text>}
+                  actions={[
+                    <EditOutlined
+                      key="edit"
+                      onClick={() => setEditingPrize(prize)}
+                    />,
+                  ]}
+                  style={{
+                    borderRadius: 10,
+                    textAlign: "center",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  {editingPrize === prize ? (
+                    <Input
+                      value={lotteryPrizes[prize]}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^\d]/g, "");
+                        setLotteryPrizes({ ...lotteryPrizes, [prize]: val });
+                      }}
+                      onBlur={() => setEditingPrize(null)}
+                      autoFocus
+                    />
+                  ) : (
+                    <Statistic
+                      prefix="Rs."
+                      value={parseInt(lotteryPrizes[prize]).toLocaleString()}
+                      valueStyle={{ fontSize: 18 }}
+                    />
+                  )}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          <div style={{ textAlign: "center", marginTop: 30 }}>
+            <Button
+              type="primary"
+              size="large"
+              icon={<ArrowRightOutlined />}
+              onClick={handleNextFromPrizes}
+            >
+              Proceed to File Uploads
+            </Button>
+          </div>
+        </>
+      )}
 
-      {/* Main Card */}
-      <Card
-        style={{
-          maxWidth: 1300,
-          margin: "0 auto",
-          padding: "30px",
-          borderRadius: 12,
-          boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
-        }}
-        bordered
-      >
-        <Steps
-          current={step - 1}
-          status={step === 3 ? "finish" : "process"}
-          style={{ marginBottom: 40 }}
-          items={[
-            { title: "Prize Setup", icon: <GiftOutlined /> },
-            { title: "File Uploads", icon: <InboxOutlined /> },
-            { title: "Results Dashboard", icon: <EyeOutlined /> },
-          ]}
-        />
+      {/* STEP 2 - Upload */}
+      {step === 2 && (
+        <>
+          <div style={{ position: "relative" }}>
+            <Spin
+              spinning={loading}
+              indicator={<LoadingOutlined spin />}
+              tip="Processing..."
+            >
+              <Title level={3} style={{ textAlign: "left" }}>
+                Upload Files & Specify Customers
+              </Title>
 
-        {/* STEP 1 - Prize setup */}
-        {step === 1 && (
-          <>
-            <Title level={3} style={{ textAlign: "center", marginBottom: 10 }}>
-              🎁 Lottery Prize Dashboard
-            </Title>
-            <Row gutter={16} justify="center" style={{ marginBottom: 25 }}>
-              <Col xs={24} sm={8}>
-                <Card bordered style={{ background: "#f0f5ff" }}>
-                  <Statistic
-                    title="Total Prize Pool"
-                    value={totalPrizePool.toLocaleString()}
-                    prefix="Rs."
-                    valueStyle={{ color: "#1890ff" }}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} sm={8}>
-                <Card bordered style={{ background: "#fff7e6" }}>
-                  <Statistic
-                    title="Highest Prize"
-                    value={maxPrize.toLocaleString()}
-                    prefix="Rs."
-                    valueStyle={{ color: "#fa8c16" }}
-                    suffix={<CrownOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} sm={8}>
-                <Card bordered style={{ background: "#f6ffed" }}>
-                  <Statistic
-                    title="Total Lotteries"
-                    value={Object.keys(lotteryPrizes).length}
-                    valueStyle={{ color: "#52c41a" }}
-                    prefix={<GiftOutlined />}
-                  />
-                </Card>
-              </Col>
-            </Row>
-            <Divider />
-            <Row gutter={[16, 16]}>
-              {Object.keys(lotteryPrizes).map((prize, idx) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={idx}>
-                  <Card
-                    hoverable
-                    bordered
-                    size="small"
-                    title={<Text strong>{prize}</Text>}
-                    actions={[
-                      <EditOutlined key="edit" onClick={() => setEditingPrize(prize)} />,
-                    ]}
-                    style={{
-                      borderRadius: 10,
-                      textAlign: "center",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-                    }}
-                  >
-                    {editingPrize === prize ? (
-                      <Input
-                        value={lotteryPrizes[prize]}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^\d]/g, "");
-                          setLotteryPrizes({ ...lotteryPrizes, [prize]: val });
-                        }}
-                        onBlur={() => setEditingPrize(null)}
-                        autoFocus
-                      />
-                    ) : (
-                      <Statistic
-                        prefix="Rs."
-                        value={parseInt(lotteryPrizes[prize]).toLocaleString()}
-                        valueStyle={{ fontSize: 18 }}
+              <Divider />
+              <Row gutter={[24, 24]} justify="center">
+                <Col xs={24} lg={20}>
+                  <Form layout="vertical">
+                    <Row gutter={[12, 12]} justify="center">
+                      <Col xs={24} sm={12} md={8}>
+                        {renderUpload(
+                          "Ticket Sales (.zip)",
+                          "ticket_sales",
+                          ".zip",
+                          <FileZipOutlined style={{ color: "#1890ff" }} />,
+                          "Ticket Sales attached"
+                        )}
+                      </Col>
+                      <Col xs={24} sm={12} md={8}>
+                        {renderUpload(
+                          "Prize Data (.zip)",
+                          "prizes",
+                          ".zip",
+                          <FileZipOutlined style={{ color: "#722ed1" }} />,
+                          "Prize Data attached"
+                        )}
+                      </Col>
+                      <Col xs={24} sm={12} md={8}>
+                        {renderUpload(
+                          "Customers (.csv)",
+                          "customers",
+                          ".csv",
+                          <FileTextOutlined style={{ color: "#fa8c16" }} />,
+                          "Customer list attached"
+                        )}
+                      </Col>
+                    </Row>
+
+                    {/* ✅ New Input Field */}
+                    <Row gutter={[12, 12]} justify="center">
+                      <Col xs={24} sm={12} md={8}>
+                        <Form.Item
+                          label={
+                            <Text strong>Number of Customers to Include</Text>
+                          }
+                          style={{ marginTop: 20 }}
+                        >
+                          <Input
+                            type="number"
+                            min={1}
+                            value={numCustomers}
+                            onChange={(e) => setNumCustomers(e.target.value)}
+                            prefix={<TeamOutlined />}
+                            placeholder="e.g. 500"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12} md={8}>
+                        <Form.Item
+                          label={<Text strong>Minimum of Tickets</Text>}
+                          style={{ marginTop: 20 }}
+                        >
+                          <Input
+                            type="number"
+                            min={1}
+                            value={min_val}
+                            onChange={(e) => setMinValue(e.target.value)}
+                            prefix={<TeamOutlined />}
+                            placeholder="e.g. 500"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12} md={8}>
+                        <Form.Item
+                          label={<Text strong>Maximum of Tickets</Text>}
+                          style={{ marginTop: 20 }}
+                        >
+                          <Input
+                            type="number"
+                            min={1}
+                            value={max_val}
+                            onChange={(e) => setMaxValue(e.target.value)}
+                            prefix={<TeamOutlined />}
+                            placeholder="e.g. 500"
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    {error && (
+                      <Alert
+                        type="error"
+                        message={error}
+                        showIcon
+                        style={{ marginTop: 15 }}
                       />
                     )}
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-            <div style={{ textAlign: "center", marginTop: 30 }}>
-              <Button
-                type="primary"
-                size="large"
-                icon={<ArrowRightOutlined />}
-                onClick={handleNextFromPrizes}
-              >
-                Proceed to File Uploads
-              </Button>
-            </div>
-          </>
-        )}
 
-        {/* STEP 2 - Upload */}
-        {step === 2 && (
-          <>
-            <Title level={3} style={{ textAlign: "center" }}>
-              📂 Upload Files & Specify Customers
-            </Title>
-            <Divider />
-            <Row gutter={[24, 24]} justify="center">
-              <Col xs={24} lg={20}>
-                <Form layout="vertical">
-                  <Row gutter={[12, 12]} justify="center">
-                    <Col xs={24} sm={12} md={8}>
-                      {renderUpload(
-                        "Ticket Sales (.zip)",
-                        "ticket_sales",
-                        ".zip",
-                        <FileZipOutlined style={{ color: "#1890ff" }} />,
-                        "Ticket Sales attached"
-                      )}
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      {renderUpload(
-                        "Prize Data (.zip)",
-                        "prizes",
-                        ".zip",
-                        <FileZipOutlined style={{ color: "#722ed1" }} />,
-                        "Prize Data attached"
-                      )}
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      {renderUpload(
-                        "Customers (.csv)",
-                        "customers",
-                        ".csv",
-                        <FileTextOutlined style={{ color: "#fa8c16" }} />,
-                        "Customer list attached"
-                      )}
-                    </Col>
-                  </Row>
+                    {progress > 0 && (
+                      <Progress
+                        percent={progress}
+                        status={loading ? "active" : "normal"}
+                        style={{ marginTop: 20 }}
+                      />
+                    )}
 
-                  {/* ✅ New Input Field */}
-                  <Form.Item
-                    label={<Text strong>Number of Customers to Include</Text>}
-                    style={{ marginTop: 20 }}
-                  >
-                    <Input
-                      type="number"
-                      min={1}
-                      value={numCustomers}
-                      onChange={(e) => setNumCustomers(e.target.value)}
-                      prefix={<TeamOutlined />}
-                      placeholder="e.g. 500"
-                    />
-                  </Form.Item>
+                    {lastGenerated && (
+                      <div style={{ textAlign: "center", marginTop: 10 }}>
+                        <Text type="secondary">
+                          🕒 Last generated on: {lastGenerated}
+                        </Text>
+                      </div>
+                    )}
 
-                  {error && (
-                    <Alert type="error" message={error} showIcon style={{ marginTop: 15 }} />
-                  )}
-
-                  {progress > 0 && (
-                    <Progress
-                      percent={progress}
-                      status={loading ? "active" : "normal"}
-                      style={{ marginTop: 20 }}
-                    />
-                  )}
-
-                  {lastGenerated && (
-                    <div style={{ textAlign: "center", marginTop: 10 }}>
-                      <Text type="secondary">🕒 Last generated on: {lastGenerated}</Text>
+                    <div style={{ textAlign: "center", marginTop: 30 }}>
+                      <Button
+                        icon={<ArrowLeftOutlined />}
+                        onClick={() => setStep(1)}
+                        style={{ marginRight: 10 }}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        type="primary"
+                        size="large"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        style={{ marginRight: 10 }}
+                      >
+                        {loading ? (
+                          <>
+                            <LoadingOutlined /> Generating...
+                          </>
+                        ) : (
+                          "Generate Emails"
+                        )}
+                      </Button>
+                      <Button
+                        icon={<ReloadOutlined />}
+                        danger
+                        onClick={handleReset}
+                      >
+                        Reset
+                      </Button>
                     </div>
-                  )}
-
-                  <div style={{ textAlign: "center", marginTop: 30 }}>
-                    <Button
-                      icon={<ArrowLeftOutlined />}
-                      onClick={() => setStep(1)}
-                      style={{ marginRight: 10 }}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="primary"
-                      size="large"
-                      onClick={handleSubmit}
-                      disabled={loading}
-                      style={{ marginRight: 10 }}
-                    >
-                      {loading ? (
-                        <>
-                          <LoadingOutlined /> Generating...
-                        </>
-                      ) : (
-                        "Generate Emails"
-                      )}
-                    </Button>
-                    <Button icon={<ReloadOutlined />} danger onClick={handleReset}>
-                      Reset
-                    </Button>
-                  </div>
-                </Form>
-              </Col>
-            </Row>
-          </>
-        )}
-
-        {/* STEP 3 - Results */}
-        {step === 3 && results && (
-          <>
-            <Title level={3} style={{ textAlign: "center" }}>
-              📊 Results
-            </Title>
-            <Divider />
-            <ResultsView results={results} lotteryPrizes={lotteryPrizes} />
-            <div style={{ textAlign: "center", marginTop: 25 }}>
-              <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => setStep(2)}
-                style={{ marginRight: 10 }}
-              >
-                Back to Uploads
-              </Button>
-              <Button type="primary" onClick={handleReset}>
-                Start Over
-              </Button>
-            </div>
-          </>
-        )}
-      </Card>
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(255,255,255,0.8)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            zIndex: 9999,
-          }}
-        >
-          <Spin size="large" />
-          <Text strong style={{ marginTop: 20, color: "#722ed1" }}>
-            Generating personalized emails... ✨
-          </Text>
-        </div>
+                  </Form>
+                </Col>
+              </Row>
+            </Spin>
+          </div>
+        </>
       )}
-    </div>
+
+      {/* STEP 3 - Results */}
+      {step === 3 && results && (
+        <>
+          <Title level={3} style={{ textAlign: "left" }}>
+            Results
+          </Title>
+
+          <Divider />
+          <ResultsView results={results} lotteryPrizes={lotteryPrizes} />
+          <div style={{ textAlign: "center", marginTop: 25 }}>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => setStep(2)}
+              style={{ marginRight: 10 }}
+            >
+              Back to Uploads
+            </Button>
+            <Button type="primary" onClick={handleReset}>
+              Start Over
+            </Button>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 

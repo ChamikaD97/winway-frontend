@@ -10,15 +10,22 @@
     "@testing-library/user-event": "^13.5.0",
     "antd": "^5.27.4",
     "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "downloadjs": "^1.4.7",
     "emailjs-com": "^3.2.0",
+    "file-saver": "^2.0.5",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
+    "jwt-decode": "^4.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.4",
     "react-scripts": "5.0.1",
     "recharts": "^3.2.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

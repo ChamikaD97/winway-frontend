@@ -15,6 +15,8 @@ import {
   List,
   Tooltip,
   Tag,
+  Input,
+  Statistic,
 } from "antd";
 import {
   MailOutlined,
@@ -34,6 +36,12 @@ import {
   TrophyOutlined,
   PictureOutlined,
   DownloadOutlined,
+  CrownOutlined,
+  TeamOutlined,
+  SearchOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import {
@@ -49,6 +57,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import Search from "antd/es/transfer/search";
 
 const { Title, Text } = Typography;
 
@@ -57,15 +66,16 @@ function ResultsView({ results, lotteryPrizes }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [chartType, setChartType] = useState("pie");
-
   const [sendingMailAll, setSendingMailAll] = useState(false);
   const [sendingMailSingle, setSendingMailSingle] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [logList, setLogList] = useState([]);
+  const [searchText, setSearchText] = useState(""); // 🔍 Search bar state
 
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
 
   const pageSizeCustomers = 5;
   const COLORS = ["#1890ff", "#52c41a", "#faad14", "#722ed1", "#eb2f96"];
@@ -102,13 +112,22 @@ function ResultsView({ results, lotteryPrizes }) {
       };
     });
 
-  const top3 = rankedData.slice(0, 3);
-  const pagedCustomers = rankedData.slice(
-    (customerPage - 1) * pageSizeCustomers,
-    customerPage * pageSizeCustomers
+  // 🔍 Filter data based on search text
+  const filteredCustomers = rankedData.filter((c) => {
+    const query = searchText.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(query) ||
+      (c.email && c.email.toLowerCase().includes(query)) ||
+      (c.mobile && c.mobile.toLowerCase().includes(query))
+    );
+  });
+
+  const pagedCustomers = filteredCustomers.slice(
+    (customerPage - 1) * pagination.pageSize,
+    customerPage * pagination.pageSize
   );
 
-  // 📧 Send single or fallback image
+  // 📧 Send email logic
   const sendEmail = async (customer, i) => {
     try {
       const tblData = (customer.details || []).map((item) => ({
@@ -118,9 +137,9 @@ function ResultsView({ results, lotteryPrizes }) {
       }));
 
       const formData = new FormData();
-      formData.append("to", customer.email ? "" : ""); // empty = trigger image mode
+      formData.append("to", customer.email ? "" : "");
       if (i < 20) {
-        formData.append("cc", "info@winway.lk");
+        //  formData.append("cc", "info@winway.lk");
       }
 
       formData.append("name", customer.name);
@@ -141,7 +160,6 @@ function ResultsView({ results, lotteryPrizes }) {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      // ✅ If backend returns image fallback
       if (res.data?.imagePath) {
         message.info(
           `📸 No email for ${customer.name}. Image saved at ${res.data.imagePath}`
@@ -157,7 +175,8 @@ function ResultsView({ results, lotteryPrizes }) {
       return { status: "failed" };
     }
   };
-  // 📤 Send all (loop)
+
+  // 📤 Send all emails
   const handleSendAllEmails = async () => {
     setSendingMailAll(true);
     setLogModalVisible(true);
@@ -166,8 +185,6 @@ function ResultsView({ results, lotteryPrizes }) {
     pausedRef.current = false;
     stoppedRef.current = false;
 
-    // 🟢 Start from 10th record (index 9)
-
     const total = rankedData.length;
     let sentCount = 0;
 
@@ -175,41 +192,33 @@ function ResultsView({ results, lotteryPrizes }) {
       const customer = rankedData[i];
       if (stoppedRef.current) break;
 
-      // 🟡 Pause handling
       while (pausedRef.current && !stoppedRef.current) {
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // 🧾 Add initial log
       setLogList((prev) => [
         ...prev,
         { name: customer.name, email: customer.email, status: "sending" },
       ]);
 
-      // ✉️ Send or generate
       const result = await sendEmail(customer, i);
       sentCount++;
       setProgress(Math.round((sentCount / total) * 100));
 
-      // 🟢 Update log item
       setLogList((prev) =>
         prev.map((l) =>
           l.name === customer.name
-            ? {
-                ...l,
-                status: result.status,
-                imagePath: result.path || null,
-              }
+            ? { ...l, status: result.status, imagePath: result.path || null }
             : l
         )
       );
 
-      await new Promise((r) => setTimeout(r, 600)); // Delay between sends
+      await new Promise((r) => setTimeout(r, 600));
     }
 
     setSendingMailAll(false);
   };
-  // 📥 Download "No Email" Customers List
+
   const handleDownloadNoEmailList = () => {
     const noEmailCustomers = rankedData.filter((c) => !c.email);
 
@@ -218,12 +227,10 @@ function ResultsView({ results, lotteryPrizes }) {
       return;
     }
 
-    // Create CSV content
     const headers = ["Customer Name", "Mobile Number"];
     const rows = noEmailCustomers.map((c) => [c.name, c.mobile]);
     const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
 
-    // Create downloadable blob
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -257,11 +264,7 @@ function ResultsView({ results, lotteryPrizes }) {
     setLogList((prev) =>
       prev.map((l) =>
         l.email === email
-          ? {
-              ...l,
-              status: result.status,
-              imagePath: result.path || null,
-            }
+          ? { ...l, status: result.status, imagePath: result.path || null }
           : l
       )
     );
@@ -285,157 +288,176 @@ function ResultsView({ results, lotteryPrizes }) {
 
   // 🎨 UI
   return (
-    <div style={{ maxWidth: 1250, margin: "40px auto", padding: "0 20px" }}>
-      {/* Dashboard Cards */}
-      <Card
-        bordered={false}
+    <div style={{ maxWidth: 1250 }}>
+
+
+<Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+  {/* 📅 Week */}
+  <Col xs={24} md={8}>
+    <Card>
+      <Statistic
+        title="Week"
+        prefix={<CalendarOutlined style={{ color: "#7b2ff7" }} />} // Violet
+        value={`${weekStart} → ${weekEnd}`}
+        valueStyle={{ color: "#7b2ff7", fontWeight: 600 }}
+      />
+    </Card>
+  </Col>
+
+  {/* 👥 Total Customers */}
+  <Col xs={24} sm={12} md={4}>
+    <Card>
+      <Statistic
+        title="Total Customers"
+        value={totalCustomers}
+        prefix={<TeamOutlined style={{ color: "#36cfc9" }} />} // Teal
+        valueStyle={{ color: "#36cfc9", fontWeight: 600 }}
+      />
+    </Card>
+  </Col>
+
+  {/* 👑 Total Tickets */}
+  <Col xs={24} sm={12} md={6}>
+    <Card>
+      <Statistic
+        title="Total Tickets"
+        value={totalTickets}
+        prefix={<CrownOutlined style={{ color: "#facc15" }} />} // Gold
+        valueStyle={{ color: "#facc15", fontWeight: 600 }}
+      />
+    </Card>
+  </Col>
+
+  {/* 🏆 Total Winnings */}
+  <Col xs={24} sm={12} md={6}>
+    <Card>
+      <Statistic
+        title="Total Winnings"
+        value={totalWinnings.toLocaleString()}
+        prefix={<TrophyOutlined style={{ color: "#ff4d4f" }} />} // Red
+        valueStyle={{ color: "#ff4d4f", fontWeight: 600 }}
+      />
+    </Card>
+  </Col>
+</Row>
+
+<Divider />
+
+
+      <Row
+        gutter={[16, 16]}
         style={{
-          marginBottom: 35,
-          borderRadius: 18,
-          background: "linear-gradient(145deg,#faf7ff,#ffffff)",
-          boxShadow: "0 4px 15px rgba(123,47,247,0.12)",
+          marginBottom: 20,
+          display: "flex",
+          justifyContent: "flex-start",
         }}
       >
-        <Row gutter={[16, 16]} justify="space-between" align="middle">
-          <Col xs={24} md={6}>
-            <Title level={5} style={{ color: "#722ed1", marginBottom: 0 }}>
-              <CalendarOutlined /> Week
-            </Title>
-            <Text type="secondary">
-              {weekStart} → {weekEnd}
-            </Text>
-          </Col>
-          <Col xs={12} md={6}>
-            <div
-              style={{
-                background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-                color: "#fff",
-                padding: "10px 18px",
-                borderRadius: 12,
-                textAlign: "center",
-              }}
-            >
-              <UserOutlined /> <strong>{totalCustomers}</strong> Customers
-            </div>
-          </Col>
-          <Col xs={12} md={6}>
-            <div
+        <Col xs={24} md={10}>
+          <Input.Search
+            placeholder="Search by name, email, or mobile"
+            allowClear
+            value={searchText}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setCustomerPage(1);
+            }}
+          />
+        </Col>
+
+        <Row
+          gutter={[16, 16]}
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <Col xs={24} sm={12} md={10}>
+            <Button
+              type="primary"
+              icon={<MailOutlined />}
+              onClick={handleSendAllEmails}
+              loading={sendingMailAll}
               style={{
                 background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-                color: "#fff",
-                padding: "10px 18px",
-                borderRadius: 12,
-                textAlign: "center",
+                border: "none",
+                borderRadius: 8,
               }}
             >
-              <GiftOutlined /> <strong>{totalTickets}</strong> Tickets
-            </div>
+              Send All Emails
+            </Button>
           </Col>
-          <Col xs={24} md={6}>
-            <div
+
+          <Col xs={24} sm={12} md={14}>
+            <Button
+              icon={<DownloadOutlined />}
+              type="primary"
               style={{
-                background: "linear-gradient(90deg,#faad14,#fadb14)",
-                color: "#000",
-                padding: "10px 18px",
-                borderRadius: 12,
-                textAlign: "center",
+                border: "none",
+                fontWeight: 500,
               }}
+              onClick={handleDownloadNoEmailList}
             >
-              <TrophyOutlined /> Rs. {totalWinnings.toLocaleString()}
-            </div>
+              Download No-Email List
+            </Button>
           </Col>
         </Row>
-      </Card>
-
-      {/* Table */}
-<Card
-  title="👥 Ranked Customer List"
-  extra={
-    <Space>
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={handleDownloadNoEmailList}
-        style={{
-          background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-        }}
-      >
-        Download No-Email List
-      </Button>
-
-      <Button
-        type="primary"
-        icon={<MailOutlined />}
-        onClick={handleSendAllEmails}
-        loading={sendingMailAll}
-        style={{
-          background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-          border: "none",
-          borderRadius: 8,
-        }}
-      >
-        Send All Emails
-      </Button>
-    </Space>
-  }
->
-
-        <Table
-          dataSource={pagedCustomers}
-          columns={[
-            {
-              title: "🏆 Rank",
-              dataIndex: "rank",
-              align: "center",
-              render: (rank) => {
-                const emojis = ["🥇", "🥈", "🥉"];
-                return emojis[rank - 1] || `#${rank}`;
-              },
+      </Row>
+      <Table
+        dataSource={pagedCustomers}
+        columns={[
+          {
+            title: "🏆 Rank",
+            dataIndex: "rank",
+            align: "center",
+            render: (rank) => {
+              const emojis = ["🥇", "🥈", "🥉"];
+              return emojis[rank - 1] || `#${rank}`;
             },
-            { title: "Customer Name", dataIndex: "name" },
-            {
-              title: "Email",
-              dataIndex: "email",
-              render: (email) =>
-                email ? (
-                  email
-                ) : (
-                  <Tag color="gold" style={{ fontWeight: 500 }}>
-                    No Email (Image Saved)
-                  </Tag>
-                ),
-            },
-            { title: "Tickets", dataIndex: "tickets", align: "center" },
-            {
-              title: "Winnings (Rs.)",
-              dataIndex: "winnings",
-              align: "center",
-              render: (val) => (
-                <Text strong style={{ color: val > 0 ? "#389e0d" : "#999" }}>
-                  Rs. {val.toLocaleString()}
-                </Text>
+          },
+          { title: "Customer Name", dataIndex: "name" },
+          {
+            title: "Email",
+            dataIndex: "email",
+            render: (email) =>
+              email ? (
+                email
+              ) : (
+                <Tag color="gold" style={{ fontWeight: 500 }}>
+                  No Email (Image Saved)
+                </Tag>
               ),
-            },
-          ]}
-          pagination={false}
-          bordered
-          size="middle"
-          onRow={(record) => ({
-            onClick: () => handleRowClick(record),
-          })}
-        />
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <Pagination
-            current={customerPage}
-            pageSize={pageSizeCustomers}
-            total={rankedData.length}
-            onChange={(page) => setCustomerPage(page)}
-            showSizeChanger={false}
-          />
-        </div>
-      </Card>
+          },
+          { title: "Tickets", dataIndex: "tickets", align: "center" },
+          {
+            title: "Winnings (Rs.)",
+            dataIndex: "winnings",
+            align: "center",
+            render: (val) => (
+              <Text strong style={{ color: val > 0 ? "#389e0d" : "#999" }}>
+                Rs. {val.toLocaleString()}
+              </Text>
+            ),
+          },
+        ]}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: ["5", "10", "20", "50", "100"],
+          showTotal: (total, range) =>
+            `Showing ${range[0]}-${range[1]} of ${total} customers`,
+          onChange: (page, pageSize) =>
+            setPagination({ current: page, pageSize }),
+        }}
+        size="middle"
+        scroll={{ x: true, y: 420 }}
+        sticky
+        style={{ borderRadius: 8, overflow: "hidden" }}
+        onRow={(record) => ({
+          onClick: () => handleRowClick(record),
+        })}
+      />
 
       {/* Progress Log Modal */}
       <Modal
@@ -458,7 +480,7 @@ function ResultsView({ results, lotteryPrizes }) {
         title={
           <div
             style={{
-              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+              background: "#001529",
               padding: "22px 0",
               margin: "-28px -36px 24px -36px",
               textAlign: "center",
@@ -485,7 +507,42 @@ function ResultsView({ results, lotteryPrizes }) {
             filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
           }}
         />
+        <Row gutter={[16, 16]} style={{ marginBottom: 25 }}>
+          {/* Platinum Tier */}
+          <Col xs={24} sm={12} md={8}>
+            <Card>
+              <Statistic
+                title="Success"
+                value={successCount || 0}
+                valueStyle={{ color: "#00bd00ff", fontWeight: 700 }}
+                prefix={<CheckCircleOutlined />}
+              />
+            </Card>
+          </Col>
 
+          <Col xs={24} sm={12} md={8}>
+            <Card>
+              <Statistic
+                title="Images Saved"
+                value={imageCount || 0}
+                prefix={<PictureOutlined />}
+                valueStyle={{ color: "#facc15", fontWeight: 700 }}
+              />
+            </Card>
+          </Col>
+
+          {/* Silver Tier */}
+          <Col xs={24} sm={12} md={8}>
+            <Card>
+              <Statistic
+                title="Failed"
+                prefix={<CloseCircleOutlined />}
+                value={failCount || 0}
+                valueStyle={{ color: "#c90000ff", fontWeight: 700 }}
+              />
+            </Card>
+          </Col>
+        </Row>
         {/* 📋 Email + Image Log List */}
         <List
           size="small"
@@ -564,61 +621,6 @@ function ResultsView({ results, lotteryPrizes }) {
             background: "rgba(255,255,255,0.6)",
           }}
         />
-
-        {/* ✨ Status Summary */}
-        <Divider style={{ margin: "22px 0 16px 0" }} />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(82,196,26,0.4)",
-            }}
-          >
-            ✅ {successCount} Success
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(90deg,#faad14,#fadb14)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(250,173,20,0.4)",
-            }}
-          >
-            📸 {imageCount} Images Saved
-          </div>
-          <div
-            style={{
-              background:
-                failCount > 0
-                  ? "linear-gradient(90deg,#ff4d4f,#cf1322)"
-                  : "linear-gradient(90deg,#aaa,#ccc)",
-              padding: "6px 16px",
-              borderRadius: 20,
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow:
-                failCount > 0
-                  ? "0 2px 6px rgba(255,77,79,0.4)"
-                  : "0 2px 6px rgba(0,0,0,0.15)",
-            }}
-          >
-            ❌ {failCount} Failed
-          </div>
-        </div>
 
         {/* 🕹️ Controls (Pause / Resume / Stop) */}
         <Divider style={{ margin: "24px 0 10px 0" }} />
@@ -720,9 +722,6 @@ function ResultsView({ results, lotteryPrizes }) {
               size="large"
               style={{
                 borderRadius: 8,
-                border: "none",
-                background: "linear-gradient(90deg,#e6e0ff,#f8f0ff)",
-                color: "#722ed1",
                 fontWeight: 600,
               }}
             >
@@ -736,8 +735,7 @@ function ResultsView({ results, lotteryPrizes }) {
               onClick={handleSendEmail}
               size="large"
               style={{
-                background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
-                border: "none",
+                                border: "none",
                 borderRadius: 8,
                 fontWeight: 600,
               }}
@@ -746,9 +744,11 @@ function ResultsView({ results, lotteryPrizes }) {
             </Button>
             <Button
               key="close"
+              danger
               onClick={() => setIsModalVisible(false)}
               size="large"
               style={{
+                
                 borderRadius: 8,
                 fontWeight: 500,
                 borderColor: "#d9d9d9",
@@ -761,7 +761,7 @@ function ResultsView({ results, lotteryPrizes }) {
         title={
           <div
             style={{
-              background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+              background: "#001529",
               padding: "22px 0",
               margin: "-32px -36px 25px -36px",
               textAlign: "center",
@@ -784,40 +784,119 @@ function ResultsView({ results, lotteryPrizes }) {
               justify="center"
               style={{ marginBottom: 25 }}
             >
-              {[
-                { title: "Email", value: selectedCustomer.email },
-                { title: "Mobile", value: selectedCustomer.mobile },
-                { title: "Tickets", value: selectedCustomer.tickets },
-                {
-                  title: "Winnings",
-                  value: `Rs. ${selectedCustomer.winnings.toLocaleString()}`,
-                },
-              ].map((info, i) => (
-                <Col xs={24} sm={12} md={6} key={i}>
-                  <Card
-                    bordered={false}
-                    size="small"
-                    hoverable
-                    style={{
-                      borderRadius: 14,
-                      background: "linear-gradient(145deg,#ffffff,#f8f4ff)",
-                      boxShadow: "0 3px 10px rgba(123,47,247,0.12)",
-                      textAlign: "center",
-                      transition: "all 0.3s ease",
-                    }}
-                  >
-                    <Text strong style={{ color: "#722ed1", fontSize: 15 }}>
-                      {info.title}
-                    </Text>
-                    <Divider
-                      style={{ margin: "8px 0", borderColor: "#e5d4ff" }}
-                    />
-                    <Text style={{ color: "#333", fontSize: 15 }}>
-                      {info.value}
-                    </Text>
-                  </Card>
-                </Col>
-              ))}
+              {/* ✉️ Email */}
+              <Col xs={24} sm={12} md={10}>
+                <Card
+                  bordered={false}
+                  size="small"
+                  hoverable
+                  style={{
+                    borderRadius: 14,
+                    background: "linear-gradient(145deg,#ffffff,#f8f4ff)",
+                    boxShadow: "0 3px 10px rgba(123,47,247,0.12)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <Statistic
+                    title={
+                      <span>
+                        <MailOutlined
+                          style={{ color: "#7b2ff7", marginRight: 8 }}
+                        />
+                        Email
+                      </span>
+                    }
+                    value={selectedCustomer.email || "N/A"}
+                    valueStyle={{ color: "#000000ff", fontSize: 16 }}
+                  />
+                </Card>
+              </Col>
+
+              {/* 📞 Mobile */}
+              <Col xs={24} sm={12} md={5}>
+                <Card
+                  bordered={false}
+                  size="small"
+                  hoverable
+                  style={{
+                    borderRadius: 14,
+                    background: "linear-gradient(145deg,#ffffff,#f8f4ff)",
+                    boxShadow: "0 3px 10px rgba(123,47,247,0.12)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <Statistic
+                    title={
+                      <span>
+                        <PhoneOutlined
+                          style={{ color: "#52c41a", marginRight: 8 }}
+                        />
+                        Mobile
+                      </span>
+                    }
+                    value={selectedCustomer.mobile || "N/A"}
+                    valueStyle={{ color: "#000000ff", fontSize: 16 }}
+                  />
+                </Card>
+              </Col>
+
+              {/* 🎟️ Tickets */}
+              <Col xs={24} sm={12} md={4}>
+                <Card
+                  bordered={false}
+                  size="small"
+                  hoverable
+                  style={{
+                    borderRadius: 14,
+                    background: "linear-gradient(145deg,#ffffff,#f8f4ff)",
+                    boxShadow: "0 3px 10px rgba(123,47,247,0.12)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <Statistic
+                    title={
+                      <span>
+                        <CrownOutlined
+                          style={{ color: "#facc15", marginRight: 8 }}
+                        />
+                        Tickets
+                      </span>
+                    }
+                    value={selectedCustomer.tickets || 0}
+                    valueStyle={{ color: "#000000ff", fontSize: 18 }}
+                  />
+                </Card>
+              </Col>
+
+              {/* 🏆 Winnings */}
+              <Col xs={24} sm={12} md={5}>
+                <Card
+                  bordered={false}
+                  size="small"
+                  hoverable
+                  style={{
+                    borderRadius: 14,
+                    background: "linear-gradient(145deg,#ffffff,#f8f4ff)",
+                    boxShadow: "0 3px 10px rgba(123,47,247,0.12)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <Statistic
+                    title={
+                      <span>
+                        <TrophyOutlined
+                          style={{ color: "#ff4d4f", marginRight: 8 }}
+                        />
+                        Winnings
+                      </span>
+                    }
+                    value={`Rs. ${
+                      selectedCustomer.winnings?.toLocaleString() || 0
+                    }`}
+                    valueStyle={{ color: "#000000ff", fontSize: 18 }}
+                  />
+                </Card>
+              </Col>
             </Row>
 
             {/* 📊 Chart + Table Layout */}

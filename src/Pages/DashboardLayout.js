@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Layout, Menu, Button, Typography } from "antd";
 import {
   CloudUploadOutlined,
@@ -6,13 +6,35 @@ import {
   SettingOutlined,
   LogoutOutlined,
   TrophyOutlined,
-  UserOutlined,
+  HeartOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from "@ant-design/icons";
+import logo from "../assets/logo.png"; // ✅ make sure path is correct
 
 const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
+  const [userName, setUserName] = useState("User");
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("name");
+    if (storedName) setUserName(storedName);
+  }, []);
+
+  const reportsMenu = [
+    { key: "3-1", label: "Reconciliation Summary" },
+    { key: "3-2", label: "Daily Activations" },
+    { key: "3-3", label: "Last Purchase Times" },
+  ];
+
+  const loyaltyMenu = [
+    { key: "5-1", label: "Loyalty Entry" },
+    { key: "5-2", label: "Loyalty Upgrade" },
+  ];
+
   return (
     <Layout
       style={{
@@ -20,41 +42,60 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
         background: "linear-gradient(145deg,#f9f6ff,#fff4f9)",
       }}
     >
+      {/* ========================== SIDEBAR ========================== */}
       <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
         width={240}
         theme="light"
         style={{
-          background: "rgba(255,255,255,0.2)",
-          backdropFilter: "blur(12px)",
-          borderRight: "1px solid rgba(255,255,255,0.3)",
-          boxShadow: "4px 0 25px rgba(123,47,247,0.15)",
+          background: "#001529", // same color as header
+          transition: "all 0.3s ease",
+          boxShadow: "4px 0 25px rgba(0,0,0,0.15)",
         }}
       >
+        {/* ---------- LOGO AREA ---------- */}
         <div
           style={{
-            textAlign: "center",
-            padding: "28px 16px",
-            borderBottom: "1px solid rgba(255,255,255,0.3)",
-            background:
-              "linear-gradient(135deg,#7b2ff7 0%,#f107a3 50%,#ffd740 100%)",
-            color: "#fff",
-            borderRadius: "0 0 20px 20px",
-            boxShadow: "0 4px 20px rgba(241,7,163,0.25)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: collapsed ? "16px 0" : "26px 0",
+            borderBottom: "1px solid rgba(255,255,255,0.15)",
+            transition: "all 0.3s ease",
           }}
         >
-          <Title
-            level={4}
+          <img
+            src={logo}
+            alt="WinWay"
             style={{
-              color: "#fff",
-              marginBottom: 4,
-              textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+              width: collapsed ? 100 : 170,
+              height: "auto",
+              transition: "all 0.3s ease",
             }}
-          >
-            WinWay
-          </Title>
-          <div style={{ fontSize: 13, opacity: 0.9 }}>Smart Insights</div>
+          />
+          {!collapsed && (
+            <>
+              <Title
+                level={4}
+                style={{
+                  color: "#fff",
+                  marginBottom: 0,
+                  textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                }}
+              >
+                WinWay
+              </Title>
+              <Text style={{ color: "#ccc", fontSize: 12 }}>
+                Smart Insights
+              </Text>
+            </>
+          )}
         </div>
 
+        {/* ---------- MAIN NAV MENU ---------- */}
         <Menu
           mode="inline"
           selectedKeys={[activeTab]}
@@ -63,17 +104,44 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             marginTop: 20,
             background: "transparent",
             fontWeight: 500,
+            color: "#fff",
           }}
           items={[
-            { key: "1", icon: <CloudUploadOutlined />, label: "Upload & Generate" },
-            { key: "2", icon: <TrophyOutlined />, label: "Results & Rankings" },
-            { key: "3", icon: <BarChartOutlined />, label: "Reports" },
-            { key: "4", icon: <SettingOutlined />, label: "Settings" },
+            {
+              key: "1",
+              icon: <CloudUploadOutlined />,
+              label: "Upload & Generate",
+            },
+            {
+              key: "2",
+              icon: <TrophyOutlined />,
+              label: "Results & Rankings",
+            },
+            {
+              key: "3",
+              icon: <BarChartOutlined />,
+              label: "Reports",
+              children: reportsMenu,
+            },
+            {
+              key: "5",
+              icon: <HeartOutlined />,
+              label: "Loyalty",
+              children: loyaltyMenu,
+            },
+            {
+              key: "4",
+              icon: <SettingOutlined />,
+              label: "Settings",
+            },
           ]}
+          theme="dark"
         />
       </Sider>
 
+      {/* ========================== MAIN AREA ========================== */}
       <Layout>
+        {/* ---------- HEADER ---------- */}
         <Header
           style={{
             height: 70,
@@ -81,52 +149,70 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            background:
-              "linear-gradient(135deg,#7b2ff7 0%,#f107a3 50%,#ffd740 100%)",
-            boxShadow: "0 4px 20px rgba(123,47,247,0.25)",
+            background: "#001529", // ✅ same as sider
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            transition: "all 0.3s ease",
           }}
         >
-          <Title
-            level={4}
-            style={{
-              color: "#fff",
-              margin: 0,
-              textShadow: "0 2px 8px rgba(0,0,0,0.25)",
-            }}
-          >
-            {activeTab === "1" && "Upload & Generate"}
-            {activeTab === "2" && "Results & Rankings"}
-            {activeTab === "3" && "Reports"}
-            {activeTab === "4" && "Settings"}
-          </Title>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             <Button
-              type="text"
-              icon={<UserOutlined />}
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
               style={{
+                border: "none",
                 color: "#fff",
-                background: "rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.15)",
                 borderRadius: 8,
               }}
+            />
+            <Title
+              level={4}
+              style={{
+                color: "#fff",
+                margin: 0,
+                textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+              }}
             >
-              Profile
-            </Button>
+              {activeTab === "1" && "Upload & Generate"}
+              {activeTab === "2" && "Results & Rankings"}
+              {activeTab === "3" && "Reports Overview"}
+              {activeTab === "3-1" && "Reconciliation Summary"}
+              {activeTab === "3-2" && "Daily Activations"}
+              {activeTab === "3-3" && "Last Purchase Times"}
+              {activeTab === "5" && "Loyalty"}
+              {activeTab === "5-1" && "Loyalty Entry"}
+              {activeTab === "5-2" && "Loyalty Upgrade"}
+              {activeTab === "4" && "Settings"}
+            </Title>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              color: "#fff",
+              fontWeight: 500,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: 600 }}>
+              Hi, {userName.split(" ")[0]}
+            </Text>
+
             <Button
               icon={<LogoutOutlined />}
               onClick={onLogout}
               style={{
                 border: "none",
                 color: "#fff",
-                background: "rgba(0,0,0,0.2)",
+                background: "rgba(255,255,255,0.15)",
                 borderRadius: 8,
               }}
-            >
-              Logout
-            </Button>
+            />
           </div>
         </Header>
 
+        {/* ---------- CONTENT ---------- */}
         <Content
           style={{
             padding: "40px",
