@@ -10,37 +10,38 @@ const { Title, Text } = Typography;
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isLogging, setIsLogging] = useState(true);
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
-const handleLogin = async (values) => {
-  try {
-    setLoading(true);
-    const res = await axios.post("http://localhost:8001/api/users/login", values);
+  // ✅ Login API call
+  const handleLogin = async (values) => {
+    try {
+      setLoading(true);
+      const res = await axios.post("http://localhost:8001/api/users/login", values);
 
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("name", res.data.name); // store name for quick access
-    
-    message.success(`Welcome back, ${res.data.name || "User"}!`);
+      // store JWT token & name for later use
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("name", res.data.name);
 
-    navigate("/dashboard"); // 🚀 redirect after successful login
-  } catch (err) {
-    message.error(err.response?.data?.message || "Login failed!");
-  } finally {
-    setLoading(false);
-  }
-};
+      message.success(`Welcome back, ${res.data.name || "User"}!`);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Login error:", err);
+      message.error(err.response?.data?.message || "Login failed!");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // 🟣 Handle Register Submit
+  // ✅ Register API call
   const handleRegister = async (values) => {
     try {
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:8001/api/users/register",
-        values
-      );
-      message.success("Account created successfully!");
-      setIsLogging(true); // switch to login form
+      const res = await axios.post("http://localhost:8001/api/users/register", values);
+
+      message.success(res.data?.message || "Account created successfully!");
+      setIsLogging(true); // switch to login view
     } catch (err) {
+      console.error("Register error:", err);
       message.error(err.response?.data?.message || "Registration failed!");
     } finally {
       setLoading(false);
@@ -55,7 +56,7 @@ const handleLogin = async (values) => {
         backgroundColor: "#f5f5f5",
       }}
     >
-      {/* LEFT IMAGE */}
+      {/* LEFT IMAGE SECTION */}
       <div
         style={{
           flex: 1,
@@ -82,7 +83,7 @@ const handleLogin = async (values) => {
         ></div>
       </div>
 
-      {/* RIGHT FORM */}
+      {/* RIGHT FORM SECTION */}
       <div
         style={{
           flex: 1,
@@ -116,6 +117,7 @@ const handleLogin = async (values) => {
 
           {isLogging ? (
             <>
+              {/* LOGIN FORM */}
               <Title
                 level={3}
                 style={{
@@ -171,8 +173,7 @@ const handleLogin = async (values) => {
                   block
                   size="large"
                   style={{
-                    background:
-                      "linear-gradient(135deg,#7b2ff7,#f107a3,#ffd740)",
+                    background: "linear-gradient(135deg,#7b2ff7,#f107a3,#ffd740)",
                     border: "none",
                     color: "#fff",
                     fontWeight: 600,
@@ -201,6 +202,7 @@ const handleLogin = async (values) => {
             </>
           ) : (
             <>
+              {/* REGISTER FORM */}
               <Title
                 level={3}
                 style={{

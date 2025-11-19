@@ -79,7 +79,6 @@ function ResultsView({ results, lotteryPrizes }) {
 
   const pageSizeCustomers = 5;
   const COLORS = ["#1890ff", "#52c41a", "#faad14", "#722ed1", "#eb2f96"];
-
   if (!results) return null;
 
   const weekStart = results?.week_range?.start_date || "N/A";
@@ -137,9 +136,10 @@ function ResultsView({ results, lotteryPrizes }) {
       }));
 
       const formData = new FormData();
-      formData.append("to", customer.email ? "" : "");
+      formData.append("to", customer.email ? "chamikadeshan97@gmail.com" : "");
+      //formData.append("to", customer.email ? customer.email : "");
       if (i < 20) {
-        //  formData.append("cc", "info@winway.lk");
+        // formData.append("cc", "info@winway.lk");
       }
 
       formData.append("name", customer.name);
@@ -173,6 +173,8 @@ function ResultsView({ results, lotteryPrizes }) {
       console.error("❌ Email send error:", error);
       message.error(`❌ Failed for ${customer.name}`);
       return { status: "failed" };
+    } finally {
+      setIsModalVisible(false);
     }
   };
 
@@ -289,65 +291,108 @@ function ResultsView({ results, lotteryPrizes }) {
   // 🎨 UI
   return (
     <div style={{ maxWidth: 1250 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        {/* 📅 Week Range */}
+        <Col xs={24} sm={12} md={10}>
+          <Card
+            style={{
+              borderRadius: 12,
+              background: "linear-gradient(145deg, #ede7f6, #ffffff)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Statistic
+              title={
+                <span
+                  style={{ fontSize: 14, color: "#7b2ff7", fontWeight: 600 }}
+                >
+                  Week Range
+                </span>
+              }
+              value={`${weekStart} → ${weekEnd}`}
+              valueStyle={{ fontWeight: 700, color: "#7b2ff7" }}
+              prefix={<CalendarOutlined style={{ color: "#7b2ff7" }} />}
+            />
+          </Card>
+        </Col>
 
+        {/* 👥 Total Customers */}
+        <Col xs={24} sm={12} md={4}>
+          <Card
+            style={{
+              borderRadius: 12,
+              background: "linear-gradient(145deg, #e3f2fd, #ffffff)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Statistic
+              title={
+                <span
+                  style={{ fontSize: 14, color: "#1976d2", fontWeight: 600 }}
+                >
+                  Total Customers
+                </span>
+              }
+              value={totalCustomers}
+              valueStyle={{ fontWeight: 700, color: "#0d47a1" }}
+              prefix={<TeamOutlined style={{ color: "#1976d2" }} />}
+            />
+          </Card>
+        </Col>
 
-<Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-  {/* 📅 Week */}
-  <Col xs={24} md={8}>
-    <Card>
-      <Statistic
-        title="Week"
-        prefix={<CalendarOutlined style={{ color: "#7b2ff7" }} />} // Violet
-        value={`${weekStart} → ${weekEnd}`}
-        valueStyle={{ color: "#7b2ff7", fontWeight: 600 }}
-      />
-    </Card>
-  </Col>
+        {/* 👑 Total Tickets */}
+        <Col xs={24} sm={12} md={5}>
+          <Card
+            style={{
+              borderRadius: 12,
+              background: "linear-gradient(145deg, #fff8e1, #ffffff)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Statistic
+              title={
+                <span
+                  style={{ fontSize: 14, color: "#f57f17", fontWeight: 600 }}
+                >
+                  Total Tickets
+                </span>
+              }
+              value={totalTickets}
+              valueStyle={{ fontWeight: 700, color: "#f57f17" }}
+              prefix={<CrownOutlined style={{ color: "#fbc02d" }} />}
+            />
+          </Card>
+        </Col>
 
-  {/* 👥 Total Customers */}
-  <Col xs={24} sm={12} md={4}>
-    <Card>
-      <Statistic
-        title="Total Customers"
-        value={totalCustomers}
-        prefix={<TeamOutlined style={{ color: "#36cfc9" }} />} // Teal
-        valueStyle={{ color: "#36cfc9", fontWeight: 600 }}
-      />
-    </Card>
-  </Col>
-
-  {/* 👑 Total Tickets */}
-  <Col xs={24} sm={12} md={6}>
-    <Card>
-      <Statistic
-        title="Total Tickets"
-        value={totalTickets}
-        prefix={<CrownOutlined style={{ color: "#facc15" }} />} // Gold
-        valueStyle={{ color: "#facc15", fontWeight: 600 }}
-      />
-    </Card>
-  </Col>
-
-  {/* 🏆 Total Winnings */}
-  <Col xs={24} sm={12} md={6}>
-    <Card>
-      <Statistic
-        title="Total Winnings"
-        value={totalWinnings.toLocaleString()}
-        prefix={<TrophyOutlined style={{ color: "#ff4d4f" }} />} // Red
-        valueStyle={{ color: "#ff4d4f", fontWeight: 600 }}
-      />
-    </Card>
-  </Col>
-</Row>
-
-<Divider />
-
+        {/* 🏆 Total Winnings */}
+        <Col xs={24} sm={12} md={5}>
+          <Card
+            style={{
+              borderRadius: 12,
+              background: "linear-gradient(145deg, #e8f5e9, #ffffff)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Statistic
+              title={
+                <span
+                  style={{ fontSize: 14, color: "#2e7d32", fontWeight: 600 }}
+                >
+                  Total Winnings
+                </span>
+              }
+              value={totalWinnings.toLocaleString()}
+              valueStyle={{ fontWeight: 700, color: "#1b5e20" }}
+              prefix={<TrophyOutlined style={{ color: "#43a047" }} />}
+            />
+          </Card>
+        </Col>
+      </Row>
+      <Divider />
 
       <Row
         gutter={[16, 16]}
         style={{
-          marginBottom: 20,
           display: "flex",
           justifyContent: "flex-start",
         }}
@@ -367,7 +412,6 @@ function ResultsView({ results, lotteryPrizes }) {
         <Row
           gutter={[16, 16]}
           style={{
-            marginBottom: 20,
             display: "flex",
             justifyContent: "flex-end",
           }}
@@ -403,8 +447,10 @@ function ResultsView({ results, lotteryPrizes }) {
           </Col>
         </Row>
       </Row>
+      <Divider />
+
       <Table
-        dataSource={pagedCustomers}
+        dataSource={filteredCustomers}
         columns={[
           {
             title: "🏆 Rank",
@@ -444,7 +490,7 @@ function ResultsView({ results, lotteryPrizes }) {
           current: pagination.current,
           pageSize: pagination.pageSize,
           showSizeChanger: true,
-          pageSizeOptions: ["5", "10", "20", "50", "100"],
+          pageSizeOptions: ["10", "20", "50", "100"],
           showTotal: (total, range) =>
             `Showing ${range[0]}-${range[1]} of ${total} customers`,
           onChange: (page, pageSize) =>
@@ -735,7 +781,7 @@ function ResultsView({ results, lotteryPrizes }) {
               onClick={handleSendEmail}
               size="large"
               style={{
-                                border: "none",
+                border: "none",
                 borderRadius: 8,
                 fontWeight: 600,
               }}
@@ -748,7 +794,6 @@ function ResultsView({ results, lotteryPrizes }) {
               onClick={() => setIsModalVisible(false)}
               size="large"
               style={{
-                
                 borderRadius: 8,
                 fontWeight: 500,
                 borderColor: "#d9d9d9",

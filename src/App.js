@@ -12,24 +12,36 @@ import DailyActivations from "./Pages/DailyActivations";
 import LastPurchaseTimes from "./Pages/LastPurchaseTimes";
 import Loyality from "./Pages/Loyality";
 import Settings from "./Pages/Settings";
+import LoyalityUpgrade from "./Pages/LoyalityUpgrade";
+import EntryCustomers from "./Pages/EntryCustomers";
+import LoyaltyHistory from "./Pages/LoyalityHistory";
 
 function App() {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const navigate = useNavigate();
+  // 🛑 Warn user before closing/refreshing
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
 
   // 🧠 Check token validity on page load
   useEffect(() => {
     const token = localStorage.getItem("token");
     try {
       const decoded = jwtDecode(token);
-      
+
       if (decoded.exp * 1000 > Date.now()) {
         setIsAuthenticated(true);
       }
-    } catch {
-    }
+    } catch {}
   }, []);
 
   // 📩 Handle file upload results
@@ -70,7 +82,7 @@ function App() {
               onTabChange={setActiveTab}
               onLogout={handleLogout}
             >
-              {/* 1️⃣ Upload & Generate */}
+              {/* 1️⃣ Weekly Purchase  */}
               {activeTab === "1" && (
                 <FileUploadForm setResults={handleResults} />
               )}
@@ -90,12 +102,13 @@ function App() {
               {activeTab === "3-3" && <LastPurchaseTimes />}
 
               {/* 4️⃣ Settings */}
-              {activeTab === "4" && (
-                <Settings/>
-              )}
+              {activeTab === "4" && <Settings />}
 
               {/* 5️⃣ Loyalty */}
               {activeTab === "5-1" && <Loyality />}
+              {activeTab === "5-2" && <EntryCustomers />}
+              {activeTab === "5-3" && <LoyalityUpgrade />}
+              {activeTab === "5-4" && <LoyaltyHistory />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />

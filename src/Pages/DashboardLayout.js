@@ -24,15 +24,11 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
     if (storedName) setUserName(storedName);
   }, []);
 
-  const reportsMenu = [
-    { key: "3-1", label: "Reconciliation Summary" },
-    { key: "3-2", label: "Daily Activations" },
-    { key: "3-3", label: "Last Purchase Times" },
-  ];
-
   const loyaltyMenu = [
-    { key: "5-1", label: "Loyalty Entry" },
-    { key: "5-2", label: "Loyalty Upgrade" },
+    { key: "5-1", label: "Entry Process" },
+    { key: "5-3", label: "Monthly Upgrade Process" },
+    { key: "5-2", label: "Loyalty Customers" },
+    { key: "5-4", label: "Loyalty Histoty" },
   ];
 
   return (
@@ -47,7 +43,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={240}
+        width={280}
         theme="light"
         style={{
           background: "#001529", // same color as header
@@ -110,19 +106,14 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             {
               key: "1",
               icon: <CloudUploadOutlined />,
-              label: "Upload & Generate",
+              label: "Weekly Purchase ",
             },
             {
               key: "2",
               icon: <TrophyOutlined />,
               label: "Results & Rankings",
             },
-            {
-              key: "3",
-              icon: <BarChartOutlined />,
-              label: "Reports",
-              children: reportsMenu,
-            },
+
             {
               key: "5",
               icon: <HeartOutlined />,
@@ -173,15 +164,13 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
                 textShadow: "0 2px 8px rgba(0,0,0,0.25)",
               }}
             >
-              {activeTab === "1" && "Upload & Generate"}
+              {activeTab === "1" && "Weekly Purchase "}
               {activeTab === "2" && "Results & Rankings"}
-              {activeTab === "3" && "Reports Overview"}
-              {activeTab === "3-1" && "Reconciliation Summary"}
-              {activeTab === "3-2" && "Daily Activations"}
-              {activeTab === "3-3" && "Last Purchase Times"}
+
               {activeTab === "5" && "Loyalty"}
-              {activeTab === "5-1" && "Loyalty Entry"}
-              {activeTab === "5-2" && "Loyalty Upgrade"}
+              {activeTab === "5-1" && "Entry Process"}
+              {activeTab === "5-3" && "Monthly Upgrade Process"}
+              {activeTab === "5-2" && "Loyalty Customers"}
               {activeTab === "4" && "Settings"}
             </Title>
           </div>

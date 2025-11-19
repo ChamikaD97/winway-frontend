@@ -13,7 +13,6 @@ import {
   Row,
   Col,
   Input,
-  Steps,
   Statistic,
 } from "antd";
 import {
@@ -26,10 +25,9 @@ import {
   EditOutlined,
   CheckCircleTwoTone,
   GiftOutlined,
-  InboxOutlined,
-  EyeOutlined,
   CrownOutlined,
   TeamOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import ResultsView from "./ResultsView";
@@ -45,19 +43,16 @@ function FileUploadForm() {
   const [files, setFiles] = useState({});
   const [lotteryPrizes, setLotteryPrizes] = useState({
     "Ada Sampatha": "250000",
-    "Dhana Nidhanaya": "130748295",
-    Govisetha: "68028793",
-    Handahana: "3232097",
-    "Mahajana Sampatha": "40278736",
-    "Mega Power": "165514392",
+    "Dhana Nidhanaya": "80000000",
+    Govisetha: "72008812",
+    Handahana: "4177287",
+    "Mahajana Sampatha": "23580616",
+    "Mega Power": "168336336",
     "NLB Jaya": "500000",
     "Suba Dawasak": "500000",
   });
-  const [numCustomers, setNumCustomers] = useState(""); // ✅ New input
-
-  const [min_val, setMinValue] = useState("0"); // ✅ New input
-
-  const [max_val, setMaxValue] = useState("10000"); // ✅ New input
+  const [numCustomers, setNumCustomers] = useState("");
+  const [mobileNumber, setMobileNumber] = useState(""); // ✅ new input
   const [editingPrize, setEditingPrize] = useState(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -119,6 +114,7 @@ function FileUploadForm() {
     setError(null);
     setLastGenerated(null);
     setNumCustomers("");
+    setMobileNumber("");
     message.info("Form reset successfully");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -135,23 +131,18 @@ function FileUploadForm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ✅ Updated handleSubmit
   const handleSubmit = async () => {
     if (!files.ticket_sales || !files.prizes || !files.customers) {
       message.warning("⚠️ Please upload all required files before proceeding!");
       return;
     }
 
-    if (!numCustomers || parseInt(numCustomers) <= 0) {
-      message.warning("⚠️ Please enter a valid number of customers!");
-      return;
-    }
-
     const formData = new FormData();
     Object.entries(files).forEach(([key, file]) => formData.append(key, file));
     formData.append("lottery_prizes", JSON.stringify(lotteryPrizes));
-    formData.append("num_customers", numCustomers); // ✅ Added
-    formData.append("min_val", min_val); // ✅ Added
-    formData.append("max_val", max_val); // ✅ Added
+    formData.append("num_customers", numCustomers);
+    formData.append("mobile_number", mobileNumber || ""); // ✅ added
 
     try {
       setLoading(true);
@@ -369,6 +360,7 @@ function FileUploadForm() {
               <Row gutter={[24, 24]} justify="center">
                 <Col xs={24} lg={20}>
                   <Form layout="vertical">
+                    {/* File Uploads */}
                     <Row gutter={[12, 12]} justify="center">
                       <Col xs={24} sm={12} md={8}>
                         {renderUpload(
@@ -399,7 +391,7 @@ function FileUploadForm() {
                       </Col>
                     </Row>
 
-                    {/* ✅ New Input Field */}
+                    {/* ✅ New Input Fields */}
                     <Row gutter={[12, 12]} justify="center">
                       <Col xs={24} sm={12} md={8}>
                         <Form.Item
@@ -420,36 +412,25 @@ function FileUploadForm() {
                       </Col>
                       <Col xs={24} sm={12} md={8}>
                         <Form.Item
-                          label={<Text strong>Minimum of Tickets</Text>}
+                          label={
+                            <Text strong>
+                              Filter by Mobile Number (Optional)
+                            </Text>
+                          }
                           style={{ marginTop: 20 }}
                         >
                           <Input
-                            type="number"
-                            min={1}
-                            value={min_val}
-                            onChange={(e) => setMinValue(e.target.value)}
-                            prefix={<TeamOutlined />}
-                            placeholder="e.g. 500"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} sm={12} md={8}>
-                        <Form.Item
-                          label={<Text strong>Maximum of Tickets</Text>}
-                          style={{ marginTop: 20 }}
-                        >
-                          <Input
-                            type="number"
-                            min={1}
-                            value={max_val}
-                            onChange={(e) => setMaxValue(e.target.value)}
-                            prefix={<TeamOutlined />}
-                            placeholder="e.g. 500"
+                            type="text"
+                            value={mobileNumber}
+                            onChange={(e) => setMobileNumber(e.target.value)}
+                            prefix={<PhoneOutlined />}
+                            placeholder="e.g. +94779488015"
                           />
                         </Form.Item>
                       </Col>
                     </Row>
 
+                    {/* Alerts / Progress */}
                     {error && (
                       <Alert
                         type="error"
@@ -475,6 +456,7 @@ function FileUploadForm() {
                       </div>
                     )}
 
+                    {/* Buttons */}
                     <div style={{ textAlign: "center", marginTop: 30 }}>
                       <Button
                         icon={<ArrowLeftOutlined />}
@@ -483,6 +465,7 @@ function FileUploadForm() {
                       >
                         Back
                       </Button>
+
                       <Button
                         type="primary"
                         size="large"
@@ -498,6 +481,7 @@ function FileUploadForm() {
                           "Generate Emails"
                         )}
                       </Button>
+
                       <Button
                         icon={<ReloadOutlined />}
                         danger

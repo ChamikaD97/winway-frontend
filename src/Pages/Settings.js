@@ -48,7 +48,7 @@ const Settings = () => {
         });
       }
       message.success("Settings saved successfully");
-      fetchSettings();
+      //fetchSettings();
     } catch {
       message.error("Failed to save settings");
     } finally {
@@ -57,7 +57,7 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    fetchSettings();
+    //fetchSettings();
   }, []);
 
   // 🧾 Input update helper
