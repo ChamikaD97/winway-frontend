@@ -143,21 +143,22 @@ function FileUploadForm() {
     formData.append("lottery_prizes", JSON.stringify(lotteryPrizes));
     formData.append("num_customers", numCustomers);
     let formattedMobile = mobileNumber;
-
-    if (mobileNumber.startsWith("0")) {
-      // 0712345678 → +94712345678
-      formattedMobile = "+94" + mobileNumber.slice(1);
-    } else if (mobileNumber.startsWith("94")) {
-      // 94712345678 → +94712345678
-      formattedMobile = "+" + mobileNumber;
-    } else if (
-      !mobileNumber.startsWith("0") &&
-      !mobileNumber.startsWith("94")
-    ) {
-      formattedMobile = "+94" + mobileNumber;
-    } else {
-      // keep original
-      formattedMobile = mobileNumber || "";
+    if (formattedMobile) {
+      if (mobileNumber.startsWith("0")) {
+        // 0712345678 → +94712345678
+        formattedMobile = "+94" + mobileNumber.slice(1);
+      } else if (mobileNumber.startsWith("94")) {
+        // 94712345678 → +94712345678
+        formattedMobile = "+" + mobileNumber;
+      } else if (
+        !mobileNumber.startsWith("0") &&
+        !mobileNumber.startsWith("94")
+      ) {
+        formattedMobile = "+94" + mobileNumber;
+      } else {
+        // keep original
+        formattedMobile = mobileNumber || "";
+      }
     }
 
     formData.append("mobile_number", formattedMobile);
