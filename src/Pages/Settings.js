@@ -15,7 +15,7 @@ import axios from "axios";
 import { theme } from "../config/themeConfig";
 
 const { Title, Text } = Typography;
-
+const API_BASE = "http://localhost:8001";
 const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -25,7 +25,7 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:8001/api/settings");
+      const res = await axios.get(`${API_BASE}/api/settings`);
       const map = Object.fromEntries(res.data.map((s) => [s.key, s.value]));
       setSettings(map);
     } catch (err) {
@@ -40,13 +40,15 @@ const Settings = () => {
     try {
       setSaving(true);
       const updates = Object.entries(group);
+
       for (const [key, value] of updates) {
-        await axios.post("http://localhost:8001/api/settings", {
+        await axios.post(`${API_BASE}/api/settings`, {
           key,
           value,
           type: "number",
         });
       }
+
       message.success("Settings saved successfully");
       //fetchSettings();
     } catch {

@@ -27,8 +27,6 @@ import {
   ReloadOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
-  InboxOutlined,
-  EyeOutlined,
   GiftOutlined,
   TeamOutlined,
   CrownOutlined,
@@ -165,8 +163,10 @@ function LoyalityUpgrade() {
 
       const ll = checkFoldersSameMonth(fileNames);
 
-      const res2 = await axios.get("http://localhost:8001/api/settings");
-      const map = Object.fromEntries(res2.data.data.map((s) => [s.key, s.value]));
+      const res2 = await axios.get(`${API_BASE_Local}/api/settings`);
+      const map = Object.fromEntries(
+        res2.data.data.map((s) => [s.key, s.value])
+      );
 
       if (res.data?.success) {
         const data = res.data.data || [];
@@ -264,8 +264,9 @@ function LoyalityUpgrade() {
         console.log(notInResultNew[0]);
         try {
           setLoading(true);
+
           const res = await axios.post(
-            "http://localhost:8001/api/initialCustomer/monthly-update",
+            `${API_BASE_Local}/api/initialCustomer/monthly-update`,
             {
               updates: finalMerged,
             }
@@ -392,7 +393,7 @@ function LoyalityUpgrade() {
     }
     const formData = new FormData();
 
-    const res = await axios.get("http://localhost:8001/api/settings");
+    const res = await axios.get(`${API_BASE_Local}/api/settings`);
     const map = Object.fromEntries(res.data.data.map((s) => [s.key, s.value]));
     formData.append(
       "platinum",

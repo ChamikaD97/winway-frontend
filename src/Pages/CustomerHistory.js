@@ -39,7 +39,7 @@ import dayjs from "dayjs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-
+const API_BASE = "http://localhost:8001";
 
 const fmtNumber = (v) => {
   const n = Number(v);
@@ -81,146 +81,157 @@ const CustomerModel = ({ open, onClose, customer, onSendEmail }) => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  
-const handleDownloadSummary = () => {
-  if (!customer) return;
+  const handleDownloadSummary = () => {
+    if (!customer) return;
 
-  const doc = new jsPDF("p", "mm", "a4");
-  const pageWidth = doc.internal.pageSize.getWidth();
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-  // ===== HEADER with Gradient and Logo =====
-  const gradientStart = [123, 47, 247]; // #7b2ff7
-  const gradientEnd = [179, 127, 235]; // #b37feb
-  const steps = 50;
+    // ===== HEADER with Gradient and Logo =====
+    const gradientStart = [123, 47, 247]; // #7b2ff7
+    const gradientEnd = [179, 127, 235]; // #b37feb
+    const steps = 50;
 
-  for (let i = 0; i < steps; i++) {
-    const t = i / steps;
-    const r = gradientStart[0] + t * (gradientEnd[0] - gradientStart[0]);
-    const g = gradientStart[1] + t * (gradientEnd[1] - gradientStart[1]);
-    const b = gradientStart[2] + t * (gradientEnd[2] - gradientStart[2]);
-    doc.setFillColor(r, g, b);
-    doc.rect((pageWidth / steps) * i, 0, pageWidth / steps, 25, "F");
-  }
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const r = gradientStart[0] + t * (gradientEnd[0] - gradientStart[0]);
+      const g = gradientStart[1] + t * (gradientEnd[1] - gradientStart[1]);
+      const b = gradientStart[2] + t * (gradientEnd[2] - gradientStart[2]);
+      doc.setFillColor(r, g, b);
+      doc.rect((pageWidth / steps) * i, 0, pageWidth / steps, 25, "F");
+    }
 
-  // Logo (optional — replace with your hosted logo or local base64)
-  // doc.addImage("/path/to/winway-logo.png", "PNG", 12, 5, 18, 18);
+    // Logo (optional — replace with your hosted logo or local base64)
+    // doc.addImage("/path/to/winway-logo.png", "PNG", 12, 5, 18, 18);
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text("WINWAY CUSTOMER SUMMARY", pageWidth / 2, 16, { align: "center" });
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("WINWAY CUSTOMER SUMMARY", pageWidth / 2, 16, { align: "center" });
 
-  // ===== Section 1: Customer Info =====
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
-  doc.text("👤 Customer Details", 14, 38);
+    // ===== Section 1: Customer Info =====
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("👤 Customer Details", 14, 38);
 
-  const details = [
-    ["Full Name", `${customer.FirstName || ""} ${customer.LastName || ""}`],
-    ["Email", customer.Email || "N/A"],
-    ["Mobile Number", customer.MobileNumber || "N/A"],
-    ["Gender", customer.Gender || "N/A"],
-    ["Country", customer.Country || "N/A"],
-    ["Date of Birth", customer.DateOfBirth || "N/A"],
-    ["Registered Date", customer.RegisteredDate || "N/A"],
-    ["Status", customer.Status || "N/A"],
-  ];
+    const details = [
+      ["Full Name", `${customer.FirstName || ""} ${customer.LastName || ""}`],
+      ["Email", customer.Email || "N/A"],
+      ["Mobile Number", customer.MobileNumber || "N/A"],
+      ["Gender", customer.Gender || "N/A"],
+      ["Country", customer.Country || "N/A"],
+      ["Date of Birth", customer.DateOfBirth || "N/A"],
+      ["Registered Date", customer.RegisteredDate || "N/A"],
+      ["Status", customer.Status || "N/A"],
+    ];
 
-  autoTable(doc, {
-    startY: 42,
-    body: details,
-    theme: "striped",
-    styles: { fontSize: 10, cellPadding: 3 },
-    head: [],
-    alternateRowStyles: { fillColor: [249, 244, 255] },
-    columnStyles: { 0: { fontStyle: "bold", textColor: [123, 47, 247] } },
-    margin: { left: 14, right: 14 },
-  });
+    autoTable(doc, {
+      startY: 42,
+      body: details,
+      theme: "striped",
+      styles: { fontSize: 10, cellPadding: 3 },
+      head: [],
+      alternateRowStyles: { fillColor: [249, 244, 255] },
+      columnStyles: { 0: { fontStyle: "bold", textColor: [123, 47, 247] } },
+      margin: { left: 14, right: 14 },
+    });
 
-  // ===== Section 2: Loyalty Summary =====
-  let nextY = doc.lastAutoTable.finalY + 10;
-  doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
-  doc.text("🏆 Loyalty & Wallet Summary", 14, nextY);
+    // ===== Section 2: Loyalty Summary =====
+    let nextY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("🏆 Loyalty & Wallet Summary", 14, nextY);
 
-  const loyalty = [
-    ["Current Tier", customer.Loyalty_Tier || "N/A"],
-    ["Ticket Count", customer.Ticket_Count?.toLocaleString() || 0],
-    ["Wallet Balance (Rs.)", customer.WalletBalance || "0.00"],
-    ["Last Purchase", customer.Last_Purchase_Time || "N/A"],
-    ["Old Tier", customer.oldTier || "None"],
-    ["Reason", customer.reason || "No Changes"],
-    ["Last Month Tickets", customer.lastMonthTickets || 0],
-  ];
+    const loyalty = [
+      ["Current Tier", customer.Loyalty_Tier || "N/A"],
+      ["Ticket Count", customer.Ticket_Count?.toLocaleString() || 0],
+      ["Wallet Balance (Rs.)", customer.WalletBalance || "0.00"],
+      ["Last Purchase", customer.Last_Purchase_Time || "N/A"],
+      ["Old Tier", customer.oldTier || "None"],
+      ["Reason", customer.reason || "No Changes"],
+      ["Last Month Tickets", customer.lastMonthTickets || 0],
+    ];
 
-  autoTable(doc, {
-    startY: nextY + 4,
-    body: loyalty,
-    theme: "striped",
-    styles: { fontSize: 10, cellPadding: 3 },
-    alternateRowStyles: { fillColor: [245, 247, 255] },
-    columnStyles: { 0: { fontStyle: "bold", textColor: [123, 47, 247] } },
-    margin: { left: 14, right: 14 },
-  });
+    autoTable(doc, {
+      startY: nextY + 4,
+      body: loyalty,
+      theme: "striped",
+      styles: { fontSize: 10, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [245, 247, 255] },
+      columnStyles: { 0: { fontStyle: "bold", textColor: [123, 47, 247] } },
+      margin: { left: 14, right: 14 },
+    });
 
-  // ===== Section 3: Lottery Breakdown =====
-  nextY = doc.lastAutoTable.finalY + 10;
-  doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
-  doc.text("🎟️ Lottery Ticket Breakdown", 14, nextY);
+    // ===== Section 3: Lottery Breakdown =====
+    nextY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("🎟️ Lottery Ticket Breakdown", 14, nextY);
 
-  const lotteries = Object.entries(customer.LotteryBreakdown || {})
-    .filter(([key]) => key !== "TotalTickets")
-    .map(([lottery, count]) => [lottery, count.toLocaleString()]);
+    const lotteries = Object.entries(customer.LotteryBreakdown || {})
+      .filter(([key]) => key !== "TotalTickets")
+      .map(([lottery, count]) => [lottery, count.toLocaleString()]);
 
-  lotteries.push(["Total Tickets", customer.LotteryBreakdown?.TotalTickets?.toLocaleString() || "0"]);
+    lotteries.push([
+      "Total Tickets",
+      customer.LotteryBreakdown?.TotalTickets?.toLocaleString() || "0",
+    ]);
 
-  autoTable(doc, {
-    startY: nextY + 4,
-    head: [["Lottery Name", "Tickets"]],
-    body: lotteries,
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: {
-      fillColor: [123, 47, 247],
-      textColor: 255,
-      fontStyle: "bold",
-    },
-    margin: { left: 14, right: 14 },
-  });
+    autoTable(doc, {
+      startY: nextY + 4,
+      head: [["Lottery Name", "Tickets"]],
+      body: lotteries,
+      theme: "grid",
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: {
+        fillColor: [123, 47, 247],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      margin: { left: 14, right: 14 },
+    });
 
-  // ===== FOOTER with Gradient Line =====
-  const footerY = doc.internal.pageSize.getHeight() - 12;
-  for (let i = 0; i < steps; i++) {
-    const t = i / steps;
-    const r = gradientEnd[0] + t * (gradientStart[0] - gradientEnd[0]);
-    const g = gradientEnd[1] + t * (gradientStart[1] - gradientEnd[1]);
-    const b = gradientEnd[2] + t * (gradientStart[2] - gradientEnd[2]);
-    doc.setFillColor(r, g, b);
-    doc.rect((pageWidth / steps) * i, footerY - 1, pageWidth / steps, 1.5, "F");
-  }
+    // ===== FOOTER with Gradient Line =====
+    const footerY = doc.internal.pageSize.getHeight() - 12;
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const r = gradientEnd[0] + t * (gradientStart[0] - gradientEnd[0]);
+      const g = gradientEnd[1] + t * (gradientStart[1] - gradientEnd[1]);
+      const b = gradientEnd[2] + t * (gradientStart[2] - gradientEnd[2]);
+      doc.setFillColor(r, g, b);
+      doc.rect(
+        (pageWidth / steps) * i,
+        footerY - 1,
+        pageWidth / steps,
+        1.5,
+        "F"
+      );
+    }
 
-  doc.setFontSize(9);
-  doc.setTextColor(130);
-  doc.text(
-    `Generated on ${new Date().toLocaleString("en-LK")} | WinWay Loyalty System`,
-    pageWidth / 2,
-    footerY + 5,
-    { align: "center" }
-  );
+    doc.setFontSize(9);
+    doc.setTextColor(130);
+    doc.text(
+      `Generated on ${new Date().toLocaleString(
+        "en-LK"
+      )} | WinWay Loyalty System`,
+      pageWidth / 2,
+      footerY + 5,
+      { align: "center" }
+    );
 
-  // ===== Save =====
-  const fileName = `${customer.FirstName || "Customer"}_${customer.MobileNumber}_Summary.pdf`;
-  doc.save(fileName);
-};
-
+    // ===== Save =====
+    const fileName = `${customer.FirstName || "Customer"}_${
+      customer.MobileNumber
+    }_Summary.pdf`;
+    doc.save(fileName);
+  };
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:8001/api/settings");
+        const res = await axios.get(`${API_BASE}/api/settings`);
         const map = Object.fromEntries(
           res.data.map((s) => [s.key, parseInt(s.value, 10)])
         );
@@ -318,12 +329,7 @@ const handleDownloadSummary = () => {
         boxShadow: "0 10px 35px rgba(123,47,247,0.3)",
       }}
       footer={[
-        <Space
-          key="footer"
-          style={{ justifyContent: "end", width: "100%" }}
-        >
-         
-         
+        <Space key="footer" style={{ justifyContent: "end", width: "100%" }}>
           <Space>
             {onSendEmail && (
               <Button

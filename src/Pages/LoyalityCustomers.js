@@ -49,9 +49,8 @@ function LoyalityCustomers() {
   const fetchCustomersNew = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        "http://localhost:8001/api/initialCustomer/combined"
-      );
+      const res = await axios.get(`${API_BASE}/api/initialCustomer/combined`);
+
       console.log(res.data);
     } catch (error) {
       console.error("❌ Error fetching customers:", error);
@@ -60,9 +59,6 @@ function LoyalityCustomers() {
       setLoading(false);
     }
   };
-
-
-  
 
   const deleteCustomers = async () => {
     try {
@@ -149,7 +145,6 @@ function LoyalityCustomers() {
       title: "Tier",
       dataIndex: "Loyalty_Tier",
       align: "center",
-      
     },
 
     {

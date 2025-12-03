@@ -4,42 +4,78 @@ import axios from "axios";
 import winwayLogo from "../../assets/logo.png";
 import winwayLeft from "../../assets/back.png";
 import { useNavigate } from "react-router-dom";
+import bcrypt from "bcryptjs";
+import { decryptData, encryptData } from "../../config/cryptoUtils";
 
+const API_BASE = "http://localhost:8001";
 const { Title, Text } = Typography;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isLogging, setIsLogging] = useState(true);
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
 
-  // ✅ Login API call
   const handleLogin = async (values) => {
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:8001/api/users/login", values);
+      const users = await axios.get(`${API_BASE}/api/users/all`);
+      const s = users.data.data.find((d) => d.email == values.email);
+console.log(s);
 
-      // store JWT token & name for later use
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("name", res.data.name);
+      if (s) {
+        const decrypted = decryptData(s.password);
 
-      message.success(`Welcome back, ${res.data.name || "User"}!`);
-      navigate("/dashboard");
+        localStorage.setItem("name", s.name);
+
+        if (decrypted == values.password) {
+          messageApi.open({
+            type: "success",
+            content: "Welcome",
+          });
+          navigate("/dashboard");
+        } else {
+          messageApi.open({
+            type: "error",
+            content: "Login failed!, Invalid Credentials",
+          });
+        }
+      } else {
+        messageApi.open({
+          type: "error",
+ content: "Login failed!, User Not Found",        });
+      }
     } catch (err) {
-      console.error("Login error:", err);
-      message.error(err.response?.data?.message || "Login failed!");
+      messageApi.open({
+        type: "error",
+        content: "Login failed!, User Not Found",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Register API call
   const handleRegister = async (values) => {
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:8001/api/users/register", values);
 
-      message.success(res.data?.message || "Account created successfully!");
-      setIsLogging(true); // switch to login view
+      const users = await axios.get(`${API_BASE}/api/users/all`);
+
+      const s = users.data.data.find((d) => d.email == values.email);
+
+      if (!s) {
+        const res = await axios.post(`${API_BASE}/api/users/register`, {
+          name: values.name,
+          email: values.email,
+          password: encryptData(values.password),
+        });
+
+        message.success("Account created successfully!");
+        localStorage.setItem("name", res.data.name);
+        setLoading(true);
+      } else {
+        //show that user already
+      }
     } catch (err) {
       console.error("Register error:", err);
       message.error(err.response?.data?.message || "Registration failed!");
@@ -56,6 +92,7 @@ const Login = () => {
         backgroundColor: "#f5f5f5",
       }}
     >
+      {contextHolder}
       {/* LEFT IMAGE SECTION */}
       <div
         style={{
@@ -173,7 +210,8 @@ const Login = () => {
                   block
                   size="large"
                   style={{
-                    background: "linear-gradient(135deg,#7b2ff7,#f107a3,#ffd740)",
+                    background:
+                      "linear-gradient(135deg,#7b2ff7,#f107a3,#ffd740)",
                     border: "none",
                     color: "#fff",
                     fontWeight: 600,

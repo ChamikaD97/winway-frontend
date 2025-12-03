@@ -44,6 +44,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 const API_BASE = "http://127.0.0.1:8000";
+const API_BASE_Local = "http://localhost:8001";
 
 function Loyality() {
   // ---------------- STATE ----------------
@@ -120,13 +121,11 @@ function Loyality() {
 
     try {
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:8001/api/initialCustomer",
-        {
-          customers: results,
-          Last_Update: "Entry",
-        }
-      );
+
+      const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
+        customers: results,
+        Last_Update: "Entry",
+      });
 
       if (res.data.success) {
         message.success("✅ Loyalty data saved successfully!");
@@ -245,7 +244,8 @@ function Loyality() {
 
     const formData = new FormData();
 
-    const res123 = await axios.get("http://localhost:8001/api/settings");
+    const res123 = await axios.get(`${API_BASE_Local}/api/settings`);
+    console.log(res123);
 
     const map = Object.fromEntries(
       res123.data.data.map((s) => [s.key, s.value])

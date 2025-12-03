@@ -4,6 +4,7 @@ import { Progress, Tooltip, Typography, message } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
+const API_BASE = "http://localhost:8001";
 
 const TierBreakdown = ({ ticketCount, currentTier }) => {
   const [settings, setSettings] = useState(null);
@@ -14,7 +15,7 @@ const TierBreakdown = ({ ticketCount, currentTier }) => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:8001/api/settings");
+        const res = await axios.get(`${API_BASE}/api/settings`);
         const map = Object.fromEntries(
           res.data.map((s) => [s.key, parseInt(s.value, 10)])
         );
@@ -29,7 +30,7 @@ const TierBreakdown = ({ ticketCount, currentTier }) => {
         setLoading(false);
       }
     };
-   // fetchSettings();
+    // fetchSettings();
   }, []);
 
   if (!settings || loading) return null;
@@ -64,9 +65,15 @@ const TierBreakdown = ({ ticketCount, currentTier }) => {
   // 🎨 Tier color themes
   const tierColors = {
     blue: { gradient: { "0%": "#3b82f6", "100%": "#60a5fa" }, text: "#1d4ed8" },
-    silver: { gradient: { "0%": "#c0c0c0", "100%": "#9e9e9e" }, text: "#71717a" },
+    silver: {
+      gradient: { "0%": "#c0c0c0", "100%": "#9e9e9e" },
+      text: "#71717a",
+    },
     gold: { gradient: { "0%": "#facc15", "100%": "#f59e0b" }, text: "#b58900" },
-    platinum: { gradient: { "0%": "#7b2ff7", "100%": "#b37feb" }, text: "#7b2ff7" },
+    platinum: {
+      gradient: { "0%": "#7b2ff7", "100%": "#b37feb" },
+      text: "#7b2ff7",
+    },
   };
 
   const tierKey = (currentTier || "blue").toLowerCase();

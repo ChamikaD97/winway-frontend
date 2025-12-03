@@ -31,19 +31,6 @@ function App() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
-
-  // 🧠 Check token validity on page load
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    try {
-      const decoded = jwtDecode(token);
-
-      if (decoded.exp * 1000 > Date.now()) {
-        setIsAuthenticated(true);
-      }
-    } catch {}
-  }, []);
-
   // 📩 Handle file upload results
   const handleResults = (data) => {
     setResults(data);
@@ -59,7 +46,7 @@ function App() {
   // 🚪 Logout handler
   const handleLogout = () => {
     localStorage.clear();
-    setIsAuthenticated(false);
+
     navigate("/login");
   };
 

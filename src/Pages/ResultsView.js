@@ -8,7 +8,6 @@ import {
   Table,
   message,
   Divider,
-  Pagination,
   Modal,
   Space,
   Progress,
@@ -20,7 +19,6 @@ import {
 } from "antd";
 import {
   MailOutlined,
-  ReloadOutlined,
   CheckCircleTwoTone,
   CloseCircleTwoTone,
   ClockCircleTwoTone,
@@ -31,14 +29,11 @@ import {
   BarChartOutlined,
   RedoOutlined,
   CalendarOutlined,
-  UserOutlined,
-  GiftOutlined,
   TrophyOutlined,
   PictureOutlined,
   DownloadOutlined,
   CrownOutlined,
   TeamOutlined,
-  SearchOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   PhoneOutlined,
@@ -57,9 +52,9 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import Search from "antd/es/transfer/search";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const API_BASE = "http://localhost:8001";
 
 function ResultsView({ results, lotteryPrizes }) {
   const [customerPage, setCustomerPage] = useState(1);
@@ -77,7 +72,6 @@ function ResultsView({ results, lotteryPrizes }) {
   const stoppedRef = useRef(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
 
-  const pageSizeCustomers = 5;
   const COLORS = ["#1890ff", "#52c41a", "#faad14", "#722ed1", "#eb2f96"];
   if (!results) return null;
 
@@ -127,7 +121,7 @@ function ResultsView({ results, lotteryPrizes }) {
   );
 
   // 📧 Send email logic
-  const sendEmail = async (customer, i) => {
+  const sendEmail = async (customer, i, isSingle) => {
     try {
       const tblData = (customer.details || []).map((item) => ({
         name: item.Lottery_Type,
@@ -138,7 +132,7 @@ function ResultsView({ results, lotteryPrizes }) {
       const formData = new FormData();
       formData.append("to", customer.email ? "chamikadeshan97@gmail.com" : "");
       //formData.append("to", customer.email ? customer.email : "");
-      if (i < 20) {
+      if (i < 20  && !isSingle) {
         // formData.append("cc", "info@winway.lk");
       }
 
@@ -155,7 +149,7 @@ function ResultsView({ results, lotteryPrizes }) {
       formData.append("weekEnd", results?.week_range?.end_date || "");
 
       const res = await axios.post(
-        "http://localhost:8001/email/sendToCustomer",
+        `${API_BASE}/email/sendToCustomer`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -201,7 +195,7 @@ function ResultsView({ results, lotteryPrizes }) {
         { name: customer.name, email: customer.email, status: "sending" },
       ]);
 
-      const result = await sendEmail(customer, i);
+      const result = await sendEmail(customer, i, false);
       sentCount++;
       setProgress(Math.round((sentCount / total) * 100));
 
@@ -260,7 +254,7 @@ function ResultsView({ results, lotteryPrizes }) {
   const retrySingleEmail = async (email) => {
     const customer = rankedData.find((c) => c.email === email);
     if (!customer) return;
-    const result = await sendEmail(customer);
+    const result = await sendEmail(customer, true);
     setLogList((prev) =>
       prev.map((l) =>
         l.email === email
@@ -277,7 +271,7 @@ function ResultsView({ results, lotteryPrizes }) {
   const handleSendEmail = async () => {
     if (!selectedCustomer) return;
     setSendingMailSingle(true);
-    await sendEmail(selectedCustomer);
+    await sendEmail(selectedCustomer, true);
     setSendingMailSingle(false);
   };
 
@@ -441,7 +435,7 @@ function ResultsView({ results, lotteryPrizes }) {
           current: pagination.current,
           pageSize: pagination.pageSize,
           showSizeChanger: true,
-          pageSizeOptions: ["5", "10", "20", "50", "100"],
+          pageSizeOptions: ["5", "10", "20", "50", "200"],
           showTotal: (total, range) =>
             `Showing ${range[0]}-${range[1]} of ${total} customers`,
           onChange: (page, pageSize) =>
