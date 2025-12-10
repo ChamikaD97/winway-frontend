@@ -43,11 +43,11 @@ function FileUploadForm() {
   const [files, setFiles] = useState({});
   const [lotteryPrizes, setLotteryPrizes] = useState({
     "Ada Sampatha": "250000",
-    "Dhana Nidhanaya": "81674291",
-    Govisetha: "73298918",
-    Handahana: "4524709",
-    "Mahajana Sampatha": "26744360",
-    "Mega Power": "168666536",
+    "Dhana Nidhanaya": "84044236",
+    Govisetha: "60770628",
+    Handahana: "5146681",
+    "Mahajana Sampatha": "30596644",
+    "Mega Power": "169431830",
     "NLB Jaya": "500000",
     "Suba Dawasak": "500000",
   });

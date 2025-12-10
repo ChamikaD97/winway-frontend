@@ -1,24 +1,32 @@
-// CustomerModel.jsx — FINAL VERSION WITH LEFT TABLE + RIGHT INFO PANELS
+// CustomerModel.jsx — FINAL VERSION WITH RECHARTS HORIZONTAL BAR CHART
 import React from "react";
 import {
   Modal,
   Card,
   Row,
   Col,
-  Statistic,
   Descriptions,
-  Divider,
   Avatar,
   Tag,
   Button,
   Space,
 } from "antd";
-import {
-  PhoneOutlined,
-  UserOutlined,
-  WarningOutlined,
-} from "@ant-design/icons";
+import { PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+
+// 📊 Recharts
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+  PieChart,
+  Pie,
+} from "recharts";
 
 function CustomerModel({ open, onClose, customer, settings }) {
   if (!customer) return null;
@@ -38,73 +46,10 @@ function CustomerModel({ open, onClose, customer, settings }) {
     Rejected: "#E63946",
   };
 
-  const monthlyThresholds = {
-    Platinum: Number(settings.LOYALTY_MONTHLY_PLATINUM_TICKETS),
-    Gold: Number(settings.LOYALTY_MONTHLY_GOLD_TICKETS),
-    Silver: Number(settings.LOYALTY_MONTHLY_SILVER_TICKETS),
-    Blue: Number(settings.LOYALTY_DOWNGRADE_THRESHOLD),
-  };
-
-  const downgradeMonths = Number(settings.DOWNGRADE_MONTHS);
-
   const currentTier = Current_Customer_Details?.Current_Loyalty_Tier;
   const currentTierColor = tierColors[currentTier] || "#7b2ff7";
 
-  const monthlySorted = [...Monthly_Update_Details].sort((a, b) => {
-    return new Date(a.Last_Update) - new Date(b.Last_Update);
-  });
-
-  const latest = monthlySorted[monthlySorted.length - 1] || null;
-  const currentMonthTickets = latest?.Monthly_Ticket_Count || 0;
-
-  const monthlyRequirement = monthlyThresholds[currentTier];
-  const remainingForSafety = Math.max(
-    monthlyRequirement - currentMonthTickets,
-    0
-  );
-
-  let safetyStatus = "";
-  let safetyColor = "";
-  let safetyMessage = "";
-
-  if (currentMonthTickets >= monthlyRequirement) {
-    safetyStatus = "Safe This Month";
-    safetyColor = "#2e7d32";
-    safetyMessage = `You have met the monthly requirement (${monthlyRequirement}). Your ${currentTier} tier is safe.`;
-  } else {
-    safetyStatus = "At Risk";
-    safetyColor = "#c62828";
-    safetyMessage = `You need ${remainingForSafety} more tickets this month to maintain your ${currentTier} tier.`;
-  }
-
-  let consecutiveFails = 0;
-  monthlySorted.forEach((month) => {
-      if (currentTier === "Blue") {
-      consecutiveFails = 1;
-    }
-    if (currentTier === "Warning") {
-      consecutiveFails = 2;
-    }
-    if (currentTier === "Rejected") {
-      consecutiveFails = 3;
-    }
-
-  });
-
-  const remainingBeforeDowngrade = Math.max(
-    downgradeMonths - consecutiveFails,
-    0
-  );
-
-  let downgradeMessage = "";
-  let downgradeColor = remainingBeforeDowngrade <= 1 ? "#b71c1c" : "#ff8f00";
-
-  if (remainingBeforeDowngrade === 0) {
-    downgradeMessage = `⚠ Downgrade will happen immediately based on the rules.`;
-  } else {
-    downgradeMessage = `You have ${remainingBeforeDowngrade} month(s) left before a downgrade if requirements continue to be missed.`;
-  }
-
+  // Extract initial breakdown into chart-friendly structure
   const initialBreakdown = Object.entries(Iniotial_Ticket_Breakdown_Details)
     .filter(
       ([key]) =>
@@ -118,8 +63,20 @@ function CustomerModel({ open, onClose, customer, settings }) {
     .map(([key, val], i) => ({
       key: i,
       lottery: key.replace(/_/g, " "),
-      count: val,
-    }));
+      count: Number(val),
+    }))
+    .filter((item) => item.count > 0); // 🔥 SHOW ONLY LOTTERIES WITH TICKETS
+
+  const chartColors = [
+    "#7b2ff7", // purple
+    "#6200ea", // deep violet
+    "#9575cd", // soft purple
+    "#ba68c8", // soft pink-purple
+    "#ab47bc", // magenta
+    "#4fc3f7", // sky blue
+    "#29b6f6", // bright blue
+    "#26c6da", // teal cyan
+  ];
 
   return (
     <Modal
@@ -162,22 +119,9 @@ function CustomerModel({ open, onClose, customer, settings }) {
               color: "white",
             }}
           />
-
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 20,
-              fontWeight: 700,
-              color: currentTierColor,
-            }}
-          >
-            {currentTier}
-          </div>
-
-          <div style={{ color: "#003f7f", fontSize: 12 }}>Current Tier</div>
         </Col>
 
-        <Col xs={24} sm={16}>
+        <Col xs={24} md={16}>
           <Card
             bordered={false}
             style={{
@@ -209,12 +153,10 @@ function CustomerModel({ open, onClose, customer, settings }) {
         </Col>
       </Row>
 
-      {/* ---------------------------------------------------------
-            MAIN LAYOUT: LEFT TABLE + RIGHT PANELS
-         --------------------------------------------------------- */}
+      {/* MAIN LAYOUT */}
       <Row gutter={[16, 16]}>
-        {/* LEFT SIDE — FULL TABLE */}
-        <Col xs={24} md={14}>
+        {/* LEFT SIDE — HORIZONTAL BAR CHART */}
+        <Col xs={12} md={14}>
           <Card
             bordered={false}
             style={{
@@ -238,16 +180,63 @@ function CustomerModel({ open, onClose, customer, settings }) {
                 letterSpacing: 0.4,
               }}
             >
-              Initial Ticket Breakdown (At Entry)
+              Ticket Distribution At Entry
             </div>
 
             {/* TOP SUMMARY */}
+
+            {/* 📊 RECHARTS PIE CHART */}
+            <div style={{ width: "100%", height: 360, padding: "10px 0" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip
+                    formatter={(value) => Number(value).toLocaleString()}
+                    contentStyle={{
+                      borderRadius: 10,
+                      boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                    }}
+                  />
+
+                  <Pie
+                    data={initialBreakdown}
+                    dataKey="count"
+                    nameKey="lottery"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={120}
+                    labelLine={false}
+                    label={({ name, value }) =>
+                      `${name}: ${Number(value).toLocaleString()}`
+                    }
+                  >
+                    {initialBreakdown.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={chartColors[index % chartColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={12} md={10}>
+          <Card
+            bordered={false}
+            style={{
+              borderRadius: 16,
+              background: "white",
+              padding: 0,
+              height: "100%",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.07)",
+            }}
+          >
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "18px 22px",
                 borderBottom: "1px solid #e0e6ff",
                 background: "#f9faff",
               }}
@@ -258,7 +247,7 @@ function CustomerModel({ open, onClose, customer, settings }) {
                 </span>
                 <br />
                 <Tag
-                  color="#7b2ff7"
+                  color={currentTierColor}
                   style={{
                     borderRadius: 6,
                     fontWeight: 700,
@@ -287,187 +276,6 @@ function CustomerModel({ open, onClose, customer, settings }) {
                 </div>
               </div>
             </div>
-
-            {/* TABLE */}
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "separate",
-                borderSpacing: 0,
-                fontSize: 14,
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    background: "#f5f7ff",
-                    textAlign: "left",
-                    color: "#1a237e",
-                  }}
-                >
-                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>
-                    Lottery Type
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 16px",
-                      fontWeight: 700,
-                      textAlign: "right",
-                    }}
-                  >
-                    Tickets
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {initialBreakdown.map((row, i) => (
-                  <tr
-                    key={row.key}
-                    style={{
-                      background: i % 2 === 0 ? "#ffffff" : "#f9f9ff",
-                      transition: "0.2s",
-                    }}
-                  >
-                    <td style={{ padding: "12px 16px", color: "#0d1b2a" }}>
-                      {row.lottery}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "right",
-                        fontWeight: 700,
-                        color: "#7b2ff7",
-                      }}
-                    >
-                      {Number(row.count).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </Col>
-
-        {/* RIGHT SIDE — SAFETY PANEL + DOWNGRADE PANEL */}
-        <Col xs={24} md={10}>
-          {/* Monthly Safety */}
-          <Card
-            bordered={false}
-            style={{
-              borderRadius: 16,
-              padding: 25,
-              background: "linear-gradient(135deg, #ffffff, #f1f8ff)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              marginBottom: 20,
-            }}
-          >
-            <h3
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#0d47a1",
-                marginBottom: 12,
-              }}
-            >
-              Monthly Safety Status
-            </h3>
-
-            <Statistic
-              title="Status"
-              value={safetyStatus}
-              valueStyle={{
-                color: safetyColor,
-                fontWeight: 700,
-                fontSize: 22,
-              }}
-              prefix={
-                <WarningOutlined style={{ color: safetyColor, fontSize: 20 }} />
-              }
-            />
-
-            <Divider />
-
-            <p style={{ fontSize: 14, fontWeight: 500, color: "#333" }}>
-              {safetyMessage}
-            </p>
-
-            <Tag
-              color="#1976d2"
-              style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                fontWeight: 600,
-                display: "block",
-                marginTop: 15,
-              }}
-            >
-              Required This Month: {monthlyRequirement} tickets
-            </Tag>
-
-            <Tag
-              color="#7b2ff7"
-              style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                fontWeight: 600,
-                display: "block",
-                marginTop: 10,
-              }}
-            >
-              Current Month: {currentMonthTickets} tickets
-            </Tag>
-          </Card>
-
-          {/* Downgrade Panel */}
-          <Card
-            bordered={false}
-            style={{
-              borderRadius: 16,
-              padding: 25,
-              background: "linear-gradient(135deg, #ffffff, #fff4f4)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: downgradeColor,
-                marginBottom: 12,
-              }}
-            >
-              Downgrade Risk
-            </h3>
-
-            <Statistic
-              title="Consecutive Failures"
-              value={consecutiveFails}
-              valueStyle={{
-                color: downgradeColor,
-                fontWeight: 700,
-                fontSize: 22,
-              }}
-            />
-
-            <Divider />
-
-            <p style={{ fontSize: 14, fontWeight: 500, color: "#333" }}>
-              {downgradeMessage}
-            </p>
-
-            <Tag
-              color={downgradeColor}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                fontWeight: 600,
-                display: "block",
-                marginTop: 15,
-              }}
-            >
-              Allowed Failures: {downgradeMonths} months
-            </Tag>
           </Card>
         </Col>
       </Row>

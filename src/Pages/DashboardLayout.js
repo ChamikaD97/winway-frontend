@@ -25,10 +25,11 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
   }, []);
 
   const loyaltyMenu = [
-    { key: "5-1", label: "Entry Process" },
+    { key: "5-1", label: "Initial Process" },
     { key: "5-3", label: "Monthly Upgrade Process" },
     { key: "5-2", label: "Loyalty Customers" },
     { key: "5-4", label: "Loyalty Histoty" },
+    { key: "5-5", label: "Notifications" },
   ];
 
   return (
@@ -67,8 +68,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             src={logo}
             alt="WinWay"
             style={{
-              width: collapsed ? 100 : 170,
-              height: "auto",
+              width: collapsed ? "50px"  : "100px",
+              height:  collapsed ? "50px"  : "100px",
               transition: "all 0.3s ease",
             }}
           />
@@ -104,6 +105,11 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
           }}
           items={[
             {
+              key: "0",
+              icon: <CloudUploadOutlined />,
+              label: "Dashboard",
+            },
+             {
               key: "1",
               icon: <CloudUploadOutlined />,
               label: "Weekly Purchase ",

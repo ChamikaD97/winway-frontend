@@ -59,7 +59,7 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    //fetchSettings();
+    fetchSettings();
   }, []);
 
   // 🧾 Input update helper

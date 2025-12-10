@@ -15,6 +15,8 @@ import Settings from "./Pages/Settings";
 import LoyalityUpgrade from "./Pages/LoyalityUpgrade";
 import EntryCustomers from "./Pages/EntryCustomers";
 import LoyaltyHistory from "./Pages/LoyalityHistory";
+import Notifications from "./Pages/Notifications";
+import Dashboard from "./Pages/DashBoardPage";
 
 function App() {
   const [results, setResults] = useState(null);
@@ -69,6 +71,11 @@ function App() {
               onTabChange={setActiveTab}
               onLogout={handleLogout}
             >
+
+               {/* 1️⃣ Weekly Purchase  */}
+              {activeTab === "0" && (
+                <Dashboard/>
+              )}
               {/* 1️⃣ Weekly Purchase  */}
               {activeTab === "1" && (
                 <FileUploadForm setResults={handleResults} />
@@ -96,6 +103,7 @@ function App() {
               {activeTab === "5-2" && <EntryCustomers />}
               {activeTab === "5-3" && <LoyalityUpgrade />}
               {activeTab === "5-4" && <LoyaltyHistory />}
+              {activeTab === "5-5" && <Notifications />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />

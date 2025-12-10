@@ -5,15 +5,7 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 
-/** Props:
- * open: boolean
- * onClose: fn
- * mobileNumber: string
- * history: array of rows for this customer (sorted asc by month)
- * populationAverages: { [Last_Update]: avgTickets }
- * tierColors: map
- * lotteryKeys: array of lottery column keys
- */
+
 function CustomerLoyaltyModal({
   open,
   onClose,
@@ -23,6 +15,7 @@ function CustomerLoyaltyModal({
   tierColors = {},
   lotteryKeys = [],
 }) {
+  
   const [compareAvg, setCompareAvg] = useState("Hide avg");
 
   const displayMonth = (m) => {

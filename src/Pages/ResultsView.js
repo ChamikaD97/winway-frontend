@@ -182,7 +182,7 @@ function ResultsView({ results, lotteryPrizes }) {
     const total = rankedData.length;
     let sentCount = 0;
 
-    for (let i = 0; i < rankedData.length; i++) {
+    for (let i = 0; i < total; i++) {
       const customer = rankedData[i];
       if (stoppedRef.current) break;
 
@@ -486,195 +486,271 @@ function ResultsView({ results, lotteryPrizes }) {
           </div>
         }
       >
-        {/* 🔵 Gradient Progress Bar */}
-        <Progress
-          percent={progress}
-          strokeWidth={10}
-          strokeColor={{ "0%": "#7b2ff7", "100%": "#f107a3" }}
-          trailColor="#f0f0f0"
-          status="active"
-          style={{
-            marginBottom: 28,
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-          }}
-        />
-        <Row gutter={[16, 16]} style={{ marginBottom: 25 }}>
-          {/* Platinum Tier */}
-          <Col xs={24} sm={12} md={8}>
-            <Card>
-              <Statistic
-                title="Success"
-                value={successCount || 0}
-                valueStyle={{ color: "#00bd00ff", fontWeight: 700 }}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Card>
-          </Col>
+        {progress === 100 ? (
+          <>
+            <>
+              {/* 🎉 COMPLETION HEADER */}
+              <div style={{ textAlign: "center", marginBottom: 25 }}>
+                <CheckCircleTwoTone
+                  twoToneColor="#52c41a"
+                  style={{ fontSize: 56 }}
+                />
+                <h2 style={{ marginTop: 12, fontWeight: 700 }}>
+                  Process Completed Successfully
+                </h2>
+                <p style={{ color: "#444", marginTop: 6 }}>
+                  All emails sent, images generated, and log records finalized.
+                </p>
+              </div>
 
-          <Col xs={24} sm={12} md={8}>
-            <Card>
-              <Statistic
-                title="Images Saved"
-                value={imageCount || 0}
-                prefix={<PictureOutlined />}
-                valueStyle={{ color: "#facc15", fontWeight: 700 }}
-              />
-            </Card>
-          </Col>
+              {/* 📊 FINAL SUMMARY CARDS */}
+              <Row gutter={[16, 16]} style={{ marginBottom: 25 }}>
+                <Col xs={24} sm={12} md={8}>
+                  <Card>
+                    <Statistic
+                      title="Total Success"
+                      value={successCount || 0}
+                      valueStyle={{ color: "#52c41a", fontWeight: 700 }}
+                      prefix={<CheckCircleOutlined />}
+                    />
+                  </Card>
+                </Col>
 
-          {/* Silver Tier */}
-          <Col xs={24} sm={12} md={8}>
-            <Card>
-              <Statistic
-                title="Failed"
-                prefix={<CloseCircleOutlined />}
-                value={failCount || 0}
-                valueStyle={{ color: "#c90000ff", fontWeight: 700 }}
-              />
-            </Card>
-          </Col>
-        </Row>
-        {/* 📋 Email + Image Log List */}
-        <List
-          size="small"
-          bordered
-          dataSource={logList}
-          renderItem={(item) => (
-            <List.Item
+                <Col xs={24} sm={12} md={8}>
+                  <Card>
+                    <Statistic
+                      title="Images Created"
+                      value={imageCount || 0}
+                      valueStyle={{ color: "#faad14", fontWeight: 700 }}
+                      prefix={<PictureOutlined />}
+                    />
+                  </Card>
+                </Col>
+
+                <Col xs={24} sm={12} md={8}>
+                  <Card>
+                    <Statistic
+                      title="Failed"
+                      value={failCount || 0}
+                      valueStyle={{ color: "#ff4d4f", fontWeight: 700 }}
+                      prefix={<CloseCircleOutlined />}
+                    />
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* ✔ CLOSE BUTTON */}
+              <div style={{ textAlign: "center", marginTop: 25 }}>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => setLogModalVisible(false)}
+                  style={{
+                    padding: "8px 26px",
+                    fontWeight: 600,
+                    borderRadius: 8,
+                  }}
+                >
+                  Close Summary
+                </Button>
+              </div>
+            </>
+          </>
+        ) : (
+          <>
+            {/* 🔵 Gradient Progress Bar */}
+            <Progress
+              percent={progress}
+              strokeWidth={10}
+              strokeColor={{ "0%": "#7b2ff7", "100%": "#f107a3" }}
+              trailColor="#f0f0f0"
+              status="active"
               style={{
-                padding: "10px 16px",
-                margin: "6px 0",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.04)",
-                background:
-                  item.status === "sending"
-                    ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
-                    : item.status === "image"
-                    ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
-                    : item.status === "failed"
-                    ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
-                    : "rgba(255,255,255,0.95)",
-                transition: "background 0.3s ease",
+                marginBottom: 28,
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
               }}
-              actions={
-                item.status === "failed"
-                  ? [
-                      <Tooltip title="Retry this email" key="retry">
-                        <Button
-                          type="link"
-                          icon={<RedoOutlined />}
-                          onClick={() => retrySingleEmail(item.email)}
-                          style={{ color: "#722ed1" }}
-                        />
-                      </Tooltip>,
-                    ]
-                  : item.status === "image" && item.imagePath
-                  ? [
-                      <a
-                        href={`file://${item.imagePath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "#faad14", fontWeight: 500 }}
-                      >
-                        Open Image
-                      </a>,
-                    ]
-                  : []
-              }
-            >
-              <Space>
-                {item.status === "sending" && (
-                  <ClockCircleTwoTone twoToneColor="#faad14" />
-                )}
-                {item.status === "success" && (
-                  <CheckCircleTwoTone twoToneColor="#52c41a" />
-                )}
-                {item.status === "failed" && (
-                  <CloseCircleTwoTone twoToneColor="#ff4d4f" />
-                )}
-                {item.status === "image" && (
-                  <PictureOutlined style={{ color: "#faad14", fontSize: 18 }} />
-                )}
-                <Text strong style={{ color: "#111" }}>
-                  {item.name}
-                </Text>
-                <Text type="secondary">
-                  {item.email || "📸 Image Saved (No Email)"}
-                </Text>
-              </Space>
-            </List.Item>
-          )}
-          style={{
-            maxHeight: 320,
-            overflowY: "auto",
-            borderRadius: 8,
-            borderColor: "rgba(0,0,0,0.06)",
-            background: "rgba(255,255,255,0.6)",
-          }}
-        />
+            />
+            <Row gutter={[16, 16]} style={{ marginBottom: 25 }}>
+              {/* Platinum Tier */}
+              <Col xs={24} sm={12} md={8}>
+                <Card>
+                  <Statistic
+                    title="Success"
+                    value={successCount || 0}
+                    valueStyle={{ color: "#00bd00ff", fontWeight: 700 }}
+                    prefix={<CheckCircleOutlined />}
+                  />
+                </Card>
+              </Col>
 
-        {/* 🕹️ Controls (Pause / Resume / Stop) */}
-        <Divider style={{ margin: "24px 0 10px 0" }} />
-        <div
-          style={{
-            textAlign: "center",
-            display: "flex",
-            justifyContent: "center",
-            gap: 16,
-            flexWrap: "wrap",
-            marginTop: 10,
-          }}
-        >
-          {pausedRef.current ? (
-            <Button
-              icon={<PlayCircleOutlined />}
-              onClick={handleResume}
-              size="large"
+              <Col xs={24} sm={12} md={8}>
+                <Card>
+                  <Statistic
+                    title="Images Saved"
+                    value={imageCount || 0}
+                    prefix={<PictureOutlined />}
+                    valueStyle={{ color: "#facc15", fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+
+              {/* Silver Tier */}
+              <Col xs={24} sm={12} md={8}>
+                <Card>
+                  <Statistic
+                    title="Failed"
+                    prefix={<CloseCircleOutlined />}
+                    value={failCount || 0}
+                    valueStyle={{ color: "#c90000ff", fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+            {/* 📋 Email + Image Log List */}
+            <List
+              size="small"
+              bordered
+              dataSource={logList}
+              renderItem={(item) => (
+                <List.Item
+                  style={{
+                    padding: "10px 16px",
+                    margin: "6px 0",
+                    borderRadius: 10,
+                    border: "1px solid rgba(0,0,0,0.04)",
+                    background:
+                      item.status === "sending"
+                        ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
+                        : item.status === "image"
+                        ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
+                        : item.status === "failed"
+                        ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
+                        : "rgba(255,255,255,0.95)",
+                    transition: "background 0.3s ease",
+                  }}
+                  actions={
+                    item.status === "failed"
+                      ? [
+                          <Tooltip title="Retry this email" key="retry">
+                            <Button
+                              type="link"
+                              icon={<RedoOutlined />}
+                              onClick={() => retrySingleEmail(item.email)}
+                              style={{ color: "#722ed1" }}
+                            />
+                          </Tooltip>,
+                        ]
+                      : item.status === "image" && item.imagePath
+                      ? [
+                          <a
+                            href={`file://${item.imagePath}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "#faad14", fontWeight: 500 }}
+                          >
+                            Open Image
+                          </a>,
+                        ]
+                      : []
+                  }
+                >
+                  <Space>
+                    {item.status === "sending" && (
+                      <ClockCircleTwoTone twoToneColor="#faad14" />
+                    )}
+                    {item.status === "success" && (
+                      <CheckCircleTwoTone twoToneColor="#52c41a" />
+                    )}
+                    {item.status === "failed" && (
+                      <CloseCircleTwoTone twoToneColor="#ff4d4f" />
+                    )}
+                    {item.status === "image" && (
+                      <PictureOutlined
+                        style={{ color: "#faad14", fontSize: 18 }}
+                      />
+                    )}
+                    <Text strong style={{ color: "#111" }}>
+                      {item.name}
+                    </Text>
+                    <Text type="secondary">
+                      {item.email || "📸 Image Saved (No Email)"}
+                    </Text>
+                  </Space>
+                </List.Item>
+              )}
               style={{
-                background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-                color: "#fff",
-                border: "none",
+                maxHeight: 320,
+                overflowY: "auto",
                 borderRadius: 8,
-                fontWeight: 600,
-                minWidth: 120,
+                borderColor: "rgba(0,0,0,0.06)",
+                background: "rgba(255,255,255,0.6)",
               }}
-            >
-              Resume
-            </Button>
-          ) : (
-            <Button
-              icon={<PauseCircleOutlined />}
-              onClick={handlePause}
-              size="large"
+            />
+
+            {/* 🕹️ Controls (Pause / Resume / Stop) */}
+            <Divider style={{ margin: "24px 0 10px 0" }} />
+            <div
               style={{
-                background: "linear-gradient(90deg,#faad14,#fadb14)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontWeight: 600,
-                minWidth: 120,
+                textAlign: "center",
+                display: "flex",
+                justifyContent: "center",
+                gap: 16,
+                flexWrap: "wrap",
+                marginTop: 10,
               }}
             >
-              Pause
-            </Button>
-          )}
-          <Button
-            icon={<StopOutlined />}
-            danger
-            size="large"
-            onClick={handleStop}
-            style={{
-              background: "linear-gradient(90deg,#ff4d4f,#cf1322)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              fontWeight: 600,
-              minWidth: 140,
-            }}
-          >
-            Stop & Close
-          </Button>
-        </div>
+              {pausedRef.current ? (
+                <Button
+                  icon={<PlayCircleOutlined />}
+                  onClick={handleResume}
+                  size="large"
+                  style={{
+                    background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    minWidth: 120,
+                  }}
+                >
+                  Resume
+                </Button>
+              ) : (
+                <Button
+                  icon={<PauseCircleOutlined />}
+                  onClick={handlePause}
+                  size="large"
+                  style={{
+                    background: "linear-gradient(90deg,#faad14,#fadb14)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    minWidth: 120,
+                  }}
+                >
+                  Pause
+                </Button>
+              )}
+              <Button
+                icon={<StopOutlined />}
+                danger
+                size="large"
+                onClick={handleStop}
+                style={{
+                  background: "linear-gradient(90deg,#ff4d4f,#cf1322)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  minWidth: 140,
+                }}
+              >
+                Stop & Close
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* 🧾 Customer Details Modal – WinWay Premium Design */}
