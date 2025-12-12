@@ -25,7 +25,7 @@ import {
   DeleteFilled,
 } from "@ant-design/icons";
 import axios from "axios";
-import CustomerModel from "./CustomerModel";
+import CustomerModel from "./../componets/CustomerModel";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 const { Search } = Input;
@@ -188,14 +188,14 @@ function LoyalityCustomers() {
     XLSX.utils.book_append_sheet(wb, ws, "Loyalty Summary");
 
     // Generate Excel file buffer and save
-    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const excelBuffer = XLSX.write(wb, {  bookType: "csv", type: "array" });
     const blob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
     const fileName = `WinWay_Loyalty_Report_${new Date()
       .toISOString()
-      .slice(0, 10)}.xlsx`;
+      .slice(0, 10)}.csv`;
 
     saveAs(blob, fileName);
     message.success("✅ Loyalty report downloaded!");
@@ -209,7 +209,7 @@ function LoyalityCustomers() {
         style={{ marginBottom: 20, color: "black" }}
       >
         <Title level={3} style={{ textAlign: "left" }}>
-          Loyalty Customers
+          Loyalty Customers 
         </Title>
       </Row>
 

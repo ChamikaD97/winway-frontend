@@ -401,10 +401,10 @@ function EntryCustomers() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Entry Customers");
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
+      bookType: "csv",
       type: "array",
     });
-    saveAs(new Blob([excelBuffer]), "EntryCustomers.xlsx");
+    saveAs(new Blob([excelBuffer]), "EntryCustomers.csv");
   };
 
   const handleRowClick = async (record) => {
@@ -435,7 +435,7 @@ function EntryCustomers() {
       width: 160,
       fixed: "left",
       sorter: (a, b) => a.MobileNumber.localeCompare(b.MobileNumber),
-      render: (v) => <Text strong>{v}</Text>,
+render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
     },
     {
       title: "Name",

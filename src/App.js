@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 // Layouts & Pages
@@ -11,28 +10,32 @@ import ReconciliationReport from "./Pages/ReconciliationReport";
 import DailyActivations from "./Pages/DailyActivations";
 import LastPurchaseTimes from "./Pages/LastPurchaseTimes";
 import Loyality from "./Pages/Loyality";
+import MonthlyUpgrade from "./Pages/MonthlyUpgrade";
 import Settings from "./Pages/Settings";
-import LoyalityUpgrade from "./Pages/LoyalityUpgrade";
 import EntryCustomers from "./Pages/EntryCustomers";
 import LoyaltyHistory from "./Pages/LoyalityHistory";
 import Notifications from "./Pages/Notifications";
+import UpgradeHistory from "./Pages/UpgradeHistory";
 import Dashboard from "./Pages/DashBoardPage";
+// ✅ NEW: Shared Loyalty + SMS Hub
+import LoyaltyHub from "./Pages/LoyaltyHub";
 
 function App() {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const navigate = useNavigate();
+
   // 🛑 Warn user before closing/refreshing
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
       e.returnValue = "";
     };
-
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
   // 📩 Handle file upload results
   const handleResults = (data) => {
     setResults(data);
@@ -48,20 +51,18 @@ function App() {
   // 🚪 Logout handler
   const handleLogout = () => {
     localStorage.clear();
-
     navigate("/login");
   };
 
-  // ============ ROUTES ============
   return (
     <Routes>
-      {/* Login Page */}
+      {/* 🔐 Login */}
       <Route
         path="/login"
-        element={<Login onLogin={() => handleLoginSuccess()} />}
+        element={<Login onLogin={handleLoginSuccess} />}
       />
 
-      {/* Protected Dashboard */}
+      {/* 🔒 Protected Dashboard */}
       <Route
         path="/dashboard"
         element={
@@ -71,24 +72,21 @@ function App() {
               onTabChange={setActiveTab}
               onLogout={handleLogout}
             >
+              {/* 0️⃣ Dashboard */}
+              {activeTab === "0" && <Dashboard />}
 
-               {/* 1️⃣ Weekly Purchase  */}
-              {activeTab === "0" && (
-                <Dashboard/>
-              )}
-              {/* 1️⃣ Weekly Purchase  */}
+              {/* 1️⃣ Weekly Purchase */}
               {activeTab === "1" && (
                 <FileUploadForm setResults={handleResults} />
               )}
 
-              {/* 2️⃣ Results & Rankings */}
+              {/* 2️⃣ Results */}
               {activeTab === "2" && <ResultsView results={results} />}
 
-              {/* 3️⃣ Reports Overview */}
+              {/* 3️⃣ Reports */}
               {activeTab === "3" && (
                 <div style={{ textAlign: "center", padding: "60px 0" }}>
                   <h2>📊 Reports Overview</h2>
-                  <p>View analytics summaries, trends, and insights.</p>
                 </div>
               )}
               {activeTab === "3-1" && <ReconciliationReport />}
@@ -101,9 +99,13 @@ function App() {
               {/* 5️⃣ Loyalty */}
               {activeTab === "5-1" && <Loyality />}
               {activeTab === "5-2" && <EntryCustomers />}
-              {activeTab === "5-3" && <LoyalityUpgrade />}
+              {activeTab === "5-3" && <MonthlyUpgrade />}
               {activeTab === "5-4" && <LoyaltyHistory />}
               {activeTab === "5-5" && <Notifications />}
+              {activeTab === "5-7" && <UpgradeHistory />}
+
+              {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
+              {activeTab === "5-6" && <LoyaltyHub />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />
@@ -111,7 +113,7 @@ function App() {
         }
       />
 
-      {/* Default Route */}
+      {/* Default */}
       <Route
         path="*"
         element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}

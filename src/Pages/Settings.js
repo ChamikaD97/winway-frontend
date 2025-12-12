@@ -26,7 +26,10 @@ const Settings = () => {
     try {
       setLoading(true);
       const res = await axios.get(`${API_BASE}/api/settings`);
-      const map = Object.fromEntries(res.data.map((s) => [s.key, s.value]));
+      const settingsRes = await axios.get(`${API_BASE}/api/settings`);
+      const map = Object.fromEntries(
+        settingsRes.data.data.map((s) => [s.key, s.value])
+      );
       setSettings(map);
     } catch (err) {
       message.error("Failed to load settings");

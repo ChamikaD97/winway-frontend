@@ -46,7 +46,7 @@ const { Dragger } = Upload;
 const API_BASE = "http://127.0.0.1:8000";
 const API_BASE_Local = "http://localhost:8001";
 
-function Loyality() {
+function MonthlyUpgrade() {
   // ---------------- STATE ----------------
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,10 @@ function Loyality() {
   const [settings, setSettings] = useState();
 
   // 🗓️ Default Date Helpers
-  const getDefaultStartDate = () => "2025-07-01";
+  const getDefaultStartDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  };
 
   const getYesterday = () => {
     const d = new Date();
@@ -120,11 +123,18 @@ function Loyality() {
     }
 
     try {
+      console.log(results[0]);
+      const date_range = splitDateRange(summary.date_range);
+      console.log(date_range);
+
       setLoading(true);
 
-      const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
+
+      
+      const res = await axios.post(`${API_BASE_Local}/api/daily-upgrade`, {
         customers: results,
-        Last_Update: "Entry",
+        date_range: date_range,
+        // Last_Update: "Entry",
       });
 
       if (res.data.success) {
@@ -147,6 +157,22 @@ function Loyality() {
       setLoading(false);
     }
   };
+
+  function splitDateRange(rangeText) {
+    const [fromDate, toDate] = rangeText.split("→").map((s) => s.trim());
+
+    const [fromYear, fromMonth, fromDay] = fromDate.split("-");
+    const [toYear, toMonth, toDay] = toDate.split("-");
+
+    return {
+      fromYear,
+      fromMonth,
+      fromDay,
+      toYear,
+      toMonth,
+      toDay,
+    };
+  }
 
   const handleRowClick = (record) => {
     console.log(record);
@@ -253,14 +279,11 @@ function Loyality() {
 
     formData.append(
       "platinum",
-      parseInt(map.LOYALTY_ENTRY_PLATINUM_TICKETS, 10)
+      parseInt(map.LOYALTY_MONTHLY_PLATINUM_TICKETS, 10)
     );
-    formData.append("gold", parseInt(map.LOYALTY_ENTRY_GOLD_TICKETS, 10));
-    formData.append("silver", parseInt(map.LOYALTY_ENTRY_SILVER_TICKETS, 10));
-    formData.append(
-      "minVal",
-      parseInt(map.LOYALTY_ENTRY_MIN_CHECK_TICKETS, 10)
-    );
+    formData.append("gold", parseInt(map.LOYALTY_MONTHLY_GOLD_TICKETS, 10));
+    formData.append("silver", parseInt(map.LOYALTY_MONTHLY_SILVER_TICKETS, 10));
+    formData.append("minVal", parseInt(map.LOYALTY_DOWNGRADE_THRESHOLD, 10));
 
     setSettings(map);
 
@@ -278,7 +301,7 @@ function Loyality() {
       setProgress(0);
 
       const res = await axios.post(
-        `${API_BASE}/api/customer-tickets/`,
+        `${API_BASE}/api/customer-tickets-monthly/`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -331,17 +354,34 @@ function Loyality() {
       return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(results);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Loyalty Summary");
-    const excelBuffer = XLSX.write(wb, { bookType: "csv", type: "array" });
+    const exportData = results.map((item) => ({
+      MobileNumber: item.MobileNumber,
+      FirstName: item?.FirstName,
+      LastName: item?.LastName,
+      Email: item?.Email,
+      Gender: item?.Gender,
+      Loyalty_Tier: item.Loyalty_Tier,
+      Ticket_Count: item.Ticket_Count,
+      Last_Update: item.Last_Purchase_Time,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Current Loyalty Summary "
+    );
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "csv",
+      type: "array",
+    });
     const blob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    const fileName = `WinWay_Loyalty_Report_${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    const fileName = `WinWay_Loyalty_Report_${summary.date_range}.csv`;
     saveAs(blob, fileName);
     message.success("✅ Loyalty report downloaded!");
   };
@@ -414,6 +454,7 @@ function Loyality() {
   return (
     <>
       {/* STEP 1 */}
+
       {step === 1 && (
         <div style={{ position: "relative" }}>
           <Spin
@@ -422,7 +463,8 @@ function Loyality() {
             tip="Processing..."
           >
             <Title level={3} style={{ textAlign: "left" }}>
-              Upload ZIP and Customer Files Up To Date - First Time Only
+              Upload ZIP and Customer Files - (Enables only every 1st of the
+              month)
             </Title>
             <Divider />
             <Row gutter={[24, 24]} justify="center">
@@ -537,7 +579,9 @@ function Loyality() {
           </Spin>
         </div>
       )}
+
       {/* STEP 2 */}
+
       {step === 2 && (
         <div style={{ position: "relative" }}>
           <Spin
@@ -665,7 +709,7 @@ function Loyality() {
                   style={{ marginBottom: 20 }}
                 >
                   <Title level={3} style={{ marginBottom: 0 }}>
-                    Ticket Summary Results - Only First Time
+                    Loyality Members Details
                   </Title>
 
                   {summary?.date_range && (
@@ -993,6 +1037,7 @@ function Loyality() {
       )}
 
       {/* ✅ Save Summary Modal */}
+
       {saveModalVisible && (
         <Modal
           open={saveModalVisible}
@@ -1033,4 +1078,4 @@ function Loyality() {
   );
 }
 
-export default Loyality;
+export default MonthlyUpgrade;

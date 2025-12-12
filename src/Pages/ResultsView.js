@@ -132,7 +132,7 @@ function ResultsView({ results, lotteryPrizes }) {
       const formData = new FormData();
       formData.append("to", customer.email ? "chamikadeshan97@gmail.com" : "");
       //formData.append("to", customer.email ? customer.email : "");
-      if (i < 20  && !isSingle) {
+      if (i < 20 && !isSingle) {
         // formData.append("cc", "info@winway.lk");
       }
 

@@ -474,14 +474,14 @@ function LoyalityUpgrade() {
     XLSX.utils.book_append_sheet(wb, ws, "Loyalty Summary");
 
     // Generate Excel file buffer and save
-    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const excelBuffer = XLSX.write(wb, {  bookType: "csv", type: "array" });
     const blob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
     const fileName = `WinWay_Loyalty_Report_${new Date()
       .toISOString()
-      .slice(0, 10)}.xlsx`;
+      .slice(0, 10)}.csv`;
 
     saveAs(blob, fileName);
     message.success("✅ Loyalty report downloaded!");

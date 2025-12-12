@@ -440,15 +440,14 @@ function CustomeEmails() {
       Ticket_Count: item.CustomerInfo?.Current_Ticket_Count,
       Last_Update: item.Last_Update,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Entry Customers");
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
+       bookType: "csv",
       type: "array",
     });
-    saveAs(new Blob([excelBuffer]), "EntryCustomers.xlsx");
+    saveAs(new Blob([excelBuffer]), "EntryCustomers.csv");
   };
 
   const onSendMail = (record) => {};

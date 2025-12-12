@@ -268,8 +268,8 @@ const [selectedTier, setSelectedTier] = useState(null);
     const ws = XLSX.utils.json_to_sheet(filteredRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Loyalty History (Filtered)");
-    const buff = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([buff]), "LoyaltyHistory_Filtered.xlsx");
+    const buff = XLSX.write(wb, {  bookType: "csv", type: "array" });
+    saveAs(new Blob([buff]), "LoyaltyHistory_Filtered.csv");
   };
 
   const deleteAll = async () => {
