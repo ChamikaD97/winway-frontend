@@ -36,6 +36,7 @@ const API_BASE = "http://localhost:8001";
 const IS_TEST_MODE = true;
 
 /* 🇱🇰 Sri Lanka number normalizer */
+
 const normalizeLK = (n) => {
   if (!n) return null;
   let num = n.toString().trim().replace(/\s+/g, "");
@@ -49,9 +50,7 @@ const normalizeLK = (n) => {
 
 /* 🔥 ONE PLACE TO DECIDE NUMBER */
 const getSendNumber = (customer) =>
-  IS_TEST_MODE
-    ? normalizeLK("0718553224")
-    : normalizeLK(customer.MobileNumber);
+  IS_TEST_MODE ? normalizeLK("0717907695") : normalizeLK(customer.MobileNumber);
 
 /* 🔁 Extract ALL nested keys */
 const extractKeys = (obj, prefix = "") => {
@@ -70,11 +69,7 @@ const extractKeys = (obj, prefix = "") => {
 /* 🔁 Apply {{template}} */
 const applyTemplate = (template, customer) => {
   return template.replace(/{{(.*?)}}/g, (_, key) => {
-    return (
-      key
-        .split(".")
-        .reduce((o, i) => (o ? o[i] : ""), customer) || ""
-    );
+    return key.split(".").reduce((o, i) => (o ? o[i] : ""), customer) || "";
   });
 };
 
@@ -138,6 +133,10 @@ function SMSPage({ loyaltyCustomers = [] }) {
     Silver: <RiseOutlined />,
     Blue: <TeamOutlined />,
   };
+const recipientCount = useMemo(() => {
+  if (IS_TEST_MODE) return selectedCustomers.length ? 1 : 0;
+  return selectedCustomers.length;
+}, [selectedCustomers]);
 
   /* 🔍 FILTERED CUSTOMERS */
   const filteredCustomers = useMemo(() => {
@@ -206,6 +205,8 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
     setLoading(true);
     try {
+      console.log(selectedCustomers);
+
       for (const c of selectedCustomers) {
         const mobile = getSendNumber(c);
         if (!mobile) continue;
@@ -222,7 +223,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
       message.success(
         IS_TEST_MODE
-          ? "SMS sent in TEST MODE (0718553224)"
+          ? "SMS sent in TEST MODE (0717907695)"
           : "SMS sent successfully"
       );
     } catch {
@@ -234,19 +235,15 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
   /* 📞 SHOW NUMBERS SEPARATELY (READ-ONLY) */
   const displayedNumbers = IS_TEST_MODE
-    ? ["0718553224"]
-    : selectedCustomers
-        .map((c) => normalizeLK(c.MobileNumber))
-        .filter(Boolean);
+    ? ["0717907695"]
+    : selectedCustomers.map((c) => normalizeLK(c.MobileNumber)).filter(Boolean);
 
   /* 📋 TABLE */
   const columns = [
     {
       title: "Customer",
       render: (_, r) =>
-        `${r.CustomerInfo?.FirstName || ""} ${
-          r.CustomerInfo?.LastName || ""
-        }`,
+        `${r.CustomerInfo?.FirstName || ""} ${r.CustomerInfo?.LastName || ""}`,
     },
     {
       title: "Tier",
@@ -267,9 +264,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
   return (
     <Card>
-      <Title level={3}>
-        SMS Portal {IS_TEST_MODE && "(TEST MODE)"}
-      </Title>
+      <Title level={3}>SMS Portal {IS_TEST_MODE && "(TEST MODE)"}</Title>
 
       <Steps current={step} style={{ marginBottom: 24 }}>
         <Step title="Login" />
@@ -281,17 +276,13 @@ function SMSPage({ loyaltyCustomers = [] }) {
           <Form.Item label="Username">
             <Input
               value={login.username}
-              onChange={(e) =>
-                setLogin({ ...login, username: e.target.value })
-              }
+              onChange={(e) => setLogin({ ...login, username: e.target.value })}
             />
           </Form.Item>
           <Form.Item label="Password">
             <Input.Password
               value={login.password}
-              onChange={(e) =>
-                setLogin({ ...login, password: e.target.value })
-              }
+              onChange={(e) => setLogin({ ...login, password: e.target.value })}
             />
           </Form.Item>
           <Button type="primary" block loading={loading} onClick={handleLogin}>
@@ -316,9 +307,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
               <Form.Item label="Mask">
                 <Input
                   value={sms.mask}
-                  onChange={(e) =>
-                    setSms({ ...sms, mask: e.target.value })
-                  }
+                  onChange={(e) => setSms({ ...sms, mask: e.target.value })}
                 />
               </Form.Item>
 
@@ -358,10 +347,45 @@ function SMSPage({ loyaltyCustomers = [] }) {
                 <Input.TextArea
                   rows={5}
                   value={sms.content}
-                  onChange={(e) =>
-                    setSms({ ...sms, content: e.target.value })
-                  }
+                  onChange={(e) => setSms({ ...sms, content: e.target.value })}
                 />
+              </Form.Item>
+              <Form.Item>
+                <Card
+                  size="small"
+                  style={{
+                    background: IS_TEST_MODE
+                      ? "linear-gradient(145deg, #fff3cd, #ffffff)"
+                      : "linear-gradient(145deg, #e3f2fd, #ffffff)",
+                    border: IS_TEST_MODE
+                      ? "1px solid #facc15"
+                      : "1px solid #90caf9",
+                  }}
+                >
+                  <Text strong>📤 Messages will be sent to:</Text>
+
+                  <div style={{ marginTop: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: IS_TEST_MODE ? "#d97706" : "#2563eb",
+                      }}
+                    >
+                      {recipientCount}
+                    </Text>{" "}
+                    <Text>customer(s)</Text>
+                  </div>
+
+                  {IS_TEST_MODE && (
+                    <div style={{ marginTop: 4 }}>
+                      <Tag color="gold">TEST MODE</Tag>
+                      <Text type="secondary">
+                        All messages go to 0717907695
+                      </Text>
+                    </div>
+                  )}
+                </Card>
               </Form.Item>
 
               <Button type="primary" loading={loading} onClick={sendSms}>
@@ -394,9 +418,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
             <Col span={6} key={tier}>
               <Card
                 onClick={() =>
-                  selectedTier === tier
-                    ? filterByTier()
-                    : filterByTier(tier)
+                  selectedTier === tier ? filterByTier() : filterByTier(tier)
                 }
                 style={{
                   cursor: "pointer",
@@ -405,9 +427,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
                       ? `1px solid ${tierColors[tier]}`
                       : "1px solid #eee",
                   background:
-                    selectedTier === tier
-                      ? tierColorsFade[tier]
-                      : "#fff",
+                    selectedTier === tier ? tierColorsFade[tier] : "#fff",
                 }}
               >
                 <Statistic
