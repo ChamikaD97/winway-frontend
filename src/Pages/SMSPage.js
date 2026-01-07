@@ -15,6 +15,7 @@ import {
   Select,
   Space,
   Statistic,
+  Alert,
 } from "antd";
 import axios from "axios";
 import {
@@ -50,7 +51,7 @@ const normalizeLK = (n) => {
 
 /* 🔥 ONE PLACE TO DECIDE NUMBER */
 const getSendNumber = (customer) =>
-  IS_TEST_MODE ? normalizeLK("0717907695") : normalizeLK(customer.MobileNumber);
+  IS_TEST_MODE ? normalizeLK("0718553224") : normalizeLK(customer.MobileNumber);
 
 /* 🔁 Extract ALL nested keys */
 const extractKeys = (obj, prefix = "") => {
@@ -86,7 +87,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
   /* ✉️ SMS (NO numbers here) */
   const [sms, setSms] = useState({
     campaignName: "",
-    mask: "",
+    mask: "WIN WAY",
     content: "",
   });
 
@@ -133,10 +134,10 @@ function SMSPage({ loyaltyCustomers = [] }) {
     Silver: <RiseOutlined />,
     Blue: <TeamOutlined />,
   };
-const recipientCount = useMemo(() => {
-  if (IS_TEST_MODE) return selectedCustomers.length ? 1 : 0;
-  return selectedCustomers.length;
-}, [selectedCustomers]);
+  const recipientCount = useMemo(() => {
+    if (IS_TEST_MODE) return selectedCustomers.length ? 1 : 0;
+    return selectedCustomers.length;
+  }, [selectedCustomers]);
 
   /* 🔍 FILTERED CUSTOMERS */
   const filteredCustomers = useMemo(() => {
@@ -223,7 +224,7 @@ const recipientCount = useMemo(() => {
 
       message.success(
         IS_TEST_MODE
-          ? "SMS sent in TEST MODE (0717907695)"
+          ? "SMS sent in TEST MODE (0718553224)"
           : "SMS sent successfully"
       );
     } catch {
@@ -235,7 +236,7 @@ const recipientCount = useMemo(() => {
 
   /* 📞 SHOW NUMBERS SEPARATELY (READ-ONLY) */
   const displayedNumbers = IS_TEST_MODE
-    ? ["0717907695"]
+    ? ["0718553224"]
     : selectedCustomers.map((c) => normalizeLK(c.MobileNumber)).filter(Boolean);
 
   /* 📋 TABLE */
@@ -381,7 +382,7 @@ const recipientCount = useMemo(() => {
                     <div style={{ marginTop: 4 }}>
                       <Tag color="gold">TEST MODE</Tag>
                       <Text type="secondary">
-                        All messages go to 0717907695
+                        All messages go to 0718553224
                       </Text>
                     </div>
                   )}
@@ -395,11 +396,23 @@ const recipientCount = useMemo(() => {
           </Col>
 
           <Col span={10}>
-            <Card>
-              <Text strong>{sms.mask || "WINWAY"}</Text>
-              <p style={{ whiteSpace: "pre-wrap", marginTop: 12 }}>
-                {sms.content || "Message preview..."}
-              </p>
+            <Card size="small" title="📱 SMS Preview">
+              {selectedCustomers.length ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={applyTemplate(
+                    sms.content || "Start typing...",
+                    selectedCustomers[0]
+                  )}
+                />
+              ) : (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Select a customer to preview"
+                />
+              )}
             </Card>
           </Col>
         </Row>

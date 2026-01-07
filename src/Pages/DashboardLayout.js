@@ -9,6 +9,8 @@ import {
   HeartOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageTwoTone,
+  MessageOutlined,
 } from "@ant-design/icons";
 import logo from "../assets/logo.png"; // ✅ make sure path is correct
 
@@ -130,6 +132,11 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               children: loyaltyMenu,
             },
             {
+              key: "6",
+              icon: <MessageOutlined />,
+              label: "Custom SMS",
+            },
+            {
               key: "4",
               icon: <SettingOutlined />,
               label: "Settings",
@@ -177,6 +184,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               {activeTab === "2" && "Results & Rankings"}
 
               {activeTab === "5" && "Loyalty"}
+              {activeTab === "6" && "Custme SMS"}
               {activeTab === "5-1" && "Entry Process"}
               {activeTab === "5-3" && "Monthly Upgrade Process"}
               {activeTab === "5-2" && "Loyalty Customers"}

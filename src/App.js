@@ -19,6 +19,7 @@ import UpgradeHistory from "./Pages/UpgradeHistory";
 import Dashboard from "./Pages/DashBoardPage";
 // ✅ NEW: Shared Loyalty + SMS Hub
 import LoyaltyHub from "./Pages/LoyaltyHub";
+import CustomSMS from "./Pages/CustomSMS";
 
 function App() {
   const [results, setResults] = useState(null);
@@ -57,10 +58,7 @@ function App() {
   return (
     <Routes>
       {/* 🔐 Login */}
-      <Route
-        path="/login"
-        element={<Login onLogin={handleLoginSuccess} />}
-      />
+      <Route path="/login" element={<Login onLogin={handleLoginSuccess} />} />
 
       {/* 🔒 Protected Dashboard */}
       <Route
@@ -106,6 +104,7 @@ function App() {
 
               {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
               {activeTab === "5-6" && <LoyaltyHub />}
+               {activeTab === "6" && <CustomSMS />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />
