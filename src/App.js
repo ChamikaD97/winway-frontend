@@ -6,20 +6,18 @@ import DashboardLayout from "./Pages/DashboardLayout";
 import FileUploadForm from "./Pages/FileUploadForm";
 import ResultsView from "./Pages/ResultsView";
 import Login from "./Pages/Auth/Login";
-import ReconciliationReport from "./Pages/ReconciliationReport";
-import DailyActivations from "./Pages/DailyActivations";
-import LastPurchaseTimes from "./Pages/LastPurchaseTimes";
 import Loyality from "./Pages/Loyality";
 import MonthlyUpgrade from "./Pages/MonthlyUpgrade";
 import Settings from "./Pages/Settings";
-import EntryCustomers from "./Pages/EntryCustomers";
+import LoyaltyCustomers from "./Pages/LoyaltyCustomers";
 import LoyaltyHistory from "./Pages/LoyalityHistory";
-import Notifications from "./Pages/Notifications";
+import LoyaltyEmails from "./Pages/LoyaltyEmails";
 import UpgradeHistory from "./Pages/UpgradeHistory";
 import Dashboard from "./Pages/DashBoardPage";
 // ✅ NEW: Shared Loyalty + SMS Hub
 import LoyaltyHub from "./Pages/LoyaltyHub";
 import CustomSMS from "./Pages/CustomSMS";
+import CustomEmails from "./Pages/CustomEmails";
 
 function App() {
   const [results, setResults] = useState(null);
@@ -82,29 +80,22 @@ function App() {
               {activeTab === "2" && <ResultsView results={results} />}
 
               {/* 3️⃣ Reports */}
-              {activeTab === "3" && (
-                <div style={{ textAlign: "center", padding: "60px 0" }}>
-                  <h2>📊 Reports Overview</h2>
-                </div>
-              )}
-              {activeTab === "3-1" && <ReconciliationReport />}
-              {activeTab === "3-2" && <DailyActivations />}
-              {activeTab === "3-3" && <LastPurchaseTimes />}
 
               {/* 4️⃣ Settings */}
               {activeTab === "4" && <Settings />}
 
               {/* 5️⃣ Loyalty */}
               {activeTab === "5-1" && <Loyality />}
-              {activeTab === "5-2" && <EntryCustomers />}
+              {activeTab === "5-2" && <LoyaltyCustomers />}
               {activeTab === "5-3" && <MonthlyUpgrade />}
               {activeTab === "5-4" && <LoyaltyHistory />}
-              {activeTab === "5-5" && <Notifications />}
-              {activeTab === "5-7" && <UpgradeHistory />}
+              {activeTab === "5-5" && <LoyaltyEmails />}
 
               {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
               {activeTab === "5-6" && <LoyaltyHub />}
-               {activeTab === "6" && <CustomSMS />}
+              
+              {activeTab === "6-1" && <CustomSMS />}
+              {activeTab === "6-2" && <CustomEmails />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />

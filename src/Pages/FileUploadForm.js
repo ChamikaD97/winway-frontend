@@ -14,6 +14,9 @@ import {
   Col,
   Input,
   Statistic,
+  Tooltip,
+  Space,
+  Tag,
 } from "antd";
 import {
   LoadingOutlined,
@@ -28,10 +31,13 @@ import {
   CrownOutlined,
   TeamOutlined,
   PhoneOutlined,
+  SaveOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import ResultsView from "./ResultsView";
 import logo from "../assets/logo.png";
+import { getSettings, saveSettingsGroup } from "../api/endPoints";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -41,16 +47,7 @@ function FileUploadForm() {
   // ---------------- STATE ----------------
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState({});
-  const [lotteryPrizes, setLotteryPrizes] = useState({
-    "Ada Sampatha": "250000",
-    "Dhana Nidhanaya": "84044236",
-    Govisetha: "60770628",
-    Handahana: "5146681",
-    "Mahajana Sampatha": "30596644",
-    "Mega Power": "169431830",
-    "NLB Jaya": "500000",
-    "Suba Dawasak": "500000",
-  });
+  const [lotteryPrizes, setLotteryPrizes] = useState({});
   const [numCustomers, setNumCustomers] = useState("");
   const [mobileNumber, setMobileNumber] = useState(""); // ✅ new input
   const [editingPrize, setEditingPrize] = useState(null);
@@ -59,13 +56,74 @@ function FileUploadForm() {
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
   const [lastGenerated, setLastGenerated] = useState(null);
+  const [settings, setSettings] = useState({});
+  const [saving, setSaving] = useState(false);
+  const rawDate = settings?.LastUpdatedPrizes;
 
+  const formattedDate = rawDate
+    ? new Date(rawDate).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Colombo",
+      })
+    : "N/A";
+
+  const saveSettingGroup = async (group) => {
+    try {
+      setSaving(true);
+
+      await saveSettingsGroup(group);
+
+      message.success("Settings saved successfully");
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 🔄 Load settings from backend
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+
+      const settingsArray = await getSettings();
+      const map = Object.fromEntries(
+        settingsArray.data.data.map((s) => [s.key, s.value])
+      );
+
+      setSettings(map);
+      setLotteryPrizes({
+        AdaSampatha: map.AdaSampatha,
+        DhanaNidhanaya: map.DhanaNidhanaya,
+        Govisetha: map.Govisetha,
+        Handahana: map.Handahana,
+        MahajanaSampatha: map.MahajanaSampatha,
+        MegaPower: map.MegaPower,
+        NLBJaya: map.NLBJaya,
+        SubaDawasak: map.SubaDawasak,
+      });
+      console.log(map);
+    } catch (err) {
+      message.error("Failed to load settings");
+    } finally {
+      setLoading(false);
+    }
+  };
   // ---------------- LOCAL STORAGE ----------------
   useEffect(() => {
     const savedPrizes = localStorage.getItem("lotteryPrizes");
     const savedNum = localStorage.getItem("numCustomers");
     if (savedPrizes) setLotteryPrizes(JSON.parse(savedPrizes));
     if (savedNum) setNumCustomers(savedNum);
+  }, []);
+  useEffect(() => {
+    fetchSettings();
   }, []);
 
   useEffect(() => {
@@ -204,7 +262,7 @@ function FileUploadForm() {
             borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
             boxShadow: hasFile ? "0 0 10px rgba(82,196,26,0.2)" : "none",
           }}
-          bodyStyle={{ padding: 8 }}
+          styles={{ padding: 8 }}
         >
           <Form.Item
             label={<Text strong>{label}</Text>}
@@ -276,7 +334,14 @@ function FileUploadForm() {
             Update Lottery Super Prizes
           </Title>
           <Divider />
-          <Row gutter={16} justify="center" style={{ marginBottom: 10 }}>
+          <Row
+            gutter={16}
+            justify="center"
+            style={{
+              boxShadow: "0 12px 32px rgba(0,0,0,0.10)",
+              marginBottom: 10,
+            }}
+          >
             <Col xs={24} sm={8}>
               <Card bordered style={{ background: "#f0f5ff" }}>
                 <Statistic
@@ -288,7 +353,13 @@ function FileUploadForm() {
               </Card>
             </Col>
             <Col xs={24} sm={8}>
-              <Card bordered style={{ background: "#fff7e6" }}>
+              <Card
+                bordered
+                style={{
+                  background: "#fff7e6",
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.10)",
+                }}
+              >
                 <Statistic
                   title="Highest Prize"
                   value={maxPrize.toLocaleString()}
@@ -299,7 +370,13 @@ function FileUploadForm() {
               </Card>
             </Col>
             <Col xs={24} sm={8}>
-              <Card bordered style={{ background: "#f6ffed" }}>
+              <Card
+                bordered
+                style={{
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.10)",
+                  background: "#f6ffed",
+                }}
+              >
                 <Statistic
                   title="Total Lotteries"
                   value={Object.keys(lotteryPrizes).length}
@@ -310,47 +387,99 @@ function FileUploadForm() {
             </Col>
           </Row>
           <Divider />
-          <Row gutter={[16, 16]}>
-            {Object.keys(lotteryPrizes).map((prize, idx) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={idx}>
-                <Card
-                  hoverable
-                  bordered
-                  size="small"
-                  title={<Text strong>{prize}</Text>}
-                  actions={[
-                    <EditOutlined
-                      key="edit"
-                      onClick={() => setEditingPrize(prize)}
-                    />,
-                  ]}
-                  style={{
-                    borderRadius: 10,
-                    textAlign: "center",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-                  }}
-                >
-                  {editingPrize === prize ? (
-                    <Input
-                      value={lotteryPrizes[prize]}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^\d]/g, "");
-                        setLotteryPrizes({ ...lotteryPrizes, [prize]: val });
-                      }}
-                      onBlur={() => setEditingPrize(null)}
-                      autoFocus
+          <Row gutter={[24, 24]}>
+            <Card
+              headStyle={{
+                background: "#001529",
+                color: "#fff",
+                fontWeight: "600",
+                borderRadius: "10px 10px 0 0",
+              }}
+              title="Super Prize Amounts"
+              extra={
+                <Space size="middle">
+                  {/* Optional Refresh */}
+                  <Tooltip title="Refresh latest values">
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={fetchSettings} // <-- your existing reload function
                     />
-                  ) : (
-                    <Statistic
-                      prefix="Rs."
-                      value={parseInt(lotteryPrizes[prize]).toLocaleString()}
-                      valueStyle={{ fontSize: 18 }}
-                    />
-                  )}
-                </Card>
-              </Col>
-            ))}
+                  </Tooltip>
+
+                  {/* Save Button */}
+                  <Button
+                    icon={<SaveOutlined />}
+                    type="primary"
+                    loading={saving}
+                    onClick={() =>
+                      saveSettingGroup({
+                        AdaSampatha: lotteryPrizes.AdaSampatha,
+                        DhanaNidhanaya: lotteryPrizes.DhanaNidhanaya,
+                        Govisetha: lotteryPrizes.Govisetha,
+                        Handahana: lotteryPrizes.Handahana,
+                        MahajanaSampatha: lotteryPrizes.MahajanaSampatha,
+                        MegaPower: lotteryPrizes.MegaPower,
+                        NLBJaya: lotteryPrizes.NLBJaya,
+                        SubaDawasak: lotteryPrizes.SubaDawasak,
+                        LastUpdatedPrizes: new Date().toISOString(),
+                      })
+                    }
+                  >
+                    Save
+                  </Button>
+                </Space>
+              }
+            >
+              <Row gutter={[20, 20]}>
+                {lotteryPrizes &&
+                  Object.entries(lotteryPrizes).map(([prize, value]) => {
+                    return (
+                      <Col xs={24} sm={12} md={8} lg={6} key={prize}>
+                        <Card hoverable bordered={false}>
+                          {/* Header */}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: 12,
+                            }}
+                          >
+                            <Text>{prize}</Text>
+                          </div>
+
+                          {/* Body */}
+                          <>
+                            <Input
+                              autoFocus
+                              size="large"
+                              prefix="Rs."
+                              value={Number(value || 0).toLocaleString()}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(
+                                  /[^\d]/g,
+                                  ""
+                                );
+                                setLotteryPrizes({
+                                  ...lotteryPrizes,
+                                  [prize]: val,
+                                });
+                              }}
+                              style={{
+                                fontSize: 18,
+                                textAlign: "center",
+                                borderRadius: 10,
+                              }}
+                            />
+                          </>
+                        </Card>
+                      </Col>
+                    );
+                  })}
+              </Row>
+            </Card>
           </Row>
+
           <div style={{ textAlign: "center", marginTop: 30 }}>
             <Button
               type="primary"

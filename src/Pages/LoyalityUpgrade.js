@@ -60,7 +60,7 @@ function LoyalityUpgrade() {
   const [files, setFiles] = useState({});
   const [searchText, setSearchText] = useState("");
   const [fileNames, setFileNames] = useState([]);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -566,7 +566,7 @@ function LoyalityUpgrade() {
             borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
             boxShadow: hasFile ? "0 0 10px rgba(82,196,26,0.2)" : "none",
           }}
-          bodyStyle={{ padding: 8 }}
+          styles={{ padding: 8 }}
         >
           <Form.Item
             label={<Text strong>{label}</Text>}
@@ -812,7 +812,7 @@ function LoyalityUpgrade() {
                 current: pagination.current,
                 pageSize: pagination.pageSize,
                 showSizeChanger: true,
-                pageSizeOptions: ["10", "20", "50", "100"],
+                pageSizeOptions: ["5", "10", "25", "50" ,"100"],
                 showTotal: (total, range) =>
                   `Showing ${range[0]}-${range[1]} of ${total} customers`,
                 onChange: (page, pageSize) =>

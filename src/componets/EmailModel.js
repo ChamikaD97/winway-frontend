@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Modal, Form, Input, Button, Row, Col } from "antd";
+import React, { useMemo, useState } from "react";
+import { Modal, Form, Input, Button, Row, Col, Select } from "antd";
 import {
   Editor,
   EditorProvider,
@@ -17,17 +17,69 @@ import {
   BtnStyles,
 } from "react-simple-wysiwyg";
 
+const { Option } = Select;
+
 /* ----------------------------------------------
-   EMAIL TEMPLATE (PREVIEW VERSION WITH IMAGES)
+   🔁 UTILS
 ---------------------------------------------- */
+
+/* Extract nested keys */
+const extractKeys = (obj, prefix = "") =>
+  Object.entries(obj || {}).flatMap(([k, v]) =>
+    typeof v === "object" && v !== null
+      ? extractKeys(v, `${prefix}${k}.`)
+      : `${prefix}${k}`
+  );
+const getGenderTitle = (customer = {}) => {
+  const g = (customer.Gender || "").toLowerCase();
+
+  if (g === "male") return "Mr.";
+  if (g === "female") return "Ms.";
+
+  return ""; // fallback
+};
+
+/* Replace {{key}} with real values */
+const applyTemplate = (html, data) =>
+  html.replace(/{{(.*?)}}/g, (_, key) => {
+    return key.split(".").reduce((o, i) => (o ? o[i] : ""), data) ?? "-";
+  });
+
+/* ----------------------------------------------
+   EMAIL TEMPLATE
+---------------------------------------------- */
+
+function toProperCase(name = "") {
+  return name
+    .replace(/[^a-zA-Z ]/g, "") // remove commas & symbols
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getFullGreeting(customer = {}) {
+  const title = getGenderTitle(customer);
+  const firstName = customer.FirstName?.trim();
+  const lastName = customer.LastName?.trim();
+
+  const name =
+    firstName && lastName
+      ? `${firstName} ${lastName}`
+      : firstName || lastName || "Valued Customer";
+  return toProperCase(`Dear ${title ? title + " " : ""}${name},`);
+}
+
 const generateLoyaltyCustomeEmail = (
-  name = "Valued Customer",
   body,
   customer = {},
   title,
   headerLogo,
   footerLogo
 ) => {
+  const renderedBody = applyTemplate(body, customer);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -35,11 +87,10 @@ const generateLoyaltyCustomeEmail = (
   <meta charset="UTF-8" />
 </head>
 
-<body style="margin:0; padding:0; background:#f4f4f7; font-family:Arial, sans-serif;">
+<body style="margin:0; padding:0; background:#f4f4f7;  sans-serif;">
   <table width="100%" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center" style="padding:30px 0;">
-
         <table width="800" style="
           background:#EBF0F9;
           border-radius:18px;
@@ -63,9 +114,7 @@ const generateLoyaltyCustomeEmail = (
 
                     <td align="center">
                       <h1 style="color:#fff; font-size:32px; margin:0; font-family:'Crimson Text';">
-                      ${title}
-                   
-                      
+                        ${title}
                       </h1>
                     </td>
 
@@ -79,27 +128,17 @@ const generateLoyaltyCustomeEmail = (
           <!-- BODY -->
           <tr>
             <td style="padding:40px; font-size:16px; color:#333; line-height:1.6;">
-              
-              <p style="font-size:18px; font-family:'Sylfaen'; font-style:italic;">
-                <strong>Dear Customer,</strong>
-              </p>
+             <p style="font-size:18px; font-family:'Sylfaen'; font-style:italic;">
+  <strong>
 
-              ${body}
+   ${getFullGreeting(customer)}
+  </strong>
+</p>
 
-              <p style="font-family:'Sylfaen'; font-style:italic;font-size:15px;">
-                If you have any questions, contact <strong>info@winway.lk</strong>
-                or call <strong>0707 884 884</strong>.
-              </p>
+  <p style="margin:0 0 0 0; font-family:'Sylfaen'; font-style: italic;font-size:15px;">
 
-              <p style="font-family:'Sylfaen'; font-style:italic; font-size:15px;">
-                Thank you for choosing <strong>WIN WAY</strong>.
-              </p>
 
-              <p style="font-weight:600; font-family:'Sylfaen'; font-style:italic; font-size:15px;">
-                Best regards,<br/>
-                WIN WAY<br/>
-                National Lotteries Board
-              </p>
+              ${renderedBody}</p>
 
             </td>
           </tr>
@@ -128,7 +167,6 @@ const generateLoyaltyCustomeEmail = (
           </tr>
 
         </table>
-
       </td>
     </tr>
   </table>
@@ -140,40 +178,55 @@ const generateLoyaltyCustomeEmail = (
 /* ----------------------------------------------
    MAIN COMPONENT
 ---------------------------------------------- */
-const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
+const EmailModal = ({
+  open,
+  onClose,
+  onSend,
+  headerLogo,
+  footerLogo,
+  customers,
+}) => {
   const [form] = Form.useForm();
   const [editorValue, setEditorValue] = useState("");
-  const [title, setTitleValue] = useState("Loyalty Rewards Program");
+  const [title, setTitle] = useState("Loyalty Rewards Program");
 
+  /* 🔽 Dynamic keys from CustomerInfo */
+  const templateKeys = useMemo(() => {
+    if (!customers.length) return [];
+    return extractKeys(customers[0].CustomerInfo);
+  }, [customers]);
+
+  /* 📩 Submit */
   const handleSubmit = () => {
     form.validateFields().then((values) => {
       onSend({
         subject: values.subject,
-        body: editorValue, // HTML content
-        title: title ? title : "Loyalty Rewards Program",
+        body: editorValue,
+        title,
       });
 
-      form.resetFields();
-      setEditorValue("");
+      // setEditorValue("");
     });
   };
 
+  /* 🧹 Clear */
   const clearEditor = () => {
-    setTitleValue("Loyalty Rewards Program");
-
     setEditorValue("");
+    setTitle("Loyalty Rewards Program");
+    form.resetFields();
   };
 
-  const buildPreviewHtml = () => {
+  /* 🖼 Preview HTML */
+  const previewHtml = useMemo(() => {
+    if (!customers.length) return "";
     return generateLoyaltyCustomeEmail(
-      "Customer",
       editorValue,
-      {},
+      customers[0].CustomerInfo,
       title,
       headerLogo,
       footerLogo
     );
-  };
+  }, [editorValue, customers, title, headerLogo, footerLogo]);
 
   return (
     <Modal
@@ -194,7 +247,7 @@ const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
             borderBottom: "3px solid #7b2ff7",
           }}
         >
-          Send Your Custome Email
+          Send Custom Email
         </div>
       }
       footer={[
@@ -215,7 +268,7 @@ const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
       ]}
     >
       <Row gutter={20}>
-        {/* LEFT SIDE — FORM + EDITOR */}
+        {/* LEFT */}
         <Col span={8}>
           <Form form={form} layout="vertical">
             <Form.Item
@@ -223,18 +276,25 @@ const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
               name="subject"
               rules={[{ required: true, message: "Subject is required" }]}
             >
-              <Input placeholder="Enter email subject" />
+              <Input />
             </Form.Item>
-            <Form.Item
-              label="Email Title"
-              name="title"
-              rules={[{ required: true, message: "Title is required" }]}
-            >
-              <Input
-                placeholder="Enter email title"
-                onChange={(e) => setTitleValue(e.target.value)}
-                defaultValue={"Loyalty Rewards Program"}
-              />
+
+            <Form.Item label="Email Title">
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            </Form.Item>
+
+            <Form.Item label="Insert Dynamic Field">
+              <Select
+                showSearch
+                placeholder="Select field"
+                onSelect={(v) => setEditorValue((prev) => `${prev} {{${v}}}`)}
+              >
+                {templateKeys.map((k) => (
+                  <Option key={k} value={k}>
+                    {k}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item label="Email Body" required>
@@ -242,19 +302,14 @@ const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
                 <Editor
                   value={editorValue}
                   onChange={(e) => setEditorValue(e.target.value)}
-                  style={{
-                    height: 350,
-                    background: "#fff",
-                    borderRadius: 8,
-                    border: "1px solid #ddd",
-                  }}
+                  style={{ height: 350, background: "#fff" }}
                 >
                   <Toolbar>
                     <BtnBold />
                     <BtnItalic />
                     <BtnUnderline />
                     <BtnStrikeThrough />
-                    <BtnStyles /> {/* Replaces H1 / H2 / H3 / Paragraph */}
+                    <BtnStyles />
                     <BtnBulletList />
                     <BtnNumberedList />
                     <BtnLink />
@@ -268,11 +323,12 @@ const EmailModal = ({ open, onClose, onSend, headerLogo, footerLogo }) => {
           </Form>
         </Col>
 
-        {/* RIGHT SIDE — PREVIEW */}
+        {/* RIGHT */}
         <Col span={16}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview</div>
           <iframe
-            srcDoc={buildPreviewHtml()}
+            title="Email Preview"
+            srcDoc={previewHtml}
             style={{
               width: "100%",
               height: 500,

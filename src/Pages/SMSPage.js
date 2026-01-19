@@ -390,7 +390,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
               </Form.Item>
 
               <Button type="primary" loading={loading} onClick={sendSms}>
-                Send SMS
+                Send Loyalty SMS
               </Button>
             </Form>
           </Col>

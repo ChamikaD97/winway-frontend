@@ -31,10 +31,16 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
     { key: "5-3", label: "Monthly Upgrade Process" },
     { key: "5-2", label: "Loyalty Customers" },
     { key: "5-4", label: "Loyalty Histoty" },
-    { key: "5-5", label: "Send Emails" },
-    { key: "5-6", label: "Send SMS" },
+    { key: "5-5", label: "Send Loyalty Emails" },
+    { key: "5-6", label: "Send Loyalty SMS" },
 
-    { key: "5-7", label: "Summary " },
+
+  ];
+    const messageMenu = [
+    { key: "6-1", label: "SMS" },
+    { key: "6-2", label: "Emails" },
+   
+
   ];
 
   return (
@@ -119,11 +125,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               icon: <CloudUploadOutlined />,
               label: "Weekly Purchase ",
             },
-            {
-              key: "2",
-              icon: <TrophyOutlined />,
-              label: "Results & Rankings",
-            },
+           
 
             {
               key: "5",
@@ -134,7 +136,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             {
               key: "6",
               icon: <MessageOutlined />,
-              label: "Custom SMS",
+              label: "Custom Messages",
+              children: messageMenu,
             },
             {
               key: "4",

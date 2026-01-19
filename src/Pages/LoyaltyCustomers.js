@@ -41,43 +41,47 @@ import {
   RedoOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
-  EyeOutlined,
+  UserAddOutlined,
+  ArrowUpOutlined,
+  MinusOutlined,
+  ArrowDownOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import CustomerModel from "../componets/CustomerModel";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import EmailModal from "../componets/EmailModel";
-import headerLogo from "../assets/logo.png";
-import footerLogo from "../assets/nlb_logo.png";
-
+import { getCombinedCustomers, getSettings } from "../api/endPoints";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
 
 const API_BASE = "http://localhost:8001";
 
-function CustomeEmails() {
+function LoyaltyCustomers() {
   const [customers, setCustomers] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   const [selectedTier, setSelectedTier] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   const [summary, setSummary] = useState({});
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const [selectedCustomer, setSelectedCustomer] = useState();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [settings, setSettings] = useState({});
   const [sendingMailAll, setSendingMailAll] = useState(false);
   const [logList, setLogList] = useState([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setisLoading] = useState(false);
-  // Pause/Stop controls (refs)
+  const [uniqueMonths, setUniqueMonths] = useState([]);
+
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
   const [logModalVisible, setLogModalVisible] = useState(false);
+  const [singleEmailModelVisible, setSingleEmailModelVisible] = useState(false);
   // 💎 Tier Colors & Icons
   const tierColors = {
     Platinum: "#9B5DE5", // Elegant purple tone (modern premium look)
@@ -105,10 +109,9 @@ function CustomeEmails() {
     Rejected: <DragOutlined />,
   };
 
-  const sendLoyaltyEmail = async (customer, i, subject, body ,title) => {
+  const sendLoyaltyEmail = async (customer, type, i) => {
     try {
       const formData = new FormData();
-      console.log(customer);
 
       formData.append(
         "to",
@@ -116,28 +119,43 @@ function CustomeEmails() {
         //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
         //   : ""
 
-        customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : ""
+        customer.CustomerInfo.Email
+          ? "chamikadeshan97@gmail.com"
+          : "deshjayasingha@gmail.com",
+        // customer.CustomerInfo.Email
+        //   ? customer.CustomerInfo.Email
+        //   : "chamikadeshan97@gmail.com",
       );
+
+      if (i <= 5) {
+        // formData.append("cc", "info@winway.lk");
+      }
 
       formData.append(
         "name",
         `${customer.CustomerInfo?.FirstName || ""} ${
           customer.CustomerInfo?.LastName || ""
-        }`
+        }`,
       );
-      formData.append("type", "loyalty_welcome");
-      formData.append("number", i);
+      formData.append(
+        "type",
+        type == "Initial Load" ? "loyalty_welcome" : type,
+      );
+      formData.append(
+        "Loyalty_Number",
+        `${customer.CustomerInfo?.Loyalty_Number || ""} 
+        `,
+      );
 
-      formData.append("subject", subject);
-      formData.append("body", body);
-      formData.append("title", title);
+      // formData.append("subject", `Welcome to WIN WAY Loyalty Rewards Program`);
+
       // NEW → send full object
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
-        `${API_BASE}/email/loyality/custome-email`,
+        `${API_BASE}/email/loyality/send-loyalty`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       message.success(`✅ Email sent`);
@@ -146,104 +164,83 @@ function CustomeEmails() {
       console.error("❌ Loyalty Email Error:", error);
       message.error(`❌ Failed to send email`);
       return { status: "failed" };
+    } finally {
+      setSingleEmailModelVisible(false);
     }
   };
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
-  const handleSendLoyaltyEmails = async ({ subject, body , title }) => {
+  const handleSendSingleEmail = async (record) => {
+    setSingleEmailModelVisible(true);
+    //setSelectedCustomer(record.CustomerInfo);
+    await sendLoyaltyEmail(record, record.CustomerInfo.Evaluation_Status);
+  };
+
+  const handleSendLoyaltyEmails = async (type) => {
+    setSendingMailAll(true);
+    setLogModalVisible(true);
+    setLogList([]);
+    setProgress(0);
     pausedRef.current = false;
     stoppedRef.current = false;
-    const total = 1;
+    const total = filtered.length;
+    console.log(filtered.length);
+
     let sentCount = 0;
-    if (customers.length == total) {
-      console.log("all ");
-    } else if (total == 1) {
-      for (let i = 0; i < total; i++) {
-        const customer = filtered[2];
 
-        if (stoppedRef.current) break;
+    for (let i = 0; i < total; i++) {
+      const customer = filtered[i];
 
-        // Pause behaviour
-        while (pausedRef.current && !stoppedRef.current) {
-          await new Promise((r) => setTimeout(r, 400));
-        }
+      if (stoppedRef.current) break;
 
-        setLogList((prev) => [
-          ...prev,
-          {
-            name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
-            email: customer.CustomerInfo?.Email,
-            status: "sending",
-          },
-        ]);
-
-        // Actual send
-        const result = await sendLoyaltyEmail(customer, i, subject, body ,title) ;
-        sentCount++;
-        setProgress(Math.round((sentCount / total) * 100));
-        console.log(result);
-
-        // Update log
-        setLogList((prev) =>
-          prev.map((l) =>
-            l.email === customer.CustomerInfo?.Email
-              ? { ...l, status: result.status }
-              : l
-          )
-        );
-
-        await new Promise((r) => setTimeout(r, 500)); // Rate limit
+      // Pause behaviour
+      while (pausedRef.current && !stoppedRef.current) {
+        await new Promise((r) => setTimeout(r, 400));
       }
-      setSendingMailAll(false);
-    } else {
-      for (let i = 0; i < total; i++) {
-        const customer = filtered[i];
 
-        if (stoppedRef.current) break;
+      setLogList((prev) => [
+        ...prev,
+        {
+          name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
+          email: customer.CustomerInfo?.Email,
+          status: "sending",
+        },
+      ]);
 
-        // Pause behaviour
-        while (pausedRef.current && !stoppedRef.current) {
-          await new Promise((r) => setTimeout(r, 400));
-        }
+      // Actual send
+      console.log(i);
 
-        setLogList((prev) => [
-          ...prev,
-          {
-            name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
-            email: customer.CustomerInfo?.Email,
-            status: "sending",
-          },
-        ]);
+      const result = await sendLoyaltyEmail(customer, type, i);
+      sentCount++;
+      setProgress(Math.round((sentCount / total) * 100));
 
-        // Actual send
-        const result = await sendLoyaltyEmail(customer, i, subject);
-        sentCount++;
-        setProgress(Math.round((sentCount / total) * 100));
-        console.log(result);
+      // Update log
+      setLogList((prev) =>
+        prev.map((l) =>
+          l.email === customer.CustomerInfo?.Email
+            ? { ...l, status: result.status }
+            : l,
+        ),
+      );
 
-        // Update log
-        setLogList((prev) =>
-          prev.map((l) =>
-            l.email === customer.CustomerInfo?.Email
-              ? { ...l, status: result.status }
-              : l
-          )
-        );
-
-        await new Promise((r) => setTimeout(r, 500)); // Rate limit
-      }
-      console.log("bundle");
+      await new Promise((r) => setTimeout(r, 500)); // Rate limit
     }
-    return;
+
+    setSendingMailAll(false);
   };
 
-  const getCustomerSummary = (data) => {
+  const getCustomerSummary = (c) => {
+    const data = c.data || [];
+
     if (!Array.isArray(data)) return {};
 
     const summary = {
       totalCustomers: data.length,
       totalTickets: 0,
       tierCounts: {},
+      new_customers: c.new_customers || 0,
+      same: c.same || 0,
+      upgrades: c.upgrades || 0,
+      downgrades: c.downgrades || 0,
     };
 
     data.forEach((c) => {
@@ -258,7 +255,7 @@ function CustomeEmails() {
 
   const handleDownloadNoEmailList = () => {
     const noEmailCustomers = filtered.filter(
-      (c) => !c.CustomerInfo.Email || c.CustomerInfo.Email.trim() === ""
+      (c) => !c.CustomerInfo.Email || c.CustomerInfo.Email.trim() === "",
     );
 
     if (noEmailCustomers.length === 0) {
@@ -298,10 +295,49 @@ function CustomeEmails() {
     link.remove();
 
     message.success(
-      `Downloaded ${noEmailCustomers.length} customer(s) without emails.`
+      `Downloaded ${noEmailCustomers.length} customer(s) without emails.`,
     );
   };
 
+  const monthStrToDate = (m) => {
+    // "2025_October" -> Date(2025, 9, 1)
+    if (!m) return new Date(0);
+    const [y, mon] = m.split("_");
+    const idx = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ].findIndex((x) => x.toLowerCase() === mon?.toLowerCase());
+    return new Date(Number(y || 0), Math.max(0, idx), 1);
+  };
+
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/api/initialCustomer/monthly-upgrades`,
+      );
+      const uniqueMonthsArr = [
+        ...new Set(res.data.data.map((r) => r.Last_Update)),
+      ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
+
+      setUniqueMonths(uniqueMonthsArr);
+    } catch (e) {
+      console.error(e);
+      message.error("Failed to load loyalty history");
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleDownloadAll = () => {
     if (customers.length === 0) {
       message.info("All customers have emails — nothing to download.");
@@ -340,29 +376,44 @@ function CustomeEmails() {
     link.remove();
 
     message.success(
-      `Downloaded ${customers.length} customer(s) without emails.`
+      `Downloaded ${customers.length} customer(s) without emails.`,
     );
   };
 
+  const getButtonText = (selectedStatus) => {
+    if (selectedStatus == "Initial Load") {
+      return "Send Emails to New Customers";
+    } else if (selectedStatus == "Same") {
+      return "Send Emails to Same Customers";
+    } else if (selectedStatus == "Upgraded") {
+      return "Send Emails to Tier Upgraded Customers";
+    } else if (selectedStatus == "Down") {
+      return "Send Emails to Tier Downgraded Customers";
+    }
+  };
   // 🔹 Fetch customers from backend
   const fetchCustomers = async () => {
     setLoading(true);
+    setCustomers([]);
+    setFiltered([]);
+    setSummary({});
+    setSelectedTier("");
+    setSelectedStatus("");
+    filterByTier(); // reset
     try {
-      const res = await axios.get(`${API_BASE}/api/initialCustomer/combined`);
-
-      const res2 = await axios.get(`${API_BASE}/api/settings`);
+      const settingsArray = await getSettings();
+      const customers = await getCombinedCustomers();
 
       const map = Object.fromEntries(
-        res2.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value]),
       );
-      setSettings(map);
-      if (res.data?.success) {
-        const data = res.data.data || [];
-        console.log(getCustomerSummary(data));
 
+      setSettings(map);
+      if (customers.data?.success) {
+        const data = customers.data.data || [];
         setCustomers(data);
         setFiltered(data);
-        setSummary(getCustomerSummary(data));
+        setSummary(getCustomerSummary(customers.data));
         message.success("✅ Entry customers loaded successfully");
       } else {
         message.warning("No customer data found.");
@@ -385,35 +436,45 @@ function CustomeEmails() {
           (c) =>
             c.MobileNumber.toLowerCase().includes(lower) ||
             c.CustomerInfo?.FirstName?.toLowerCase().includes(lower) ||
-            c.CustomerInfo?.LastName?.toLowerCase().includes(lower)
-        )
+            c.CustomerInfo?.LastName?.toLowerCase().includes(lower),
+        ),
       );
     }
   }, [searchText, customers]);
-
-  // 🧹 Delete all customers
 
   const filterByTier = (tier) => {
     setSelectedTier(tier);
     if (tier) {
       const filteredTierCustomers = customers.filter(
-        (c) => c.CustomerInfo.Current_Loyalty_Tier == tier
+        (c) => c.CustomerInfo.Current_Loyalty_Tier == tier,
       );
       setFiltered(filteredTierCustomers);
     } else {
       setFiltered(customers);
     }
   };
+  const filterByStatus = (status) => {
+    setSelectedStatus(status);
 
+    if (status) {
+      const filteredStatusCustomers = customers.filter(
+        (c) => c.CustomerInfo.Evaluation_Status == status,
+      );
+
+      setFiltered(filteredStatusCustomers);
+    } else {
+      setFiltered(customers);
+    }
+  };
   const deleteCustomers = async () => {
     try {
       const confirmDelete = window.confirm(
-        "Are you sure you want to delete all entry customer data?"
+        "Are you sure you want to delete all entry customer data?",
       );
       if (!confirmDelete) return;
       setLoading(true);
       await axios.delete(
-        `${API_BASE}/api/initialCustomer/delete-all?confirm=true`
+        `${API_BASE}/api/initialCustomer/delete-all?confirm=true`,
       );
       setCustomers([]);
       setFiltered([]);
@@ -438,38 +499,20 @@ function CustomeEmails() {
       Gender: item.CustomerInfo?.Gender,
       Loyalty_Tier: item.CustomerInfo?.Current_Loyalty_Tier,
       Ticket_Count: item.CustomerInfo?.Current_Ticket_Count,
+      Loyalty_Number: item.CustomerInfo?.L,
       Last_Update: item.Last_Update,
     }));
+
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Entry Customers");
     const excelBuffer = XLSX.write(workbook, {
-       bookType: "csv",
+      bookType: "csv",
       type: "array",
     });
-    saveAs(new Blob([excelBuffer]), "EntryCustomers.csv");
+    saveAs(new Blob([excelBuffer]), "December 2025.csv");
   };
 
-  const onSendMail = (record) => {};
-  const handleRowClick = async (record) => {
-    try {
-      setLoading(true);
-      const res = await axios.get(
-        `${API_BASE}/api/initialCustomer/${record.MobileNumber}`
-      );
-      if (res.data?.success) {
-        setSelectedCustomer(res.data.data);
-        setIsModalVisible(true);
-      } else {
-        message.warning("No detailed data found for this customer.");
-      }
-    } catch (error) {
-      console.error("❌ Error fetching detailed data:", error);
-      message.error("Failed to load customer details.");
-    } finally {
-      setLoading(false);
-    }
-  };
   const columns = [
     {
       title: "Mobile Number",
@@ -478,7 +521,9 @@ function CustomeEmails() {
       width: 160,
       fixed: "left",
       sorter: (a, b) => a.MobileNumber.localeCompare(b.MobileNumber),
-      render: (v) => <Text strong>{v}</Text>,
+      render: (v) => (
+        <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>
+      ),
     },
     {
       title: "Name",
@@ -498,13 +543,55 @@ function CustomeEmails() {
         }`,
     },
     {
-      title: "Tier",
+      title: "Loyality Number",
+      key: "Tier",
+      width: 120,
+      align: "center",
+      sorter: (a, b) =>
+        (a.CustomerInfo?.Loyalty_Number || "").localeCompare(
+          b.CustomerInfo?.Loyalty_Number || "",
+        ),
+      render: (record) => {
+        const tier = record.CustomerInfo?.Loyalty_Number;
+        return (
+          <Tag
+            color={tierColors[tier] || "default"}
+            style={{ fontWeight: 500 }}
+          >
+            {tier || "-"}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Last Tier",
+      key: "Tier",
+      width: 120,
+      align: "center",
+      sorter: (a, b) =>
+        (a.CustomerInfo?.lastMonthLoyaltyTier || "").localeCompare(
+          b.CustomerInfo?.lastMonthLoyaltyTier || "",
+        ),
+      render: (record) => {
+        const tier = record.CustomerInfo?.lastMonthLoyaltyTier;
+        return (
+          <Tag
+            color={tierColors[tier] || "default"}
+            style={{ fontWeight: 500 }}
+          >
+            {tier || "-"}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Loyality Tier",
       key: "Tier",
       width: 120,
       align: "center",
       sorter: (a, b) =>
         (a.CustomerInfo?.Current_Loyalty_Tier || "").localeCompare(
-          b.CustomerInfo?.Current_Loyalty_Tier || ""
+          b.CustomerInfo?.Current_Loyalty_Tier || "",
         ),
       render: (record) => {
         const tier = record.CustomerInfo?.Current_Loyalty_Tier;
@@ -518,7 +605,6 @@ function CustomeEmails() {
         );
       },
     },
-
     {
       title: "Tickets",
       dataIndex: ["CustomerInfo", "Current_Ticket_Count"],
@@ -543,40 +629,39 @@ function CustomeEmails() {
       sorter: (a, b) =>
         (a.Last_Update || "").localeCompare(b.Last_Update || ""),
     },
-
-    // ⭐ NEW ACTION COLUMN
     {
-      title: "Actions",
-      key: "actions",
-      width: 160,
-      align: "center",
+      title: "Action",
+      key: "action",
       fixed: "right",
+      width: 120,
+      align: "center",
       render: (_, record) => (
-        <Space>
-          <Button
-            type="primary"
-            icon={<EyeOutlined />}
-            size="large"
-            onClick={() => handleRowClick(record)}
-          ></Button>
-
-          <Button
-            type="default"
-            icon={<MailOutlined />}
-            size="large"
-            onClick={() => onSendMail(record)}
-          ></Button>
-        </Space>
+        <Button
+          loading={sendingMailAll}
+          disabled={selectedTier}
+          icon={<SendOutlined />}
+          type="primary"
+          style={{
+            marginLeft: 10,
+            background: "#7b2ff7",
+            borderColor: "#7b2ff7",
+          }}
+          onClick={() => handleSendSingleEmail(record)}
+        >
+          Send
+        </Button>
       ),
     },
   ];
 
   useEffect(() => {
     fetchCustomers();
+    fetchHistory();
   }, []);
 
   const handlePause = () => (pausedRef.current = true);
   const handleResume = () => (pausedRef.current = false);
+
   const handleStop = () => {
     stoppedRef.current = true;
     pausedRef.current = false;
@@ -590,46 +675,50 @@ function CustomeEmails() {
 
   return (
     <>
-      <Spin spinning={loading} tip="Loading customers...">
+      <Spin
+        spinning={loading || singleEmailModelVisible}
+        tip={
+          !singleEmailModelVisible ? "Loading customers..." : "Sending Email..."
+        }
+      >
         <Row
           justify="space-between"
           align="middle"
           style={{ marginBottom: 20 }}
         >
-          <Title level={3}>Notifications</Title>
+          <Title level={3}>Loyalty Customers</Title>
         </Row>
 
         <Divider />
-
-        {/* Overview Stats */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 10 }}>
-          <Col xs={24} sm={12} md={12}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} md={6}>
             <Card
+              hoverable
               style={{
-                borderRadius: 12,
+                borderRadius: 14,
+                cursor: "pointer",
                 background: "linear-gradient(145deg, #e3f2fd, #ffffff)",
-
-                // ✅ HIGHLIGHT LOGIC
                 border: !selectedTier
-                  ? `1px solid "#000000ff"}`
-                  : "1px solid #f0f0f0",
-
+                  ? "2px solid #1976d2"
+                  : "1px solid #e0e0e0",
                 boxShadow: !selectedTier
-                  ? "0 5px 5px rgba(22,119,255,0.25)"
-                  : "0 2px 14px rgba(0,0,0,0.05)",
-
+                  ? "0 6px 18px rgba(25,118,210,0.25)"
+                  : "0 2px 8px rgba(0,0,0,0.05)",
                 transition: "all 0.25s ease",
               }}
               onClick={() => {
-                setSelectedTier(""); // ✅ toggle OFF
-                filterByTier(); // ✅ reset filter (show all)
+                setSelectedTier("");
+                setSelectedStatus("");
+                filterByTier(); // reset
               }}
             >
               <Statistic
                 title={
-                  <span style={{ fontSize: 14, color: "#1976d2" }}>
+                  <Text
+                    style={{ fontSize: 14, color: "#1976d2", fontWeight: 600 }}
+                  >
                     Total Customers
-                  </span>
+                  </Text>
                 }
                 value={summary.totalCustomers}
                 valueStyle={{ fontWeight: 700, color: "#0d47a1" }}
@@ -637,108 +726,285 @@ function CustomeEmails() {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={12}>
+          {["Platinum", "Gold", "Silver", "Blue", "Warning", "Rejected"].map(
+            (tier) => {
+              const isActive = selectedTier === tier;
+
+              return (
+                <Col xs={24} sm={12} md={3} key={tier}>
+                  <Tooltip title={`Filter by ${tier}`}>
+                    <Card
+                      hoverable
+                      onClick={() => {
+                        if (isActive) {
+                          setSelectedStatus("");
+                          setSelectedTier("");
+                          filterByTier();
+                        } else {
+                          setSelectedTier(tier);
+                          filterByTier(tier);
+                        }
+                      }}
+                      style={{
+                        borderRadius: 14,
+                        textAlign: "center",
+                        cursor: "pointer",
+                        border: isActive
+                          ? `2px solid ${tierColors[tier]}`
+                          : "1px solid #e0e0e0",
+                        background: isActive ? tierColorsFade[tier] : "#ffffff",
+                        boxShadow: isActive
+                          ? `0 6px 18px ${tierColors[tier]}55`
+                          : "0 2px 8px rgba(0,0,0,0.05)",
+                        transition: "all 0.25s ease",
+                      }}
+                    >
+                      <Statistic
+                        title={
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 600,
+                              color: tierColors[tier],
+                            }}
+                          >
+                            {tier}
+                          </Text>
+                        }
+                        value={summary?.tierCounts?.[tier] || 0}
+                        prefix={tierIcons[tier] || <UserOutlined />}
+                        valueStyle={{
+                          color: tierColors[tier],
+                          fontWeight: 700,
+                        }}
+                      />
+                    </Card>
+                  </Tooltip>
+                </Col>
+              );
+            },
+          )}
+        </Row>
+        <Divider />
+        {/* Overview Stats */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
+          {/* 🔵 Total Customers (Reset) */}
+          <Col xs={24} sm={12} md={8}>
             <Card
               style={{
-                borderRadius: 12,
-                background: "linear-gradient(145deg, #fff8e1, #ffffff)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                borderRadius: 14,
+              }}
+            >
+              {uniqueMonths?.length ? (
+                <Space wrap size="middle">
+                  {uniqueMonths.map((month, index) => {
+                    const isLatest = index === uniqueMonths.length - 1;
+
+                    return (
+                      <React.Fragment key={month}>
+                        <Tag
+                          color={isLatest ? "green" : "blue"}
+                          style={{
+                            fontSize: 13,
+                            padding: "4px 12px",
+                            fontWeight: isLatest ? 600 : 500,
+                            borderRadius: 12,
+                          }}
+                        >
+                          {month}
+                          {isLatest && " (Latest)"}
+                        </Tag>
+
+                        {index < uniqueMonths.length - 1 && (
+                          <span style={{ color: "#999", fontWeight: 600 }}>
+                            →
+                          </span>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </Space>
+              ) : (
+                <Text type="secondary">No evaluation history available</Text>
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Card
+              hoverable
+              style={{
+                borderRadius: 14,
+                cursor: "pointer",
+                background: "linear-gradient(145deg, #e8f5e9, #ffffff)",
+                border:
+                  selectedStatus === "Initial Load"
+                    ? "2px solid #2e7d32"
+                    : "1px solid #c8e6c9",
+                boxShadow:
+                  selectedStatus === "Initial Load"
+                    ? "0 6px 18px rgba(46,125,50,0.25)"
+                    : "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+              onClick={() => {
+                if (selectedStatus == "Initial Load") {
+                  setSelectedTier("");
+                  setSelectedStatus("");
+                  filterByTier(); // reset
+                } else {
+                  setSelectedTier("");
+                  setSelectedStatus("Initial Load");
+                  filterByStatus("Initial Load");
+                }
               }}
             >
               <Statistic
                 title={
-                  <span style={{ fontSize: 14, color: "#f57f17" }}>
-                    Total Tickets
-                  </span>
+                  <Text style={{ color: "#2e7d32", fontWeight: 600 }}>
+                    New Customers
+                  </Text>
                 }
-                value={summary.totalTickets || 0}
-                valueStyle={{ fontWeight: 700, color: "#f57f17" }}
-                prefix={<CrownOutlined style={{ color: "#fbc02d" }} />}
+                value={summary.new_customers}
+                valueStyle={{ color: "#1b5e20", fontWeight: 700 }}
+                prefix={<UserAddOutlined style={{ color: "#2e7d32" }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Card
+              hoverable
+              style={{
+                borderRadius: 14,
+                cursor: "pointer",
+                background: "linear-gradient(145deg, #e3f2fd, #ffffff)",
+                border:
+                  selectedStatus === "Upgraded"
+                    ? "2px solid #1976d2"
+                    : "1px solid #bbdefb",
+                boxShadow:
+                  selectedStatus === "Upgraded"
+                    ? "0 6px 18px rgba(25,118,210,0.25)"
+                    : "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+              onClick={() => {
+                if (selectedStatus == "Upgraded") {
+                  setSelectedTier("");
+                  setSelectedStatus("");
+                  filterByTier(); // reset
+                } else {
+                  setSelectedTier("");
+                  setSelectedStatus("Upgraded");
+                  filterByStatus("Upgraded");
+                }
+              }}
+            >
+              <Statistic
+                title={
+                  <Text style={{ color: "#1976d2", fontWeight: 600 }}>
+                    Upgrades
+                  </Text>
+                }
+                value={summary.upgrades}
+                valueStyle={{ color: "#0d47a1", fontWeight: 700 }}
+                prefix={<ArrowUpOutlined style={{ color: "#1976d2" }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Card
+              hoverable
+              style={{
+                borderRadius: 14,
+                cursor: "pointer",
+                background: "linear-gradient(145deg, #fff3e0, #ffffff)",
+                border:
+                  selectedStatus === "Same"
+                    ? "2px solid #f57c00"
+                    : "1px solid #ffe0b2",
+                boxShadow:
+                  selectedStatus === "Same"
+                    ? "0 6px 18px rgba(245,124,0,0.25)"
+                    : "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+              onClick={() => {
+                if (selectedStatus == "Same") {
+                  setSelectedTier("");
+                  setSelectedStatus("");
+                  filterByTier(); // reset
+                } else {
+                  setSelectedTier("");
+                  setSelectedStatus("Same");
+                  filterByStatus("Same");
+                }
+              }}
+            >
+              <Statistic
+                title={
+                  <Text style={{ color: "#f57c00", fontWeight: 600 }}>
+                    Not Changed
+                  </Text>
+                }
+                value={summary.same}
+                valueStyle={{ color: "#e65100", fontWeight: 700 }}
+                prefix={<MinusOutlined style={{ color: "#f57c00" }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Card
+              hoverable
+              style={{
+                borderRadius: 14,
+                cursor: "pointer",
+                background: "linear-gradient(145deg, #ffebee, #ffffff)",
+                border:
+                  selectedStatus === "Down"
+                    ? "2px solid #d32f2f"
+                    : "1px solid #ffcdd2",
+                boxShadow:
+                  selectedStatus === "Down"
+                    ? "0 6px 18px rgba(211,47,47,0.25)"
+                    : "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+              onClick={() => {
+                if (selectedStatus == "Down") {
+                  setSelectedTier("");
+                  setSelectedStatus("");
+                  filterByTier(); // reset
+                } else {
+                  setSelectedTier("");
+                  setSelectedStatus("Down");
+                  filterByStatus("Down");
+                }
+              }}
+            >
+              <Statistic
+                title={
+                  <Text style={{ color: "#d32f2f", fontWeight: 600 }}>
+                    Downgrades
+                  </Text>
+                }
+                value={summary.downgrades}
+                valueStyle={{ color: "#b71c1c", fontWeight: 700 }}
+                prefix={<ArrowDownOutlined style={{ color: "#d32f2f" }} />}
               />
             </Card>
           </Col>
         </Row>
-
-        {/* 🏆 Tier Summary */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-          {["Platinum", "Gold", "Silver", "Blue", "Warning", "Rejected"].map(
-            (tier) => (
-              <Col xs={24} sm={12} md={4} key={tier}>
-                <Tooltip>
-                  <Card
-                    onClick={() => {
-                      if (selectedTier === tier) {
-                        setSelectedTier(""); // ✅ toggle OFF
-                        filterByTier(); // ✅ reset filter (show all)
-                      } else {
-                        setSelectedTier(tier); // ✅ toggle ON
-                        filterByTier(tier); // ✅ filter selected tier
-                      }
-                    }}
-                    style={{
-                      borderRadius: 12,
-                      textAlign: "center",
-
-                      // ✅ HIGHLIGHT LOGIC
-                      border:
-                        selectedTier === tier
-                          ? `1px solid ${tierColors[tier] || "#000000ff"}`
-                          : "1px solid #f0f0f0",
-
-                      background:
-                        selectedTier === tier ? tierColorsFade[tier] : "#fff",
-
-                      boxShadow:
-                        selectedTier === tier
-                          ? "0 4px 12px rgba(22,119,255,0.25)"
-                          : "0 2px 8px rgba(0,0,0,0.05)",
-
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <Statistic
-                      title={
-                        <div style={{ lineHeight: "1.2" }}>
-                          <span
-                            style={{
-                              fontSize: 14,
-                              color: tierColors[tier],
-                              fontWeight: 600,
-                            }}
-                          >
-                            {tier}
-                          </span>
-                          <br />
-                        </div>
-                      }
-                      value={summary?.tierCounts?.[tier] || 0}
-                      prefix={tierIcons[tier] || <UserOutlined />}
-                      valueStyle={{
-                        color: tierColors[tier],
-                        fontWeight: 600,
-                      }}
-                    />
-                  </Card>
-                </Tooltip>
-              </Col>
-            )
-          )}
-        </Row>
-
-        {/* 🔍 Search */}
-
         <Row style={{ marginBottom: 20 }}>
           <Col xs={24} sm={12} md={8}>
-            <Search
-              placeholder="Search by name or mobile"
+            <Input.Search
+              placeholder="Search by name, email, or mobile"
               allowClear
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+              }}
             />
           </Col>
           <Col xs={24} sm={12} md={4}>
             <Button
               loading={sendingMailAll}
+              disabled={selectedTier}
               icon={<MailOutlined />}
               type="primary"
               style={{
@@ -746,23 +1012,20 @@ function CustomeEmails() {
                 background: "#7b2ff7",
                 borderColor: "#7b2ff7",
               }}
-              onClick={() => {
-                setEmailModalOpen(true);
-              }}
+              onClick={() => handleSendLoyaltyEmails(selectedStatus)}
             >
-              {customers.length == filtered.length
+              {getButtonText(selectedStatus)}
+              {/* {customers.length == filtered.length
                 ? "Send To All "
-                : "Send To Selected "}
+                : "Send To Selected "} */}
             </Button>
           </Col>
         </Row>
 
-        {/* 📋 Table */}
         <Table
           columns={columns}
           dataSource={filtered}
           rowKey="MobileNumber"
-          onRow={(record) => ({ onClick: () => handleRowClick(record) })}
           bordered
           size="middle"
           scroll={{ x: true, y: 420 }}
@@ -770,7 +1033,7 @@ function CustomeEmails() {
             current: pagination.current,
             pageSize: pagination.pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
+            pageSizeOptions: ["5", "10", "25", "50", "100"],
             showTotal: (total, range) =>
               `Showing ${range[0]}-${range[1]} of ${total} customers`,
             onChange: (page, pageSize) =>
@@ -785,8 +1048,6 @@ function CustomeEmails() {
             return "";
           }}
         />
-
-        {/* ⚙️ Footer Buttons */}
         <div style={{ textAlign: "center", marginTop: 25 }}>
           <Button icon={<ReloadOutlined />} onClick={fetchCustomers}>
             Refresh
@@ -817,14 +1078,13 @@ function CustomeEmails() {
           </Button>
         </div>
       </Spin>
-
       <Modal
         open={logModalVisible}
         onCancel={() => setLogModalVisible(false)}
         width={650}
         centered
         footer={null}
-        bodyStyle={{
+        styles={{
           background: "rgba(255,255,255,0.95)",
           backdropFilter: "blur(8px)",
           borderRadius: 16,
@@ -917,10 +1177,10 @@ function CustomeEmails() {
                   item.status === "sending"
                     ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
                     : item.status === "image"
-                    ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
-                    : item.status === "failed"
-                    ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
-                    : "rgba(255,255,255,0.95)",
+                      ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
+                      : item.status === "failed"
+                        ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
+                        : "rgba(255,255,255,0.95)",
                 transition: "background 0.3s ease",
               }}
               actions={
@@ -935,17 +1195,17 @@ function CustomeEmails() {
                       </Tooltip>,
                     ]
                   : item.status === "image" && item.imagePath
-                  ? [
-                      <a
-                        href={`file://${item.imagePath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "#faad14", fontWeight: 500 }}
-                      >
-                        Open Image
-                      </a>,
-                    ]
-                  : []
+                    ? [
+                        <a
+                          href={`file://${item.imagePath}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "#faad14", fontWeight: 500 }}
+                        >
+                          Open Image
+                        </a>,
+                      ]
+                    : []
               }
             >
               <Space>
@@ -1049,16 +1309,8 @@ function CustomeEmails() {
         customer={selectedCustomer}
         settings={settings}
       />
-
-      <EmailModal
-        open={emailModalOpen}
-        onClose={() => setEmailModalOpen(false)}
-        onSend={handleSendLoyaltyEmails}
-        headerLogo={headerLogo}
-        footerLogo={footerLogo}
-      />
     </>
   );
 }
 
-export default CustomeEmails;
+export default LoyaltyCustomers;

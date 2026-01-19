@@ -40,6 +40,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import CustomerModel from "../componets/CustomerModel";
 import dayjs from "dayjs";
+import { getSettings } from "../api/endPoints";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -56,7 +57,7 @@ function Loyality() {
   const [summary, setSummary] = useState(null);
   const [files, setFiles] = useState({});
   const [searchText, setSearchText] = useState("");
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [saveSummary, setSaveSummary] = useState(null);
@@ -122,15 +123,21 @@ function Loyality() {
     try {
       setLoading(true);
 
+      // 🔽 Sort customers by Ticket_Count (highest first)
+      const sortedResults = [...results].sort(
+        (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0)
+      );
+
       const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
-        customers: results,
+        customers: sortedResults,
         Last_Update: "Entry",
+        current_count: 200,
       });
 
       if (res.data.success) {
         message.success("✅ Loyalty data saved successfully!");
         setSaveSummary({
-          total: results.length,
+          total: sortedResults.length,
           inserted: res.data.inserted,
           message: res.data.message,
         });
@@ -146,13 +153,6 @@ function Loyality() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRowClick = (record) => {
-    console.log(record);
-
-    setSelectedCustomer(record);
-    setIsModalVisible(true);
   };
 
   const handleChange = useCallback((file, name) => {
@@ -179,6 +179,7 @@ function Loyality() {
     message.info("Form reset successfully");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
   const ticketColumns = [
     {
       title: "Customer",
@@ -230,7 +231,99 @@ function Loyality() {
       },
     },
   ];
-  // ---------------- STEP 1 → PROCESS ----------------
+
+  // ================================
+  // FIXED IGNORE NUMBERS
+  // ================================
+
+  const FIXED_IGNORE_NUMBERS = [
+    "+94779488015",
+    "+94777166110",
+    "+94762988252",
+    "94761772150",
+    "94743052195",
+    "94741702708",
+    "94777359122",
+    "94719022755",
+    "94714806478",
+    "94718508760",
+    "94704069799",
+    "94714805620",
+    "94776941961",
+    "94773274374",
+    "94719671141",
+    "94714115577",
+    "94766600000",
+    "94766749170",
+    "94778188285",
+    "94768097771",
+    "94771863400",
+    "94775107956",
+    "94774239140",
+    "94765679234",
+    "94777420191",
+    "94715897486",
+    "94718237303",
+    "94703516691",
+    "94703017115",
+    "94704642223",
+    "94761958698",
+    "94712115810",
+    "94788001122",
+    "94718419441",
+    "94776993482",
+    "94770881447",
+    "94778191900",
+    "94711805031",
+    "94775412556",
+    "94773106900",
+    "94715205411",
+    "94777255168",
+    "94773184590",
+    "94771982332",
+    "94772047456",
+    "94706600618",
+    "94772597337",
+    "94773671767",
+    "94776325756",
+    "94761848361",
+    "94771245316",
+    "94777338848",
+    "94742502620",
+    "94777560966",
+    "94707913428",
+    "94782503080",
+    "94711350177",
+    "94743464854",
+    "94763248678",
+    "94702347680",
+    "94713357163",
+    "94776018790",
+    "94716607483",
+    "94714310100",
+    "94765918418",
+    "94713159779",
+    "94772939969",
+    "94772653918",
+    "94775250457",
+    "94714320916",
+    "94773956945",
+    "94775787674",
+    "94712299748",
+    "94773380785",
+    "94715181815",
+    "94778421527",
+    "94771905392",
+    "94713233788",
+    "94774998535",
+  ];
+
+  // ================================
+  // SIMPLE NORMALIZER
+  // ================================
+  const normalize = (num = "") =>
+    num.startsWith("+") ? num.substring(1) : num;
+
   const handleSubmit = async () => {
     if (!files.zip_file || !files.customers_file) {
       message.warning("⚠️ Please upload both ZIP and Customer CSV files!");
@@ -244,11 +337,9 @@ function Loyality() {
 
     const formData = new FormData();
 
-    const res123 = await axios.get(`${API_BASE_Local}/api/settings`);
-    console.log(res123);
-
+    const settingsArray = await getSettings();
     const map = Object.fromEntries(
-      res123.data.data.map((s) => [s.key, s.value])
+      settingsArray.data.data.map((s) => [s.key, s.value])
     );
 
     formData.append(
@@ -264,13 +355,18 @@ function Loyality() {
 
     setSettings(map);
 
-    // Dates
+    // 🔹 Dates
     formData.append("start_date", startDate);
     formData.append("end_date", endDate);
 
-    // 🆕 Only append files that exist
+    // 🔹 Files
     Object.entries(files).forEach(([key, file]) => {
-      if (file) formData.append(key, file); // <-- This enables optional ignore_file
+      if (file) formData.append(key, file);
+    });
+
+    // 🔥 SEND FIXED IGNORE NUMBERS TO BACKEND
+    FIXED_IGNORE_NUMBERS.forEach((num) => {
+      formData.append("ignore_numbers", num);
     });
 
     try {
@@ -283,7 +379,9 @@ function Loyality() {
         {
           headers: { "Content-Type": "multipart/form-data" },
           onUploadProgress: (e) => {
-            if (e.total) setProgress(Math.round((100 * e.loaded) / e.total));
+            if (e.total) {
+              setProgress(Math.round((100 * e.loaded) / e.total));
+            }
           },
         }
       );
@@ -295,29 +393,26 @@ function Loyality() {
         return;
       }
 
-      const tierCounts = data.customers.reduce((acc, curr) => {
-        const tier = curr.Loyalty_Tier || "None";
-        acc[tier] = (acc[tier] || 0) + 1;
-        return acc;
-      }, {});
-
       const totalTicketsSum = data.customers.reduce(
         (acc, curr) => acc + Number(curr.Ticket_Count || 0),
         0
       );
 
-      const updatedSummary = {
-        ...data.summary,
-        tiers: tierCounts,
-        totalTicketsSum: totalTicketsSum,
-      };
-
+      // ✅ BACKEND ALREADY FILTERED
       setResults(data.customers);
-      setSummary(updatedSummary);
+
+      setSummary({
+        ...data.summary,
+        tiers: data.tiers,
+        zip_folders: data.zip_folders,
+        ignored_numbers: data.ignored_numbers,
+        totalTicketsSum,
+      });
+
       setStep(2);
       message.success("✅ Ticket report generated successfully!");
     } catch (err) {
-      console.log(err);
+      console.error(err);
       setError("❌ Error processing ticket data!");
       message.error("Error generating report!");
     } finally {
@@ -368,7 +463,7 @@ function Loyality() {
             borderColor: hasFile ? "#b7eb8f" : "#d9d9d9",
             boxShadow: hasFile ? "0 0 10px rgba(82,196,26,0.2)" : "none",
           }}
-          bodyStyle={{ padding: 8 }}
+          styles={{ padding: 8 }}
         >
           <Form.Item
             label={<Text strong>{label}</Text>}
@@ -445,15 +540,6 @@ function Loyality() {
                         ".csv",
                         <FileTextOutlined style={{ color: "#fa8c16" }} />,
                         "Customers file attached"
-                      )}
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      {renderUpload(
-                        "Ignore Numbers CSV (.csv) (Optional)",
-                        "ignore_file",
-                        ".csv",
-                        <FileTextOutlined style={{ color: "#52c41a" }} />,
-                        "Ignore list attached"
                       )}
                     </Col>
                   </Row>
@@ -916,7 +1002,7 @@ function Loyality() {
                     current: pagination.current,
                     pageSize: pagination.pageSize,
                     showSizeChanger: true,
-                    pageSizeOptions: ["10", "20", "50", "100"],
+                    pageSizeOptions: ["5", "10", "25", "50" ,"100"],
                     showTotal: (total, range) =>
                       `Showing ${range[0]}-${range[1]} of ${total} customers`,
                     onChange: (page, pageSize) =>

@@ -45,6 +45,7 @@ function CustomerModel({ open, onClose, customer, settings }) {
     Warning: "#FFA500",
     Rejected: "#E63946",
   };
+  console.log(customer);
 
   const currentTier = Current_Customer_Details?.Current_Loyalty_Tier;
   const currentTierColor = tierColors[currentTier] || "#7b2ff7";

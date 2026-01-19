@@ -9,58 +9,71 @@ import {
   message,
   Spin,
   Divider,
+  Input,
+  Statistic,
 } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
-import axios from "axios";
-import { theme } from "../config/themeConfig";
-
+import { getSettings, saveSettingsGroup } from "../api/endPoints";
 const { Title, Text } = Typography;
-const API_BASE = "http://localhost:8001";
+
 const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({});
-
+  const [lotteryPrizes, setLotteryPrizes] = useState({});
   // 🔄 Load settings from backend
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/api/settings`);
-      const settingsRes = await axios.get(`${API_BASE}/api/settings`);
+      const settingsArray = await getSettings();
       const map = Object.fromEntries(
-        settingsRes.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value])
       );
+
       setSettings(map);
+      setLotteryPrizes({
+        AdaSampatha: map.AdaSampatha,
+        DhanaNidhanaya: map.DhanaNidhanaya,
+        Govisetha: map.Govisetha,
+        Handahana: map.Handahana,
+        MahajanaSampatha: map.MahajanaSampatha,
+        MegaPower: map.MegaPower,
+        NLBJaya: map.NLBJaya,
+        SubaDawasak: map.SubaDawasak,
+      });
     } catch (err) {
       message.error("Failed to load settings");
     } finally {
       setLoading(false);
     }
   };
+  const formattedDate = settings?.LastUpdatedPrizes
+    ? new Date(settings.LastUpdatedPrizes).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Colombo",
+      })
+    : "N/A";
 
   // 💾 Save handler for a specific key group
   const saveSettingGroup = async (group) => {
     try {
       setSaving(true);
-      const updates = Object.entries(group);
 
-      for (const [key, value] of updates) {
-        await axios.post(`${API_BASE}/api/settings`, {
-          key,
-          value,
-          type: "number",
-        });
-      }
+      await saveSettingsGroup(group);
 
       message.success("Settings saved successfully");
-      //fetchSettings();
-    } catch {
+    } catch (err) {
+      console.error(err);
       message.error("Failed to save settings");
     } finally {
       setSaving(false);
     }
   };
-
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -73,6 +86,10 @@ const Settings = () => {
   return (
     <>
       <Title level={3} style={{ textAlign: "left" }}>
+        Settings
+      </Title>
+      <Divider />
+      <Title level={4} style={{ textAlign: "left" }}>
         Loyalty Program Settings
       </Title>
       <Divider />
@@ -259,12 +276,89 @@ const Settings = () => {
           </Card>
         </Col>
       </Row>
+      <Divider />
+      <Title level={4} style={{ textAlign: "left" }}>
+        Recent Super Prizes - {formattedDate}
+      </Title>
+      <Divider />
+      <Row gutter={[24, 24]}>
+        <Card
+          headStyle={{
+            background: "#001529",
+            color: "#fff",
+            fontWeight: "600",
+            borderRadius: "10px 10px 0 0",
+          }}
+          title="   Super Prize Amounts"
+          extra={
+            <Button
+              icon={<SaveOutlined />}
+              type="primary"
+              loading={saving}
+              onClick={() =>
+                saveSettingGroup({
+                  AdaSampatha: lotteryPrizes.AdaSampatha,
+                  DhanaNidhanaya: lotteryPrizes.DhanaNidhanaya,
+                  Govisetha: lotteryPrizes.Govisetha,
+                  Handahana: lotteryPrizes.Handahana,
+                  MahajanaSampatha: lotteryPrizes.MahajanaSampatha,
+                  MegaPower: lotteryPrizes.MegaPower,
+                  NLBJaya: lotteryPrizes.NLBJaya,
+                  SubaDawasak: lotteryPrizes.SubaDawasak,
+                  LastUpdatedPrizes: new Date().toISOString(),
+                })
+              }
+            >
+              Save
+            </Button>
+          }
+          style={{
+            borderRadius: 12,
+            boxShadow: "0 4px 20px rgba(255,215,64,0.2)",
+          }}
+        >
+          <Row gutter={[20, 20]}>
+            {Object.entries(lotteryPrizes).map(([prize, value]) => {
+              return (
+                <Col xs={24} sm={12} md={8} lg={6} key={prize}>
+                  <Card hoverable bordered={false}>
+                    {/* Header */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text>{prize}</Text>
+                    </div>
 
-      {/* <div style={{ textAlign: "center", marginTop: 20 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchSettings}>
-          Refresh
-        </Button>
-      </div> */}
+                    {/* Body */}
+                    <>
+                      <Input
+                        autoFocus
+                        size="large"
+                        prefix="Rs."
+                        value={Number(value || 0).toLocaleString()}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d]/g, "");
+                          setLotteryPrizes({ ...lotteryPrizes, [prize]: val });
+                        }}
+                        style={{
+                          fontSize: 18,
+                          textAlign: "center",
+                          borderRadius: 10,
+                        }}
+                      />
+                    </>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        </Card>
+      </Row>
     </>
   );
 };

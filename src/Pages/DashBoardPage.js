@@ -40,6 +40,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { getCombinedCustomers, getSettings } from "../api/endPoints";
 
 const API_BASE = "http://localhost:8001";
 const { Search } = Input;
@@ -89,22 +90,25 @@ function Dashboard() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/api/initialCustomer/combined`);
-      const settingsRes = await axios.get(`${API_BASE}/api/settings`);
+      const settingsArray = await getSettings();
+      const customers = await getCombinedCustomers();
+      const map = Object.fromEntries(
+        settingsArray.data.data.map((s) => [s.key, s.value])
+      );
 
-      const map = Object.fromEntries(settingsRes.data.data.map((s) => [s.key, s.value]));
       setSettings(map);
+      if (customers.data?.success) {
+        const data = customers.data.data || [];
 
-      if (res.data?.success) {
-        const data = res.data.data || [];
         setCustomers(data);
         setFiltered(data);
-        setSummary(generateSummary(data));
-        message.success("Dashboard data loaded");
+        message.success("✅ Entry customers loaded successfully");
+      } else {
+        message.warning("No customer data found.");
       }
-    } catch (err) {
-      console.error(err);
-      message.error("Failed to load dashboard data");
+    } catch (error) {
+      console.error("❌ Error fetching customers:", error);
+      message.error("Failed to fetch entry customers.");
     } finally {
       setLoading(false);
     }
@@ -255,9 +259,12 @@ function Dashboard() {
   return (
     <div className="dashboard-wrapper">
       <Spin spinning={loading}>
-
         {/* TITLE */}
-        <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
+        <Row
+          justify="space-between"
+          align="middle"
+          style={{ marginBottom: 20 }}
+        >
           <h2 className="dash-title">Dashboard Analytics</h2>
         </Row>
 
@@ -265,19 +272,28 @@ function Dashboard() {
         <Row gutter={16}>
           <Col span={6}>
             <Card className="kpi-card" title="Total Customers">
-              <Statistic value={summary.totalCustomers} prefix={<TeamOutlined />} />
+              <Statistic
+                value={summary.totalCustomers}
+                prefix={<TeamOutlined />}
+              />
             </Card>
           </Col>
 
           <Col span={6}>
             <Card className="kpi-card" title="Active Today">
-              <Statistic value={summary.activeToday} prefix={<UserOutlined />} />
+              <Statistic
+                value={summary.activeToday}
+                prefix={<UserOutlined />}
+              />
             </Card>
           </Col>
 
           <Col span={6}>
             <Card className="kpi-card" title="Total Tickets">
-              <Statistic value={summary.totalTickets} prefix={<TrophyOutlined />} />
+              <Statistic
+                value={summary.totalTickets}
+                prefix={<TrophyOutlined />}
+              />
             </Card>
           </Col>
 
@@ -366,7 +382,6 @@ function Dashboard() {
             pagination={{ pageSize: 5 }}
           />
         </Card>
-
       </Spin>
 
       {/* CUSTOMER MODAL */}
@@ -378,10 +393,20 @@ function Dashboard() {
       >
         {selectedCustomer && (
           <>
-            <p><b>Name:</b> {selectedCustomer.CustomerInfo.FirstName} {selectedCustomer.CustomerInfo.LastName}</p>
-            <p><b>Mobile:</b> {selectedCustomer.MobileNumber}</p>
-            <p><b>Tier:</b> {selectedCustomer.CustomerInfo.Current_Loyalty_Tier}</p>
-            <p><b>Tickets:</b> {selectedCustomer.CustomerInfo.Current_Ticket_Count}</p>
+            <p>
+              <b>Name:</b> {selectedCustomer.CustomerInfo.FirstName}{" "}
+              {selectedCustomer.CustomerInfo.LastName}
+            </p>
+            <p>
+              <b>Mobile:</b> {selectedCustomer.MobileNumber}
+            </p>
+            <p>
+              <b>Tier:</b> {selectedCustomer.CustomerInfo.Current_Loyalty_Tier}
+            </p>
+            <p>
+              <b>Tickets:</b>{" "}
+              {selectedCustomer.CustomerInfo.Current_Ticket_Count}
+            </p>
 
             <h4>Ticket Breakdown</h4>
             <pre className="json-block">

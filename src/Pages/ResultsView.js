@@ -52,6 +52,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import { Switch } from "antd";
 
 const { Text } = Typography;
 const API_BASE = "http://localhost:8001";
@@ -67,7 +68,7 @@ function ResultsView({ results, lotteryPrizes }) {
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [logList, setLogList] = useState([]);
   const [searchText, setSearchText] = useState(""); // 🔍 Search bar state
-
+  const [IS_TEST_MODE, Set_IS_TEST_MODE] = useState(true);
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
@@ -115,11 +116,6 @@ function ResultsView({ results, lotteryPrizes }) {
     );
   });
 
-  const pagedCustomers = filteredCustomers.slice(
-    (customerPage - 1) * pagination.pageSize,
-    customerPage * pagination.pageSize
-  );
-
   // 📧 Send email logic
   const sendEmail = async (customer, i, isSingle) => {
     try {
@@ -130,10 +126,16 @@ function ResultsView({ results, lotteryPrizes }) {
       }));
 
       const formData = new FormData();
-      formData.append("to", customer.email ? "chamikadeshan97@gmail.com" : "");
-      //formData.append("to", customer.email ? customer.email : "");
-      if (i < 20 && !isSingle) {
-        // formData.append("cc", "info@winway.lk");
+      if (IS_TEST_MODE) {
+        formData.append(
+          "to",
+          customer.email ? "chamikadeshan97@gmail.com" : "",
+        );
+      } else {
+        formData.append("to", customer.email ? customer.email : "");
+        if (i < 20 && !isSingle) {
+          formData.append("cc", "info@winway.lk");
+        }
       }
 
       formData.append("name", customer.name);
@@ -141,7 +143,7 @@ function ResultsView({ results, lotteryPrizes }) {
       formData.append("winnings", customer.winnings);
       formData.append(
         "subject",
-        `${customer.name} - Weekly Summary (${weekStart} → ${weekEnd})`
+        `${customer.name} - Weekly Summary (${weekStart} → ${weekEnd})`,
       );
       formData.append("tblData", JSON.stringify(tblData));
       formData.append("superPrizes", JSON.stringify(lotteryPrizes || {}));
@@ -151,12 +153,12 @@ function ResultsView({ results, lotteryPrizes }) {
       const res = await axios.post(
         `${API_BASE}/email/sendToCustomer`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       if (res.data?.imagePath) {
         message.info(
-          `📸 No email for ${customer.name}. Image saved at ${res.data.imagePath}`
+          `📸 No email for ${customer.name}. Image saved at ${res.data.imagePath}`,
         );
         return { status: "image", path: res.data.imagePath };
       }
@@ -179,10 +181,10 @@ function ResultsView({ results, lotteryPrizes }) {
     pausedRef.current = false;
     stoppedRef.current = false;
 
-    const total = rankedData.length;
+    const total = IS_TEST_MODE ? 5 : rankedData.length;
     let sentCount = 0;
 
-    for (let i = 0; i < total; i++) {
+    for (let i = 1; i < total; i++) {
       const customer = rankedData[i];
       if (stoppedRef.current) break;
 
@@ -203,8 +205,8 @@ function ResultsView({ results, lotteryPrizes }) {
         prev.map((l) =>
           l.name === customer.name
             ? { ...l, status: result.status, imagePath: result.path || null }
-            : l
-        )
+            : l,
+        ),
       );
 
       await new Promise((r) => setTimeout(r, 600));
@@ -231,14 +233,14 @@ function ResultsView({ results, lotteryPrizes }) {
     link.href = url;
     link.setAttribute(
       "download",
-      `WinWay_NoEmail_Customers_${new Date().toISOString().split("T")[0]}.csv`
+      `WinWay_NoEmail_Customers_${new Date().toISOString().split("T")[0]}.csv`,
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     message.success(
-      `📥 Downloaded ${noEmailCustomers.length} customer(s) without emails.`
+      `📥 Downloaded ${noEmailCustomers.length} customer(s) without emails.`,
     );
   };
 
@@ -259,8 +261,8 @@ function ResultsView({ results, lotteryPrizes }) {
       prev.map((l) =>
         l.email === email
           ? { ...l, status: result.status, imagePath: result.path || null }
-          : l
-      )
+          : l,
+      ),
     );
   };
 
@@ -337,13 +339,17 @@ function ResultsView({ results, lotteryPrizes }) {
 
       <Row
         gutter={[16, 16]}
+        align="middle"
         style={{
           marginBottom: 20,
-          display: "flex",
-          justifyContent: "flex-start",
+          padding: "12px 16px",
+          background: "#ffffffff",
+          borderRadius: 12,
+          border: "1px solid #f0f0f0",
         }}
       >
-        <Col xs={24} md={10}>
+        {/* 🔍 Search */}
+        <Col xs={24} md={8}>
           <Input.Search
             placeholder="Search by name, email, or mobile"
             allowClear
@@ -355,47 +361,76 @@ function ResultsView({ results, lotteryPrizes }) {
           />
         </Col>
 
-        <Row
-          gutter={[16, 16]}
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <Col xs={24} sm={12} md={10}>
-            <Button
-              type="primary"
-              icon={<MailOutlined />}
-              onClick={handleSendAllEmails}
-              loading={sendingMailAll}
-              style={{
-                background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-                border: "none",
-                borderRadius: 8,
-              }}
-            >
-              Send All Emails
-            </Button>
-          </Col>
+        {/* 📧 Send All */}
+        <Col xs={24} sm={12} md={4}>
+          <Button
+            block
+            type="primary"
+            icon={<MailOutlined />}
+            onClick={handleSendAllEmails}
+            loading={sendingMailAll}
+            style={{
+              background: "linear-gradient(90deg,#52c41a,#8bc34a)",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+            }}
+          >
+            Send All
+          </Button>
+        </Col>
 
-          <Col xs={24} sm={12} md={14}>
-            <Button
-              icon={<DownloadOutlined />}
-              type="primary"
+        {/* ⬇️ Download */}
+        <Col xs={24} sm={12} md={6}>
+          <Button
+            block
+            icon={<DownloadOutlined />}
+            type="primary"
+            onClick={handleDownloadNoEmailList}
+            style={{
+              background: "#1677ff",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+            }}
+          >
+            No-Email List
+          </Button>
+        </Col>
+
+        {/* 🧪 TEST / LIVE Toggle */}
+        <Col xs={24} md={6} style={{ textAlign: "right" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 14px",
+              borderRadius: 12,
+              background: IS_TEST_MODE
+                ? "linear-gradient(90deg,#fff7e6,#fff1b8)"
+                : "linear-gradient(90deg,#e6f4ff,#bae0ff)",
+              border: `1px solid ${IS_TEST_MODE ? "#ffd591" : "#91caff"}`,
+            }}
+          >
+            <span
               style={{
-                border: "none",
-                fontWeight: 500,
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: 0.3,
+                color: IS_TEST_MODE ? "#d46b08" : "#0958d9",
               }}
-              onClick={handleDownloadNoEmailList}
             >
-              Download No-Email List
-            </Button>
-          </Col>
-        </Row>
+              {IS_TEST_MODE ? "TEST MODE ACTIVATED" : "LIVE MODE ACTIVATED"}
+            </span>
+
+            <Switch checked={IS_TEST_MODE} onChange={Set_IS_TEST_MODE} />
+          </div>
+        </Col>
       </Row>
+
       <Table
-        dataSource={pagedCustomers}
+        dataSource={filteredCustomers}
         columns={[
           {
             title: "🏆 Rank",
@@ -435,9 +470,9 @@ function ResultsView({ results, lotteryPrizes }) {
           current: pagination.current,
           pageSize: pagination.pageSize,
           showSizeChanger: true,
-          pageSizeOptions: ["5", "10", "20", "50", "200"],
+          pageSizeOptions: ["5", "10", "20", "50", "100"],
           showTotal: (total, range) =>
-            `Showing ${range[0]}-${range[1]} of ${total} customers`,
+            `Showing ${range[0]}-${range[1]} of ${total} ${"customers"}`,
           onChange: (page, pageSize) =>
             setPagination({ current: page, pageSize }),
         }}
@@ -449,15 +484,24 @@ function ResultsView({ results, lotteryPrizes }) {
           onClick: () => handleRowClick(record),
         })}
       />
-
-      {/* Progress Log Modal */}
       <Modal
         open={logModalVisible}
-        onCancel={() => setLogModalVisible(false)}
+        // ❌ BLOCK close unless progress === 100
+        onCancel={() => {
+          if (progress === 100) {
+            setLogModalVisible(false);
+          }
+        }}
+        // ❌ disable outside click
+        maskClosable={progress === 100}
+        // ❌ disable ESC key
+        keyboard={progress === 100}
+        // ❌ hide X button while processing
+        closable={progress === 100}
         width={650}
         centered
         footer={null}
-        bodyStyle={{
+        styles={{
           background: "rgba(255,255,255,0.95)",
           backdropFilter: "blur(8px)",
           borderRadius: 16,
@@ -610,7 +654,7 @@ function ResultsView({ results, lotteryPrizes }) {
             <List
               size="small"
               bordered
-              dataSource={logList}
+              dataSource={[...logList].reverse()} // 👈 newest first
               renderItem={(item) => (
                 <List.Item
                   style={{
@@ -622,10 +666,10 @@ function ResultsView({ results, lotteryPrizes }) {
                       item.status === "sending"
                         ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
                         : item.status === "image"
-                        ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
-                        : item.status === "failed"
-                        ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
-                        : "rgba(255,255,255,0.95)",
+                          ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
+                          : item.status === "failed"
+                            ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
+                            : "rgba(255,255,255,0.95)",
                     transition: "background 0.3s ease",
                   }}
                   actions={
@@ -641,17 +685,17 @@ function ResultsView({ results, lotteryPrizes }) {
                           </Tooltip>,
                         ]
                       : item.status === "image" && item.imagePath
-                      ? [
-                          <a
-                            href={`file://${item.imagePath}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: "#faad14", fontWeight: 500 }}
-                          >
-                            Open Image
-                          </a>,
-                        ]
-                      : []
+                        ? [
+                            <a
+                              href={`file://${item.imagePath}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "#faad14", fontWeight: 500 }}
+                            >
+                              Open Image
+                            </a>,
+                          ]
+                        : []
                   }
                 >
                   <Space>
@@ -759,7 +803,7 @@ function ResultsView({ results, lotteryPrizes }) {
         onCancel={() => setIsModalVisible(false)}
         width={1000}
         centered
-        bodyStyle={{
+        styles={{
           background: "rgba(255,255,255,0.95)",
           backdropFilter: "blur(8px)",
           borderRadius: 18,

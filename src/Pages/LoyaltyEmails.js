@@ -41,18 +41,23 @@ import {
   RedoOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import CustomerModel from "../componets/CustomerModel";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import EmailModal from "../componets/EmailModel";
+import headerLogo from "../assets/logo.png";
+import footerLogo from "../assets/nlb_logo.png";
+import { getCombinedCustomers, getSettings } from "../api/endPoints";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
 
-const API_BASE = "http://localhost:8001";
+const API_BASE_LOCAL = "http://localhost:8001";
 
-function EntryCustomers() {
+function LoyaltyEmails() {
   const [customers, setCustomers] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,13 +66,15 @@ function EntryCustomers() {
   const [selectedTier, setSelectedTier] = useState("");
 
   const [summary, setSummary] = useState({});
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [settings, setSettings] = useState({});
   const [sendingMailAll, setSendingMailAll] = useState(false);
   const [logList, setLogList] = useState([]);
   const [progress, setProgress] = useState(0);
+  const [imageCounts, setImageCount] = useState(0);
+
   const [isLoading, setisLoading] = useState(false);
   // Pause/Stop controls (refs)
   const pausedRef = useRef(false);
@@ -100,7 +107,7 @@ function EntryCustomers() {
     Rejected: <DragOutlined />,
   };
 
-  const sendLoyaltyEmail = async (customer, i) => {
+  const sendLoyaltyEmail = async (customer, i, subject, body, title) => {
     try {
       const formData = new FormData();
       console.log(customer);
@@ -123,13 +130,14 @@ function EntryCustomers() {
       formData.append("type", "loyalty_welcome");
       formData.append("number", i);
 
-      formData.append("subject", `Welcome to WIN WAY Loyalty Rewards Program`);
-
+      formData.append("subject", subject);
+      formData.append("body", body);
+      formData.append("title", title);
       // NEW → send full object
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
-        `${API_BASE}/email/loyality/send-loyalty`,
+        `${API_BASE_LOCAL}/email/loyality/custome-email`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -142,55 +150,145 @@ function EntryCustomers() {
       return { status: "failed" };
     }
   };
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
-  const handleSendLoyaltyEmails = async () => {
-    setSendingMailAll(true);
-    setLogModalVisible(true);
-    setLogList([]);
-    setProgress(0);
+  const handleSendLoyaltyEmails = async ({ subject, body, title }) => {
     pausedRef.current = false;
     stoppedRef.current = false;
-    const total = filtered.length - 105;
+    const total = 3;
     let sentCount = 0;
+    if (filtered.length == total) {
+      setLogModalVisible(true);
+      for (let i = 0; i < total; i++) {
+        const customer = filtered[i];
+        if (customer.CustomerInfo.Email) {
+          if (stoppedRef.current) break;
 
-    for (let i = 0; i < total; i++) {
-      const customer = filtered[i];
+          // Pause behaviour
+          while (pausedRef.current && !stoppedRef.current) {
+            await new Promise((r) => setTimeout(r, 400));
+          }
 
-      if (stoppedRef.current) break;
+          setLogList((prev) => [
+            ...prev,
+            {
+              name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
+              email: customer.CustomerInfo?.Email,
+              status: "sending",
+            },
+          ]);
 
-      // Pause behaviour
-      while (pausedRef.current && !stoppedRef.current) {
-        await new Promise((r) => setTimeout(r, 400));
+          // Actual send
+
+          const result = await sendLoyaltyEmail(
+            customer,
+            i,
+            subject,
+            body,
+            title
+          );
+          sentCount++;
+          setProgress(Math.round((sentCount / total) * 100));
+
+          // Update log
+          setLogList((prev) =>
+            prev.map((l) =>
+              l.email === customer.CustomerInfo?.Email
+                ? { ...l, status: result.status }
+                : l
+            )
+          );
+
+          await new Promise((r) => setTimeout(r, 500)); // Rate limit
+        } else {
+          setImageCount((prev) => prev + 1);
+        }
+        setSendingMailAll(false);
       }
+    } else if (total == 1) {
+      for (let i = 0; i < total; i++) {
+        const customer = filtered[2];
 
-      setLogList((prev) => [
-        ...prev,
-        {
-          name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
-          email: customer.CustomerInfo?.Email,
-          status: "sending",
-        },
-      ]);
+        if (stoppedRef.current) break;
 
-      // Actual send
-      const result = await sendLoyaltyEmail(customer, i);
-      sentCount++;
-      setProgress(Math.round((sentCount / total) * 100));
-      console.log(result);
+        // Pause behaviour
+        while (pausedRef.current && !stoppedRef.current) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
 
-      // Update log
-      setLogList((prev) =>
-        prev.map((l) =>
-          l.email === customer.CustomerInfo?.Email
-            ? { ...l, status: result.status }
-            : l
-        )
-      );
+        setLogList((prev) => [
+          ...prev,
+          {
+            name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
+            email: customer.CustomerInfo?.Email,
+            status: "sending",
+          },
+        ]);
 
-      await new Promise((r) => setTimeout(r, 500)); // Rate limit
+        // Actual send
+        const result = await sendLoyaltyEmail(
+          customer,
+          i,
+          subject,
+          body,
+          title
+        );
+        sentCount++;
+        setProgress(Math.round((sentCount / total) * 100));
+        console.log(result);
+
+        // Update log
+        setLogList((prev) =>
+          prev.map((l) =>
+            l.email === customer.CustomerInfo?.Email
+              ? { ...l, status: result.status }
+              : l
+          )
+        );
+
+        await new Promise((r) => setTimeout(r, 500)); // Rate limit
+      }
+      setSendingMailAll(false);
+    } else {
+      for (let i = 0; i < total; i++) {
+        const customer = filtered[i];
+
+        if (stoppedRef.current) break;
+
+        // Pause behaviour
+        while (pausedRef.current && !stoppedRef.current) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
+
+        setLogList((prev) => [
+          ...prev,
+          {
+            name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
+            email: customer.CustomerInfo?.Email,
+            status: "sending",
+          },
+        ]);
+
+        // Actual send
+        const result = await sendLoyaltyEmail(customer, i, subject);
+        sentCount++;
+        setProgress(Math.round((sentCount / total) * 100));
+        console.log(result);
+
+        // Update log
+        setLogList((prev) =>
+          prev.map((l) =>
+            l.email === customer.CustomerInfo?.Email
+              ? { ...l, status: result.status }
+              : l
+          )
+        );
+
+        await new Promise((r) => setTimeout(r, 500)); // Rate limit
+      }
+      console.log("bundle");
     }
-
-    setSendingMailAll(false);
+    return;
   };
 
   const getCustomerSummary = (data) => {
@@ -304,16 +402,15 @@ function EntryCustomers() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/api/initialCustomer/combined`);
-
-      const res2 = await axios.get(`${API_BASE}/api/settings`);
-
+      const settingsArray = await getSettings();
+      const customers = await getCombinedCustomers();
       const map = Object.fromEntries(
-        res2.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value])
       );
+
       setSettings(map);
-      if (res.data?.success) {
-        const data = res.data.data || [];
+      if (customers.data?.success) {
+        const data = customers.data.data || [];
         console.log(getCustomerSummary(data));
 
         setCustomers(data);
@@ -352,6 +449,8 @@ function EntryCustomers() {
   const filterByTier = (tier) => {
     setSelectedTier(tier);
     if (tier) {
+      console.log(customers[0].CustomerInfo.Current_Loyalty_Tier);
+
       const filteredTierCustomers = customers.filter(
         (c) => c.CustomerInfo.Current_Loyalty_Tier == tier
       );
@@ -369,7 +468,7 @@ function EntryCustomers() {
       if (!confirmDelete) return;
       setLoading(true);
       await axios.delete(
-        `${API_BASE}/api/initialCustomer/delete-all?confirm=true`
+        `${API_BASE_LOCAL}/api/initialCustomer/delete-all?confirm=true`
       );
       setCustomers([]);
       setFiltered([]);
@@ -396,7 +495,6 @@ function EntryCustomers() {
       Ticket_Count: item.CustomerInfo?.Current_Ticket_Count,
       Last_Update: item.Last_Update,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Entry Customers");
@@ -407,11 +505,12 @@ function EntryCustomers() {
     saveAs(new Blob([excelBuffer]), "EntryCustomers.csv");
   };
 
+  const onSendMail = (record) => {};
   const handleRowClick = async (record) => {
     try {
       setLoading(true);
       const res = await axios.get(
-        `${API_BASE}/api/initialCustomer/${record.MobileNumber}`
+        `${API_BASE_LOCAL}/api/initialCustomer/${record.MobileNumber}`
       );
       if (res.data?.success) {
         setSelectedCustomer(res.data.data);
@@ -426,7 +525,6 @@ function EntryCustomers() {
       setLoading(false);
     }
   };
-
   const columns = [
     {
       title: "Mobile Number",
@@ -435,7 +533,7 @@ function EntryCustomers() {
       width: 160,
       fixed: "left",
       sorter: (a, b) => a.MobileNumber.localeCompare(b.MobileNumber),
-render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
+      render: (v) => <Text strong>{v}</Text>,
     },
     {
       title: "Name",
@@ -500,6 +598,32 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
       sorter: (a, b) =>
         (a.Last_Update || "").localeCompare(b.Last_Update || ""),
     },
+
+    // ⭐ NEW ACTION COLUMN
+    {
+      title: "Actions",
+      key: "actions",
+      width: 160,
+      align: "center",
+      fixed: "right",
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            size="large"
+            onClick={() => handleRowClick(record)}
+          ></Button>
+
+          <Button
+            type="default"
+            icon={<MailOutlined />}
+            size="large"
+            onClick={() => onSendMail(record)}
+          ></Button>
+        </Space>
+      ),
+    },
   ];
 
   useEffect(() => {
@@ -527,7 +651,7 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
           align="middle"
           style={{ marginBottom: 20 }}
         >
-          <Title level={3}>Loyalty Customers</Title>
+          <Title level={3}>Send Loyalty Emails</Title>
         </Row>
 
         <Divider />
@@ -660,13 +784,11 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
 
         <Row style={{ marginBottom: 20 }}>
           <Col xs={24} sm={12} md={8}>
-            <Input.Search
-              placeholder="Search by name, email, or mobile"
+            <Search
+              placeholder="Search by name or mobile"
               allowClear
               value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value);
-              }}
+              onChange={(e) => setSearchText(e.target.value)}
             />
           </Col>
           <Col xs={24} sm={12} md={4}>
@@ -674,13 +796,14 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
               loading={sendingMailAll}
               icon={<MailOutlined />}
               type="primary"
-              disabled
               style={{
                 marginLeft: 10,
                 background: "#7b2ff7",
                 borderColor: "#7b2ff7",
               }}
-              onClick={handleSendLoyaltyEmails}
+              onClick={() => {
+                setEmailModalOpen(true);
+              }}
             >
               {customers.length == filtered.length
                 ? "Send To All "
@@ -702,7 +825,7 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
             current: pagination.current,
             pageSize: pagination.pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
+            pageSizeOptions: ["5", "10", "25", "50" ,"100"],
             showTotal: (total, range) =>
               `Showing ${range[0]}-${range[1]} of ${total} customers`,
             onChange: (page, pageSize) =>
@@ -749,13 +872,14 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
           </Button>
         </div>
       </Spin>
+
       <Modal
         open={logModalVisible}
         onCancel={() => setLogModalVisible(false)}
         width={650}
         centered
         footer={null}
-        bodyStyle={{
+        styles={{
           background: "rgba(255,255,255,0.95)",
           backdropFilter: "blur(8px)",
           borderRadius: 16,
@@ -813,7 +937,7 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
             <Card>
               <Statistic
                 title="Images Saved"
-                value={imageCount || 0}
+                value={imageCounts || 0}
                 prefix={<PictureOutlined />}
                 valueStyle={{ color: "#facc15", fontWeight: 700 }}
               />
@@ -980,8 +1104,17 @@ render: (v) => <Text strong>{v?.startsWith("+") ? v.substring(1) : v}</Text>,
         customer={selectedCustomer}
         settings={settings}
       />
+
+      <EmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        onSend={handleSendLoyaltyEmails}
+        headerLogo={headerLogo}
+        footerLogo={footerLogo}
+        customers={filtered}
+      />
     </>
   );
 }
 
-export default EntryCustomers;
+export default LoyaltyEmails;

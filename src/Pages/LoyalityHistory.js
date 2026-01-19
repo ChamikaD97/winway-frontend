@@ -36,7 +36,11 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
-
+import {
+  getCombinedCustomers,
+  getMonthlyUpgrades,
+  getSettings,
+} from "../api/endPoints";
 const { Search } = Input;
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -84,9 +88,7 @@ const monthStrToDate = (m) => {
 };
 
 const displayMonth = (m) => {
-  const d = monthStrToDate(m);
-  if (!d || isNaN(d)) return m || "-";
-  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" }); // e.g., "Oct 2025"
+  return m;
 };
 
 const numeric = (v) => Number(v || 0);
@@ -121,43 +123,127 @@ const buildPopulationAverages = (rows) => {
 function LoyaltyHistory() {
   const [raw, setRaw] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [groupedHistory, setGroupedHistory] = useState([]);
 
   // filters
   const [searchText, setSearchText] = useState("");
   const [selectedMonths, setSelectedMonths] = useState([]); // array of Last_Update
   const [selectedCustomer, setSelectedCustomer] = useState(undefined); // MobileNumber
-  const [viewMode, setViewMode] = useState("Rows"); // Rows | Grouped by Customer
-const [selectedTier, setSelectedTier] = useState(null);
+  const [selectedTier, setSelectedTier] = useState(null);
 
   // paging
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
 
   // modal
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCustomer, setModalCustomer] = useState(null);
   const [modalCustomerHistory, setModalCustomerHistory] = useState([]);
   const [populationAverages, setPopulationAverages] = useState({});
-
+  const [uniqueMonths, setUniqueMonths] = useState([]);
   // fetch
+  const groupMonthlyHistoryByMobile = (rows) => {
+    const grouped = {};
+
+    rows.forEach((row) => {
+      const mobile = row.MobileNumber;
+      if (!mobile) return;
+
+      if (!grouped[mobile]) {
+        grouped[mobile] = {
+          MobileNumber: mobile,
+          History: [],
+        };
+      }
+
+      grouped[mobile].History.push({
+        Last_Update: row.Last_Update,
+        Month_Tier: row.Month_Tier,
+        Monthly_Ticket_Count: row.Monthly_Ticket_Count,
+      });
+    });
+
+    return Object.values(grouped);
+  };
+  const flattenGroupedHistory = (groupedHistory) => {
+    const rows = [];
+
+    groupedHistory.forEach((customer) => {
+      customer.History.forEach((h) => {
+        rows.push({
+          MobileNumber: customer.MobileNumber,
+          Last_Update: h.Last_Update,
+          Month_Tier: h.Month_Tier,
+          Monthly_Ticket_Count: h.Monthly_Ticket_Count,
+        });
+      });
+    });
+
+    return rows;
+  };
+  const downloadMonthlyHistoryCSV = (groupedHistory) => {
+    if (!groupedHistory || groupedHistory.length === 0) {
+      message.warning("No data to download");
+      return;
+    }
+
+    const rows = flattenGroupedHistory(groupedHistory);
+
+    const headers = [
+      "MobileNumber",
+      "Last_Update",
+      "Month_Tier",
+      "Monthly_Ticket_Count",
+    ];
+
+    const csvContent = [
+      headers.join(","), // header row
+      ...rows.map((row) => headers.map((h) => `"${row[h] ?? ""}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Monthly_Loyalty_History.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
   const fetchHistory = async () => {
     setLoading(true);
     try {
       const res = await axios.get(
         `${API_BASE}/api/initialCustomer/monthly-upgrades`
       );
+      const uniqueMonthsArr = [
+        ...new Set(res.data.data.map((r) => r.Last_Update)),
+      ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
+      console.log("Unique Last_Update months:", uniqueMonthsArr);
+
+      setUniqueMonths(uniqueMonthsArr);
+
       if (res.data?.success && Array.isArray(res.data.data)) {
         const rows = res.data.data.slice().sort((a, b) => {
-          // default sort: by month asc, then by Mobile
           const d =
             monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update);
           if (d !== 0) return d;
           return (a.MobileNumber || "").localeCompare(b.MobileNumber || "");
         });
+
         setRaw(rows);
-        setPopulationAverages(buildPopulationAverages(rows));
+
+        // 🔽 GROUP + FORMAT
+        const formattedHistory = groupMonthlyHistoryByMobile(rows);
+
+        // ✅ SAVE TO STATE
+        setGroupedHistory(formattedHistory);
+
         message.success("Loyalty history loaded");
       } else {
         setRaw([]);
+        setGroupedHistory([]);
         message.warning("No data found");
       }
     } catch (e) {
@@ -171,6 +257,70 @@ const [selectedTier, setSelectedTier] = useState(null);
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  const buildTableRows = (groupedHistory) => {
+    const rows = [];
+
+    groupedHistory.forEach((customer) => {
+      customer.History.forEach((h, index) => {
+        rows.push({
+          key: `${customer.MobileNumber}-${index}`,
+          MobileNumber: customer.MobileNumber,
+          Last_Update: h.Last_Update,
+          Month_Tier: h.Month_Tier,
+          Monthly_Ticket_Count: h.Monthly_Ticket_Count,
+          isFirstRow: index === 0,
+          rowSpan: index === 0 ? customer.History.length : 0,
+        });
+      });
+    });
+
+    return rows;
+  };
+  const columns = [
+    {
+      title: "Mobile Number",
+      dataIndex: "MobileNumber",
+      key: "MobileNumber",
+      render: (text, row) => ({
+        children: text,
+        props: {
+          rowSpan: row.rowSpan,
+        },
+      }),
+    },
+    {
+      title: "Period",
+      dataIndex: "Last_Update",
+      key: "Last_Update",
+    },
+    {
+      title: "Tier",
+      dataIndex: "Month_Tier",
+      key: "Month_Tier",
+      render: (tier) => (
+        <Tag
+          color={
+            tier === "Platinum"
+              ? "purple"
+              : tier === "Gold"
+              ? "gold"
+              : tier === "Silver"
+              ? "blue"
+              : "default"
+          }
+        >
+          {tier}
+        </Tag>
+      ),
+    },
+    {
+      title: "Ticket Count",
+      dataIndex: "Monthly_Ticket_Count",
+      key: "Monthly_Ticket_Count",
+      align: "right",
+    },
+  ];
 
   // distinct months & customers for selectors
   const monthOptions = useMemo(() => {
@@ -195,8 +345,8 @@ const [selectedTier, setSelectedTier] = useState(null);
       rows = rows.filter((r) => r.MobileNumber === selectedCustomer);
     }
     if (selectedTier) {
-  rows = rows.filter(r => r.Month_Tier === selectedTier);
-}
+      rows = rows.filter((r) => r.Month_Tier === selectedTier);
+    }
 
     if (searchText) {
       const q = searchText.toLowerCase();
@@ -231,6 +381,7 @@ const [selectedTier, setSelectedTier] = useState(null);
   const groupedByCustomer = useMemo(() => {
     // Map Mobile -> all rows (sorted by month asc)
     const m = new Map();
+
     filteredRows.forEach((r) => {
       const arr = m.get(r.MobileNumber) || [];
       arr.push(r);
@@ -268,7 +419,7 @@ const [selectedTier, setSelectedTier] = useState(null);
     const ws = XLSX.utils.json_to_sheet(filteredRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Loyalty History (Filtered)");
-    const buff = XLSX.write(wb, {  bookType: "csv", type: "array" });
+    const buff = XLSX.write(wb, { bookType: "csv", type: "array" });
     saveAs(new Blob([buff]), "LoyaltyHistory_Filtered.csv");
   };
 
@@ -308,89 +459,6 @@ const [selectedTier, setSelectedTier] = useState(null);
   };
 
   /** ----------- Columns for table views ----------- */
-  const rowColumns = [
-    {
-      title: "Mobile Number",
-      dataIndex: "MobileNumber",
-      key: "MobileNumber",
-      width: 160,
-      fixed: "left",
-      sorter: (a, b) =>
-        (a.MobileNumber || "").localeCompare(b.MobileNumber || ""),
-      render: (v) => <Text strong>{v}</Text>,
-    },
-    {
-      title: "Month",
-      dataIndex: "Last_Update",
-      key: "Last_Update",
-      align: "center",
-      width: 130,
-      sorter: (a, b) =>
-        monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update),
-      render: (v) => displayMonth(v),
-    },
-    {
-      title: "Tier",
-      dataIndex: "Month_Tier",
-      key: "Month_Tier",
-      align: "center",
-      width: 120,
-      sorter: (a, b) => (a.Month_Tier || "").localeCompare(b.Month_Tier || ""),
-      render: (tier) => (
-        <Tag color={tierColors[tier] || "default"} style={{ fontWeight: 500 }}>
-          {tier || "-"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Monthly Tickets",
-      dataIndex: "Monthly_Ticket_Count",
-      key: "Monthly_Ticket_Count",
-      width: 140,
-      align: "center",
-      sorter: (a, b) =>
-        numeric(a.Monthly_Ticket_Count) - numeric(b.Monthly_Ticket_Count),
-      render: (val) => (
-        <span style={{ fontWeight: 600 }}>{numeric(val).toLocaleString()}</span>
-      ),
-    },
-    // a couple of popular lotteries (you can add all if you want)
-    {
-      title: "Ada Sampatha",
-      dataIndex: "Ada_Sampatha",
-      align: "center",
-      width: 130,
-      sorter: (a, b) => numeric(a.Ada_Sampatha) - numeric(b.Ada_Sampatha),
-      render: (v) => numeric(v).toLocaleString(),
-    },
-    {
-      title: "Mega Power",
-      dataIndex: "Mega_Power",
-      align: "center",
-      width: 130,
-      sorter: (a, b) => numeric(a.Mega_Power) - numeric(b.Mega_Power),
-      render: (v) => numeric(v).toLocaleString(),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      fixed: "right",
-      width: 110,
-      align: "center",
-      render: (_, row) => (
-        <Button
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            openCustomerModal(row.MobileNumber);
-          }}
-        >
-          View
-        </Button>
-      ),
-    },
-  ];
 
   const groupedColumns = [
     {
@@ -478,8 +546,8 @@ const [selectedTier, setSelectedTier] = useState(null);
     },
   ];
 
-  const activeColumns = viewMode === "Rows" ? rowColumns : groupedColumns;
-  const tableData = viewMode === "Rows" ? filteredRows : groupedByCustomer;
+  const activeColumns = groupedColumns;
+  const tableData = groupedByCustomer;
 
   return (
     <>
@@ -492,36 +560,51 @@ const [selectedTier, setSelectedTier] = useState(null);
           <Title level={3} style={{ margin: 0 }}>
             Loyalty History
           </Title>
-          <Segmented
-            value={viewMode}
-            onChange={setViewMode}
-            options={["Rows", "Grouped by Customer"]}
-          />
         </Row>
 
         <Divider style={{ margin: "12px 0 18px" }} />
 
         {/* Summary Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
-          <Col xs={24} sm={12} md={12}>
-            <Card>
-              <Statistic
-                title="Total Records"
-                value={summary.totalRecords || 0}
-                prefix={<TeamOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={12}>
-            <Card>
-              <Statistic
-                title="Total Tickets"
-                value={summary.totalTickets || 0}
-                prefix={<CrownOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
+  {/* Loyalty Customers */}
+  <Col xs={24} sm={12} md={4}>
+    <Card>
+      <Statistic
+        title="Loyalty Customers"
+        value={groupedByCustomer.length || 0}
+        prefix={<TeamOutlined />}
+      />
+    </Card>
+  </Col>
+
+  {/* Evaluation Flow */}
+  <Col xs={24} sm={12} md={18}>
+    <Card>
+      {uniqueMonths && uniqueMonths.length ? (
+        <Space wrap size="small">
+          {uniqueMonths.map((month, index) => (
+            <React.Fragment key={month}>
+              <Tag
+                color={index === uniqueMonths.length - 1 ? "green" : "blue"}
+                style={{ fontSize: 13, padding: "4px 10px" }}
+              >
+                {month}
+              </Tag>
+
+              {/* Arrow between tags */}
+              {index < uniqueMonths.length - 1 && (
+                <span style={{ color: "#999", fontWeight: "bold" }}>→</span>
+              )}
+            </React.Fragment>
+          ))}
+        </Space>
+      ) : (
+        <Text type="secondary">No evaluation history</Text>
+      )}
+    </Card>
+  </Col>
+</Row>
+
 
         {/* Tier Summary */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -617,15 +700,12 @@ const [selectedTier, setSelectedTier] = useState(null);
                 </Select>
               </Space>
             </Col>
+
             {tableData.length ? (
               <Table
                 columns={activeColumns}
                 dataSource={tableData}
-                rowKey={(r) =>
-                  viewMode === "Rows"
-                    ? `${r.MobileNumber}-${r.Last_Update}`
-                    : r.MobileNumber
-                }
+                rowKey={(r) => r.MobileNumber}
                 bordered
                 size="middle"
                 scroll={{ x: true, y: 480 }}
@@ -633,20 +713,18 @@ const [selectedTier, setSelectedTier] = useState(null);
                   current: pagination.current,
                   pageSize: pagination.pageSize,
                   showSizeChanger: true,
-                  pageSizeOptions: ["10", "20", "50", "100"],
+                  pageSizeOptions: ["5", "10", "25", "50", "100"],
                   showTotal: (total, range) =>
-                    `Showing ${range[0]}-${range[1]} of ${total} ${
-                      viewMode === "Rows" ? "rows" : "customers"
-                    }`,
+                    `Showing ${range[0]}-${
+                      range[1]
+                    } of ${total} ${"customers"}`,
                   onChange: (page, pageSize) =>
                     setPagination({ current: page, pageSize }),
                 }}
                 onRow={(record) => ({
                   onClick: () => {
-                    const mobile =
-                      viewMode === "Rows"
-                        ? record.MobileNumber
-                        : record.MobileNumber;
+                    const mobile = record.MobileNumber;
+
                     openCustomerModal(mobile);
                   },
                 })}
@@ -657,8 +735,20 @@ const [selectedTier, setSelectedTier] = useState(null);
                 description="No data for current filters"
               />
             )}
+            <Table
+              columns={columns}
+              dataSource={buildTableRows(groupedHistory)}
+              pagination={{ pageSize: 10 }}
+              bordered
+            />
           </Row>
         </Card>
+        <Button
+          type="primary"
+          onClick={() => downloadMonthlyHistoryCSV(groupedHistory)}
+        >
+          Download CSV
+        </Button>
 
         <div style={{ textAlign: "center", marginTop: 25 }}>
           <Button icon={<ReloadOutlined />} onClick={fetchHistory}>

@@ -33,13 +33,12 @@ import {
   PhoneFilled,
   DownloadOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
 import TierBreakdown from "./TierBreakdown";
 import dayjs from "dayjs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getSettings } from "../api/endPoints";
 
-const API_BASE = "http://localhost:8001";
 
 const fmtNumber = (v) => {
   const n = Number(v);
@@ -231,9 +230,9 @@ const CustomerModel = ({ open, onClose, customer, onSendEmail }) => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${API_BASE}/api/settings`);
+        const settingsArray = await getSettings();
         const map = Object.fromEntries(
-          res.data.map((s) => [s.key, parseInt(s.value, 10)])
+          settingsArray.data.data.map((s) => [s.key, s.value])
         );
         setSettings({
           silver: map.LOYALTY_ENTRY_SILVER_TICKETS,
@@ -317,7 +316,7 @@ const CustomerModel = ({ open, onClose, customer, onSendEmail }) => {
       onCancel={onClose}
       width={980}
       centered
-      bodyStyle={{
+      styles={{
         background: "rgba(255,255,255,0.95)",
         backdropFilter: "blur(8px)",
         borderRadius: 18,

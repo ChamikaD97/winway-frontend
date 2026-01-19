@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
   Input,
@@ -18,6 +18,8 @@ import {
   Space,
   Tag,
   Progress,
+  Modal,
+  Switch,
 } from "antd";
 import axios from "axios";
 import { UploadOutlined } from "@ant-design/icons";
@@ -31,59 +33,14 @@ const API_BASE = "http://127.0.0.1:8000";
 const API_SMS = "http://localhost:8001";
 
 /* 🔁 SWITCH MODE HERE */
-const IS_TEST_MODE = true;
 
 /* 🇱🇰 Sri Lanka number normalizer */
-const normalizeLK = (n) => {
-  if (!n) return null;
-  let num = n.toString().trim().replace(/\s+/g, "");
-  if (num.startsWith("+94")) num = num.replace("+94", "94");
-  if (num.startsWith("0")) num = "94" + num.slice(1);
-  if (num.length === 9) num = "94" + num;
-  return num.startsWith("94") && num.length === 11 ? num : null;
-};
-
-const getSendNumber = (customer) =>
-  IS_TEST_MODE ? normalizeLK("0719762509") : normalizeLK("0719762509");
-
-/* ================= TEMPLATE UTILS ================= */
-const extractKeys = (obj, prefix = "") =>
-  Object.entries(obj || {}).flatMap(([k, v]) =>
-    typeof v === "object" && v !== null
-      ? extractKeys(v, `${prefix}${k}.`)
-      : `${prefix}${k}`
-  );
-
-/* ================= CARD UPLOADER ================= */
-const renderUpload = (title, accept, icon, text, onUpload) => (
-  <Upload accept={accept} showUploadList={false} customRequest={onUpload}>
-    <Card
-      hoverable
-      style={{
-        textAlign: "center",
-        borderRadius: 12,
-        height: 140,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
-        <Text strong>{title}</Text>
-        <br />
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {text}
-        </Text>
-      </div>
-    </Card>
-  </Upload>
-);
 
 /* ================= COMPONENT ================= */
 function CustomSMS() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [IS_TEST_MODE, Set_IS_TEST_MODE] = useState(true);
 
   /* Login */
   const [login, setLogin] = useState({
@@ -95,8 +52,10 @@ function CustomSMS() {
   /* Customers */
 
   const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [mobile_column, setMobileColoum] = useState("Mobile Number");
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [searchText, setSearchText] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   // which dynamic columns are visible
   const [visibleColumns, setVisibleColumns] = useState([]);
@@ -134,6 +93,26 @@ function CustomSMS() {
       return transformValue(key, rawValue) ?? "";
     });
 
+  const getSendNumber = (customer) => {
+    console.log(customer);
+    const mobile = normalizeLK(customer?.[mobile_column]);
+
+    if (!mobile) {
+      console.warn("Invalid mobile for customer:", customer);
+    }
+
+    return IS_TEST_MODE
+      ? normalizeLK("0718553224")
+      : normalizeLK(customer?.[mobile_column]);
+  };
+
+  /* ================= TEMPLATE UTILS ================= */
+  const extractKeys = (obj, prefix = "") =>
+    Object.entries(obj || {}).flatMap(([k, v]) =>
+      typeof v === "object" && v !== null
+        ? extractKeys(v, `${prefix}${k}.`)
+        : `${prefix}${k}`
+    );
   const templateKeys = useMemo(
     () => (customers.length ? extractKeys(customers[0]) : []),
     [customers]
@@ -157,6 +136,75 @@ function CustomSMS() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (!login.username || !login.password)
+      return message.warning("Enter username and password");
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_SMS}/sms/refresh`);
+      setIsLoggedIn(true);
+      setStep(1);
+      message.success("Login successful");
+    } catch {
+      message.error("Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const normalizeLK = (n) => {
+    if (!n) return null;
+    let num = n.toString().trim().replace(/\s+/g, "");
+    if (num.startsWith("+94")) num = num.replace("+94", "94");
+    if (num.startsWith("0")) num = "94" + num.slice(1);
+    if (num.length === 9) num = "94" + num;
+    return num.startsWith("94") && num.length === 11 ? num : null;
+  };
+
+  /* ================= CARD UPLOADER ================= */
+  const renderUpload = (title, accept, icon, text, onUpload) => (
+    <Upload accept={accept} showUploadList={false} customRequest={onUpload}>
+      <Card
+        hoverable
+        style={{
+          textAlign: "center",
+          borderRadius: 12,
+          height: 140,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
+          <Text strong>{title}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {text}
+          </Text>
+        </div>
+      </Card>
+    </Upload>
+  );
+
+  useEffect(() => {
+    if (!searchText) {
+      setFilteredCustomers(customers);
+      return;
+    }
+
+    const s = searchText.toLowerCase();
+
+    const filtered = customers.filter((row) =>
+      visibleColumns.some((key) => {
+        const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
+
+        return value && value.toString().toLowerCase().includes(s);
+      })
+    );
+
+    setFilteredCustomers(filtered);
+  }, [customers, searchText, visibleColumns]);
   /* ================= CSV UPLOAD ================= */
   const handleCsvUpload = async ({ file }) => {
     const formData = new FormData();
@@ -167,7 +215,7 @@ function CustomSMS() {
       const res = await axios.post(`${API_BASE}/csv-upload-process`, formData);
       const rows = res.data.data || [];
       setCustomers(rows);
-
+      setFilteredCustomers(rows);
       setMobileColoum(res.data.mobile_column || "MobileNumber");
 
       if (rows.length > 0) {
@@ -218,7 +266,7 @@ function CustomSMS() {
     .map((c) => normalizeLK(c.MobileNumber))
     .filter(Boolean);
 
-  const smsCount = !IS_TEST_MODE
+  const smsCount = IS_TEST_MODE
     ? validNumbers.length > 0
       ? 1
       : 0
@@ -236,26 +284,63 @@ function CustomSMS() {
       return message.warning("Fill all SMS fields");
     setStep((s) => s + 1);
   };
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [testNumber, setTestNumber] = useState("");
+  const [testSending, setTestSending] = useState(false);
 
   const goBack = () => setStep((s) => s - 1);
+
+  const handleSendTestSms = async () => {
+    const mobile = normalizeLK(testNumber);
+
+    if (!mobile) {
+      return message.error("Enter a valid Sri Lankan mobile number");
+    }
+
+    if (!sms.content || !sms.mask || !sms.campaignName) {
+      return message.warning("Fill campaign name, mask, and message first");
+    }
+
+    setTestSending(true);
+
+    try {
+      await axios.post(`${API_SMS}/sms/send`, {
+        campaignName: sms.campaignName,
+        mask: sms.mask,
+        numbers: mobile,
+        content: applyTemplate(sms.content, selectedCustomers[0]),
+      });
+
+      message.success(`Test SMS sent to ${mobile}`);
+      setTestModalOpen(false);
+      setTestNumber("");
+    } catch (err) {
+      console.error(err);
+      message.error("Test SMS failed");
+    } finally {
+      setTestSending(false);
+    }
+  };
 
   const sendSms = async () => {
     if (!selectedCustomers.length)
       return message.warning("No customers selected");
 
-    const targets = !IS_TEST_MODE
+    const targets = IS_TEST_MODE
       ? selectedCustomers.slice(0, 1)
       : selectedCustomers;
 
     setTotalToSend(targets.length);
     setSentCount(0);
     setSending(true);
+    console.log("1111");
 
     try {
       let count = 0;
 
-      for (const c of targets) {
+      for (const c of selectedCustomers) {
         const mobile = getSendNumber(c);
+
         if (!mobile) continue;
 
         await axios.post(`${API_SMS}/sms/send`, {
@@ -287,7 +372,35 @@ function CustomSMS() {
   return (
     <Card>
       <Title level={3}>SMS Portal {IS_TEST_MODE && "(TEST MODE)"}</Title>
+      <Col xs={24} md={6} style={{ textAlign: "right" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 14px",
+            borderRadius: 12,
+            background: IS_TEST_MODE
+              ? "linear-gradient(90deg,#fff7e6,#fff1b8)"
+              : "linear-gradient(90deg,#e6f4ff,#bae0ff)",
+            border: `1px solid ${IS_TEST_MODE ? "#ffd591" : "#91caff"}`,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: 0.3,
+              color: IS_TEST_MODE ? "#d46b08" : "#0958d9",
+            }}
+          >
+            {IS_TEST_MODE ? "TEST MODE ACTIVATED" : "LIVE MODE ACTIVATED"}
+          </span>
 
+          <Switch checked={IS_TEST_MODE} onChange={Set_IS_TEST_MODE} />
+        </div>
+      </Col>
+      <Divider />
       <Steps current={step} style={{ marginBottom: 24 }}>
         <Step title="Login" />
         <Step title="Customer Selection" />
@@ -405,7 +518,7 @@ function CustomSMS() {
               {/* ================= DYNAMIC FIELDS ================= */}
               <Card
                 size="small"
-                title="🧩 Available Dynamic Fields (Click to show / hide columns)"
+                title="Available Dynamic Fields (Click to show / hide columns)"
                 style={{ marginBottom: 16, background: "#fafafa" }}
               >
                 <Space wrap>
@@ -440,12 +553,42 @@ function CustomSMS() {
                   Click a field to add or remove it from the table view.
                 </Text>
               </Card>
+              <Card
+                size="small"
+                style={{ marginBottom: 16, background: "#fafafa" }}
+              >
+                <Space
+                  wrap
+                  style={{ width: "100%", justifyContent: "space-between" }}
+                >
+                  {/* 🔍 Global Search */}
+                  <Input.Search
+                    placeholder="Search customers, mobile, or any field..."
+                    allowClear
+                    enterButton
+                    style={{ maxWidth: 420 }}
+                    onChange={(e) => setSearchText(e.target.value)}
+                  />
+
+                  {/* Optional helper text / count */}
+                  <Text type="secondary">
+                    Showing {filteredCustomers.length} result(s)
+                  </Text>
+                </Space>
+
+                <Text
+                  type="secondary"
+                  style={{ display: "block", marginTop: 8 }}
+                >
+                  Type to search across all visible columns.
+                </Text>
+              </Card>
 
               {/* ================= TABLE ================= */}
               <Table
                 rowKey={mobile_column}
                 columns={columns}
-                dataSource={customers}
+                dataSource={filteredCustomers}
                 rowSelection={{
                   selectedRowKeys,
                   onChange: (k, r) => {
@@ -467,6 +610,15 @@ function CustomSMS() {
       {/* ================= STEP 3 ================= */}
       {step === 2 && (
         <Card>
+          <Row gutter={16}>
+            <Col span={6}>
+              <Statistic
+                title="Selected Customers"
+                value={selectedCustomers.length}
+              />
+            </Col>
+          </Row>
+          <Divider />
           <Row gutter={24}>
             <Col span={14}>
               <Form layout="vertical">
@@ -589,22 +741,60 @@ function CustomSMS() {
               />
             </>
           )}
+          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Button
+              type="default"
+              size="large"
+              block
+              onClick={() => setTestModalOpen(true)}
+              disabled={sending}
+            >
+              🧪 Test Run (Custom Number)
+            </Button>
 
-          <Button
-            type="primary"
-            size="large"
-            block
-            loading={sending}
-            disabled={sending}
-            onClick={sendSms}
-          >
-            {sending ? "Sending..." : "Send SMS"}
-          </Button>
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={sending}
+              disabled={sending}
+              onClick={() => sendSms()}
+            >
+              {sending ? "Sending..." : "Run Campaign"}
+            </Button>
+          </Space>
         </Card>
       )}
 
       {/* ================= FOOTER ================= */}
       <Divider />
+      <Modal
+        title="🧪 Test SMS"
+        open={testModalOpen}
+        onCancel={() => setTestModalOpen(false)}
+        onOk={handleSendTestSms}
+        okText="Send Test SMS"
+        confirmLoading={testSending}
+        centered
+      >
+        <Form layout="vertical">
+          <Form.Item
+            label="Mobile Number"
+            required
+            help="Supports 07XXXXXXXX, +94XXXXXXXXX"
+          >
+            <Input
+              placeholder="0712345678"
+              value={testNumber}
+              onChange={(e) => setTestNumber(e.target.value)}
+            />
+          </Form.Item>
+
+          <Text type="secondary">
+            This will send <b>only one SMS</b> to the entered number.
+          </Text>
+        </Form>
+      </Modal>
 
       <Space style={{ width: "100%", justifyContent: "space-between" }}>
         <Button disabled={step === 0} onClick={goBack}>

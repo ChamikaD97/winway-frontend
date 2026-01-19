@@ -146,7 +146,7 @@ console.log(s);
             src={winwayLogo}
             alt="WinWay Logo"
             style={{
-              width: 150,
+              width: 10,
               marginBottom: 10,
               borderRadius: 10,
             }}
