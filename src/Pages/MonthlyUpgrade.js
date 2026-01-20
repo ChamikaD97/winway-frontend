@@ -119,7 +119,7 @@ function MonthlyUpgrade() {
 
     if (s > e) {
       message.warning(
-        "⚠️ Start date cannot be after end date. Resetting to defaults."
+        "⚠️ Start date cannot be after end date. Resetting to defaults.",
       );
       setStartDate(getDefaultStartDate());
       setEndDate(getYesterday());
@@ -128,7 +128,7 @@ function MonthlyUpgrade() {
 
     if (e > today) {
       message.warning(
-        "⚠️ End date cannot be in the future. Resetting to yesterday."
+        "⚠️ End date cannot be in the future. Resetting to yesterday.",
       );
       setEndDate(getYesterday());
       return;
@@ -143,7 +143,7 @@ function MonthlyUpgrade() {
 
   const numberRender = (v) => {
     const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString() : v ?? "-";
+    return Number.isFinite(n) ? n.toLocaleString() : (v ?? "-");
   };
 
   const FIXED_IGNORE_NUMBERS = [
@@ -281,19 +281,19 @@ function MonthlyUpgrade() {
         //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
         //   : ""
 
-        customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : ""
+        customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : "",
       );
 
       formData.append(
         "name",
         `${customer.CustomerInfo?.FirstName || ""} ${
           customer.CustomerInfo?.LastName || ""
-        }`
+        }`,
       );
       formData.append("type", "loyalty_welcome");
       formData.append(
-        "number",
-        `${customer.CustomerInfo?.Loyalty_Number || ""}`
+        "Loyalty_Number",
+        `${customer.CustomerInfo?.Loyalty_Number || ""}`,
       );
 
       formData.append("subject", `Welcome to WIN WAY Loyalty Rewards Program`);
@@ -302,9 +302,9 @@ function MonthlyUpgrade() {
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
-        `${API_BASE_Local}/email/loyality/send-loyalty`,
+        `${API_BASE_Local}/email/loyality/send-loyalty-upgrade`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       message.success(`✅ Email sent`);
@@ -333,7 +333,7 @@ function MonthlyUpgrade() {
       return;
     }
     const newCustomers = customers.data.data.filter(
-      (c) => c.Last_Update === "Entry"
+      (c) => c.Last_Update === "Entry",
     );
     for (let i = 0; i < total; i++) {
       const customer = newCustomers[i];
@@ -364,8 +364,8 @@ function MonthlyUpgrade() {
         prev.map((l) =>
           l.email === customer.CustomerInfo?.Email
             ? { ...l, status: result.status }
-            : l
-        )
+            : l,
+        ),
       );
 
       await new Promise((r) => setTimeout(r, 500)); // Rate limit
@@ -396,7 +396,7 @@ function MonthlyUpgrade() {
           customers: results,
           Last_Update: Last_Update,
           // Last_Update: "Entry",
-        }
+        },
       );
 
       if (res.data.success) {
@@ -409,7 +409,7 @@ function MonthlyUpgrade() {
         // setSaveModalVisible(true);
       } else {
         message.warning(
-          res.data.message || "Some entries may have been skipped."
+          res.data.message || "Some entries may have been skipped.",
         );
       }
     } catch (err) {
@@ -431,21 +431,21 @@ function MonthlyUpgrade() {
         //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
         //   : ""
 
-        customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : ""
+        customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : "",
       );
 
       formData.append(
         "name",
         `${customer.CustomerInfo?.FirstName || ""} ${
           customer.CustomerInfo?.LastName || ""
-        }`
+        }`,
       );
       formData.append("type", "loyalty_welcome");
       formData.append(
-        "number",
+        "Loyalty_Number",
         `${customer.CustomerInfo?.Loyalty_Number || ""}
 
-        }`
+        }`,
       );
 
       formData.append("subject", `Welcome to WIN WAY Loyalty Rewards Program`);
@@ -456,7 +456,7 @@ function MonthlyUpgrade() {
       const res = await axios.post(
         `${API_BASE_Local}/email/loyality/send-loyalty-upgrade`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       message.success(`✅ Email sent`);
@@ -529,12 +529,12 @@ function MonthlyUpgrade() {
     // ✅ keep only unique MobileNumber records
     const uniqueByMobile = Array.from(
       new Map(
-        customers.data.data.map((item) => [item.MobileNumber, item])
-      ).values()
+        customers.data.data.map((item) => [item.MobileNumber, item]),
+      ).values(),
     );
 
     const res = await axios.get(
-      `${API_BASE_Local}/api/initialCustomer/monthly-upgrades`
+      `${API_BASE_Local}/api/initialCustomer/monthly-upgrades`,
     );
 
     if (res.data?.success && Array.isArray(res.data.data)) {
@@ -548,7 +548,7 @@ function MonthlyUpgrade() {
 
       // 🔽 Build lookup
       const customerMap = new Map(
-        uniqueByMobile.map((c) => [c.MobileNumber, c])
+        uniqueByMobile.map((c) => [c.MobileNumber, c]),
       );
 
       // 🔽 Merge
@@ -596,8 +596,8 @@ function MonthlyUpgrade() {
           prev.map((l) =>
             l.email === customer.CustomerInfo?.Email
               ? { ...l, status: result.status }
-              : l
-          )
+              : l,
+          ),
         );
 
         await new Promise((r) => setTimeout(r, 500)); // Rate limit
@@ -689,19 +689,19 @@ function MonthlyUpgrade() {
       const settingsArray = await getSettings();
 
       const map = Object.fromEntries(
-        settingsArray.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value]),
       );
 
       setSettings(map);
 
       formData.append(
         "platinum",
-        parseInt(map.LOYALTY_MONTHLY_PLATINUM_TICKETS, 10)
+        parseInt(map.LOYALTY_MONTHLY_PLATINUM_TICKETS, 10),
       );
       formData.append("gold", parseInt(map.LOYALTY_MONTHLY_GOLD_TICKETS, 10));
       formData.append(
         "silver",
-        parseInt(map.LOYALTY_MONTHLY_SILVER_TICKETS, 10)
+        parseInt(map.LOYALTY_MONTHLY_SILVER_TICKETS, 10),
       );
       formData.append("minVal", parseInt(map.LOYALTY_DOWNGRADE_THRESHOLD, 10));
 
@@ -738,7 +738,7 @@ function MonthlyUpgrade() {
               setProgress(Math.round((100 * e.loaded) / e.total));
             }
           },
-        }
+        },
       );
 
       const data = response.data;
@@ -759,7 +759,7 @@ function MonthlyUpgrade() {
 
       const totalTicketsSum = data.customers.reduce(
         (acc, curr) => acc + Number(curr.Ticket_Count || 0),
-        0
+        0,
       );
 
       setResults(data.customers);
@@ -811,20 +811,20 @@ function MonthlyUpgrade() {
       const settingsArray = await getSettings();
 
       const map = Object.fromEntries(
-        settingsArray.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value]),
       );
 
       setSettings(map);
 
       formData.append(
         "platinum",
-        parseInt(map.LOYALTY_ENTRY_PLATINUM_TICKETS, 10)
+        parseInt(map.LOYALTY_ENTRY_PLATINUM_TICKETS, 10),
       );
       formData.append("gold", parseInt(map.LOYALTY_ENTRY_GOLD_TICKETS, 10));
       formData.append("silver", parseInt(map.LOYALTY_ENTRY_SILVER_TICKETS, 10));
       formData.append(
         "minVal",
-        parseInt(map.LOYALTY_ENTRY_MIN_CHECK_TICKETS, 10)
+        parseInt(map.LOYALTY_ENTRY_MIN_CHECK_TICKETS, 10),
       );
 
       // ======================================
@@ -844,8 +844,8 @@ function MonthlyUpgrade() {
         new Set(
           [...FIXED_IGNORE_NUMBERS, ...(IGNORE_CURRENT_LOYAL_NUMBERS || [])]
             .map(normalizeMobile)
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
       final_ignore_list.forEach((num) => {
         formData.append("ignore_numbers", num);
@@ -866,7 +866,7 @@ function MonthlyUpgrade() {
               setProgress(Math.round((100 * e.loaded) / e.total));
             }
           },
-        }
+        },
       );
 
       const data = response.data;
@@ -887,7 +887,7 @@ function MonthlyUpgrade() {
 
       const totalTicketsSum = data.customers.reduce(
         (acc, curr) => acc + Number(curr.Ticket_Count || 0),
-        0
+        0,
       );
 
       setResults2(data.customers);
@@ -930,7 +930,7 @@ function MonthlyUpgrade() {
     try {
       setLoading(true);
       const sortedResults = [...results2].sort(
-        (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0)
+        (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0),
       );
       const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
         customers: sortedResults,
@@ -948,7 +948,7 @@ function MonthlyUpgrade() {
         //setSaveModalVisible(true);
       } else {
         message.warning(
-          res.data.message || "Some entries may have been skipped."
+          res.data.message || "Some entries may have been skipped.",
         );
       }
     } catch (err) {
@@ -986,7 +986,7 @@ function MonthlyUpgrade() {
     XLSX.utils.book_append_sheet(
       workbook,
       worksheet,
-      "Current Loyalty Summary "
+      "Current Loyalty Summary ",
     );
     const excelBuffer = XLSX.write(workbook, {
       bookType: "csv",
@@ -1053,7 +1053,7 @@ function MonthlyUpgrade() {
         </Card>
       );
     },
-    [files, handleChange, handleRemove]
+    [files, handleChange, handleRemove],
   );
 
   return (
@@ -1081,7 +1081,7 @@ function MonthlyUpgrade() {
                         "zip_file",
                         ".zip",
                         <FileZipOutlined style={{ color: "#1890ff" }} />,
-                        "Tickets ZIP attached"
+                        "Tickets ZIP attached",
                       )}
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -1090,7 +1090,7 @@ function MonthlyUpgrade() {
                         "customers_file",
                         ".csv",
                         <FileTextOutlined style={{ color: "#fa8c16" }} />,
-                        "Customers file attached"
+                        "Customers file attached",
                       )}
                     </Col>
                   </Row>
@@ -2034,10 +2034,10 @@ function MonthlyUpgrade() {
                   item.status === "sending"
                     ? "linear-gradient(90deg,rgba(123,47,247,0.05),rgba(255,255,255,0.8))"
                     : item.status === "image"
-                    ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
-                    : item.status === "failed"
-                    ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
-                    : "rgba(255,255,255,0.95)",
+                      ? "linear-gradient(90deg,rgba(250,173,20,0.12),rgba(255,255,255,0.9))"
+                      : item.status === "failed"
+                        ? "linear-gradient(90deg,rgba(255,77,79,0.08),rgba(255,255,255,0.9))"
+                        : "rgba(255,255,255,0.95)",
                 transition: "background 0.3s ease",
               }}
               actions={
@@ -2052,17 +2052,17 @@ function MonthlyUpgrade() {
                       </Tooltip>,
                     ]
                   : item.status === "image" && item.imagePath
-                  ? [
-                      <a
-                        href={`file://${item.imagePath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "#faad14", fontWeight: 500 }}
-                      >
-                        Open Image
-                      </a>,
-                    ]
-                  : []
+                    ? [
+                        <a
+                          href={`file://${item.imagePath}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "#faad14", fontWeight: 500 }}
+                        >
+                          Open Image
+                        </a>,
+                      ]
+                    : []
               }
             >
               <Space>
