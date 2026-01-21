@@ -338,6 +338,25 @@ function LoyaltyCustomers() {
       setLoading(false);
     }
   };
+  const fetchSummery = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/api/initialCustomer/monthly-upgrade-summery`,
+      );
+      const uniqueMonthsArr = [
+        ...new Set(res.data.data.map((r) => r.Last_Update)),
+      ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
+console.log(res.data.data);
+
+      //setUniqueMonths(uniqueMonthsArr);
+    } catch (e) {
+      console.error(e);
+      message.error("Failed to load loyalty history");
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleDownloadAll = () => {
     if (customers.length === 0) {
       message.info("All customers have emails — nothing to download.");
@@ -657,8 +676,14 @@ function LoyaltyCustomers() {
   useEffect(() => {
     fetchCustomers();
     fetchHistory();
+    fetchSummery();
   }, []);
 
+  const refresh = () => {
+    fetchCustomers();
+    fetchHistory();
+    fetchSummery();
+  };
   const handlePause = () => (pausedRef.current = true);
   const handleResume = () => (pausedRef.current = false);
 
@@ -1049,7 +1074,7 @@ function LoyaltyCustomers() {
           }}
         />
         <div style={{ textAlign: "center", marginTop: 25 }}>
-          <Button icon={<ReloadOutlined />} onClick={fetchCustomers}>
+          <Button icon={<ReloadOutlined />} onClick={refresh}>
             Refresh
           </Button>
           <Button

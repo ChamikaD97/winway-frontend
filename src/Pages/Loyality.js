@@ -72,10 +72,14 @@ function Loyality() {
     d.setDate(d.getDate() - 1);
     return d.toISOString().split("T")[0]; // YYYY-MM-DD
   };
+const getYesterday2 = () => {
+  const d = new Date("2025-11-30");
+  return d.toISOString().split("T")[0];
+};
 
   // ⏱️ States (now with visible defaults)
   const [startDate, setStartDate] = useState(getDefaultStartDate());
-  const [endDate, setEndDate] = useState(getYesterday());
+  const [endDate, setEndDate] = useState(getYesterday2());
 
   // 🧭 Validation
   useEffect(() => {

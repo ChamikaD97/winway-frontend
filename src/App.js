@@ -93,7 +93,7 @@ function App() {
 
               {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
               {activeTab === "5-6" && <LoyaltyHub />}
-              
+
               {activeTab === "6-1" && <CustomSMS />}
               {activeTab === "6-2" && <CustomEmails />}
             </DashboardLayout>

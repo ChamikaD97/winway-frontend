@@ -302,7 +302,7 @@ function MonthlyUpgrade() {
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
-        `${API_BASE_Local}/email/loyality/send-loyalty-upgrade`,
+        `${API_BASE_Local}/email/loyality/send-loyalty`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
@@ -443,9 +443,7 @@ function MonthlyUpgrade() {
       formData.append("type", "loyalty_welcome");
       formData.append(
         "Loyalty_Number",
-        `${customer.CustomerInfo?.Loyalty_Number || ""}
-
-        }`,
+        `${customer.CustomerInfo?.Loyalty_Number || ""}`,
       );
 
       formData.append("subject", `Welcome to WIN WAY Loyalty Rewards Program`);
@@ -454,7 +452,7 @@ function MonthlyUpgrade() {
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
-        `${API_BASE_Local}/email/loyality/send-loyalty-upgrade`,
+        `${API_BASE_Local}/email/loyality/send-loyalty`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
@@ -928,12 +926,18 @@ function MonthlyUpgrade() {
     }
 
     try {
+      const date_range = splitDateRange(summary.date_range);
+      const Last_Update = getYearMonthLabel(date_range);
+      console.log(Last_Update);
+
       setLoading(true);
       const sortedResults = [...results2].sort(
         (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0),
       );
       const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
         customers: sortedResults,
+        Last_Update_Summery: Last_Update,
+        New_Customers: summary2.loyal_customers,
         Last_Update: "Entry",
         current_count: summary.total_customers + 200,
       });
