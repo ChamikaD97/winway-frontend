@@ -1591,7 +1591,7 @@ function MonthlyUpgrade() {
                     style={{ marginLeft: 10 }}
                     onClick={handleSaveLoyalty}
                   >
-                    Send Loyalty Emails
+                  Save And Send Loyalty Update Emails
                   </Button>
                   <Button
                     icon={<DownloadOutlined />}
