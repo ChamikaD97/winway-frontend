@@ -93,7 +93,7 @@ function Dashboard() {
       const settingsArray = await getSettings();
       const customers = await getCombinedCustomers();
       const map = Object.fromEntries(
-        settingsArray.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value]),
       );
 
       setSettings(map);
@@ -153,7 +153,7 @@ function Dashboard() {
 
   // 1️⃣ High Spenders (> 100 tickets)
   const highSpenders = customers.filter(
-    (c) => Number(c.CustomerInfo?.Current_Ticket_Count || 0) > 100
+    (c) => Number(c.CustomerInfo?.Current_Ticket_Count || 0) > 100,
   );
 
   // 2️⃣ Upgrade candidates (using settings thresholds)
@@ -181,17 +181,17 @@ function Dashboard() {
 
   // 4️⃣ Missing Email
   const missingEmail = customers.filter(
-    (c) => !c.CustomerInfo.Email || c.CustomerInfo.Email.trim() === ""
+    (c) => !c.CustomerInfo.Email || c.CustomerInfo.Email.trim() === "",
   );
 
   // 5️⃣ Warning Tier
   const warningTier = customers.filter(
-    (c) => c.CustomerInfo.Current_Loyalty_Tier === "Warning"
+    (c) => c.CustomerInfo.Current_Loyalty_Tier === "Warning",
   );
 
   // 6️⃣ Rejected Tier
   const rejectedTier = customers.filter(
-    (c) => c.CustomerInfo.Current_Loyalty_Tier === "Rejected"
+    (c) => c.CustomerInfo.Current_Loyalty_Tier === "Rejected",
   );
 
   // Search filtering
@@ -204,8 +204,8 @@ function Dashboard() {
           (c) =>
             c.MobileNumber.toLowerCase().includes(s) ||
             c.CustomerInfo.FirstName?.toLowerCase().includes(s) ||
-            c.CustomerInfo.LastName?.toLowerCase().includes(s)
-        )
+            c.CustomerInfo.LastName?.toLowerCase().includes(s),
+        ),
       );
     }
   }, [searchText, customers]);

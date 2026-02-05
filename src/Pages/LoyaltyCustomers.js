@@ -51,7 +51,12 @@ import axios from "axios";
 import CustomerModel from "../componets/CustomerModel";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { getCombinedCustomers, getSettings } from "../api/endPoints";
+import {
+  getCombinedCustomers,
+  getMonthlyUpgrades,
+  getSettings,
+} from "../api/endPoints";
+import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -77,7 +82,21 @@ function LoyaltyCustomers() {
   const [progress, setProgress] = useState(0);
   const [isLoading, setisLoading] = useState(false);
   const [uniqueMonths, setUniqueMonths] = useState([]);
-
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCustomer, setModalCustomer] = useState(null);
+  const [populationAverages, setPopulationAverages] = useState({});
+  const [modalCustomerHistory, setModalCustomerHistory] = useState([]);
+  const LOTTERY_KEYS = [
+    "Ada_Sampatha",
+    "Dhana_Nidhanaya",
+    "Govisetha",
+    "Handahana",
+    "Jaya",
+    "Mahajana_Sampatha",
+    "Mega_Power",
+    "Suba_Dawasak",
+  ];
+  const [raw, setRaw] = useState([]);
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
   const [logModalVisible, setLogModalVisible] = useState(false);
@@ -108,7 +127,20 @@ function LoyaltyCustomers() {
     Warning: <WarningOutlined />,
     Rejected: <DragOutlined />,
   };
-
+  const openCustomerModal = (mobile) => {
+    const history = raw
+      .filter((r) => r.MobileNumber === mobile)
+      .sort(
+        (a, b) => monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update),
+      );
+    if (!history.length) {
+      message.warning("No history for this customer.");
+      return;
+    }
+    setModalCustomer(mobile);
+    setModalCustomerHistory(history);
+    setModalOpen(true);
+  };
   const sendLoyaltyEmail = async (customer, type, i) => {
     try {
       const formData = new FormData();
@@ -119,16 +151,11 @@ function LoyaltyCustomers() {
         //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
         //   : ""
 
-        customer.CustomerInfo.Email
-          ? "chamikadeshan97@gmail.com"
-          : "deshjayasingha@gmail.com",
-        // customer.CustomerInfo.Email
-        //   ? customer.CustomerInfo.Email
-        //   : "chamikadeshan97@gmail.com",
+        customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
       );
 
-      if (i <= 5) {
-        // formData.append("cc", "info@winway.lk");
+      if (i <= 10) {
+        formData.append("cc", "info@winway.lk");
       }
 
       formData.append(
@@ -167,6 +194,24 @@ function LoyaltyCustomers() {
     } finally {
       setSingleEmailModelVisible(false);
     }
+  };
+  const [groupedUpgrades, setGroupedUpgrades] = useState({});
+  const groupByMobile = (data) => {
+    return data.reduce((acc, item) => {
+      const mobile = item.MobileNumber;
+
+      if (!acc[mobile]) {
+        acc[mobile] = [];
+      }
+
+      acc[mobile].push({
+        Last_Update: item.Last_Update,
+        Month_Tier: item.Month_Tier,
+        Monthly_Ticket_Count: item.Monthly_Ticket_Count,
+      });
+
+      return acc;
+    }, {});
   };
 
   const handleSendSingleEmail = async (record) => {
@@ -319,7 +364,18 @@ function LoyaltyCustomers() {
     ].findIndex((x) => x.toLowerCase() === mon?.toLowerCase());
     return new Date(Number(y || 0), Math.max(0, idx), 1);
   };
+  const MonthlyUpgrades = () => {
+    useEffect(() => {
+      getMonthlyUpgrades()
+        .then((res) => {
+          const grouped = groupByMobile(res.data);
+          setGroupedUpgrades(grouped);
+        })
+        .catch(console.error);
+    }, []);
 
+    return null;
+  };
   const fetchHistory = async () => {
     setLoading(true);
     try {
@@ -331,6 +387,22 @@ function LoyaltyCustomers() {
       ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
 
       setUniqueMonths(uniqueMonthsArr);
+
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        const rows = res.data.data.slice().sort((a, b) => {
+          const d =
+            monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update);
+          if (d !== 0) return d;
+          return (a.MobileNumber || "").localeCompare(b.MobileNumber || "");
+        });
+
+        setRaw(rows);
+
+        message.success("Loyalty history loaded");
+      } else {
+        setRaw([]);
+        message.warning("No data found");
+      }
     } catch (e) {
       console.error(e);
       message.error("Failed to load loyalty history");
@@ -347,7 +419,7 @@ function LoyaltyCustomers() {
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),
       ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
-console.log(res.data.data);
+      console.log(res.data.data);
 
       //setUniqueMonths(uniqueMonthsArr);
     } catch (e) {
@@ -357,6 +429,7 @@ console.log(res.data.data);
       setLoading(false);
     }
   };
+
   const handleDownloadAll = () => {
     if (customers.length === 0) {
       message.info("All customers have emails — nothing to download.");
@@ -401,7 +474,7 @@ console.log(res.data.data);
 
   const getButtonText = (selectedStatus) => {
     if (selectedStatus == "Initial Load") {
-      return "Send Emails to New Customers";
+      return "Send Welcome Emails";
     } else if (selectedStatus == "Same") {
       return "Send Emails to Same Customers";
     } else if (selectedStatus == "Upgraded") {
@@ -430,6 +503,8 @@ console.log(res.data.data);
       setSettings(map);
       if (customers.data?.success) {
         const data = customers.data.data || [];
+        console.log(data[200]);
+
         setCustomers(data);
         setFiltered(data);
         setSummary(getCustomerSummary(customers.data));
@@ -516,6 +591,7 @@ console.log(res.data.data);
       LastName: item.CustomerInfo?.LastName,
       Email: item.CustomerInfo?.Email,
       Gender: item.CustomerInfo?.Gender,
+      LastMonth_Loyalty_Tier: item.CustomerInfo?.lastMonthLoyaltyTier,
       Loyalty_Tier: item.CustomerInfo?.Current_Loyalty_Tier,
       Ticket_Count: item.CustomerInfo?.Current_Ticket_Count,
       Loyalty_Number: item.CustomerInfo?.L,
@@ -529,7 +605,7 @@ console.log(res.data.data);
       bookType: "csv",
       type: "array",
     });
-    saveAs(new Blob([excelBuffer]), "December 2025.csv");
+    saveAs(new Blob([excelBuffer]), `${selectedStatus}.csv`);
   };
 
   const columns = [
@@ -639,7 +715,21 @@ console.log(res.data.data);
         </span>
       ),
     },
-
+    {
+      title: "Last_Month_Ticket_Count",
+      dataIndex: ["CustomerInfo", "Last_Month_Ticket_Count"],
+      key: "Last_Month_Ticket_Count",
+      width: 100,
+      align: "center",
+      sorter: (a, b) =>
+        (a.CustomerInfo?.Last_Month_Ticket_Count || 0) -
+        (b.CustomerInfo?.Last_Month_Ticket_Count || 0),
+      render: (value) => (
+        <span style={{ fontWeight: 500, color: "#000000ff" }}>
+          {Number(value || 0).toLocaleString()}
+        </span>
+      ),
+    },
     {
       title: "Last Update",
       dataIndex: "Last_Update",
@@ -1015,8 +1105,9 @@ console.log(res.data.data);
             </Card>
           </Col>
         </Row>
-        <Row style={{ marginBottom: 20 }}>
-          <Col xs={24} sm={12} md={8}>
+        <Divider />
+        <Row justify="end" style={{ marginBottom: 20 }}>
+          <Col xs={24} sm={12} md={10}>
             <Input.Search
               placeholder="Search by name, email, or mobile"
               allowClear
@@ -1026,27 +1117,26 @@ console.log(res.data.data);
               }}
             />
           </Col>
-          <Col xs={24} sm={12} md={4}>
-            <Button
-              loading={sendingMailAll}
-              disabled={selectedTier}
-              icon={<MailOutlined />}
-              type="primary"
-              style={{
-                marginLeft: 10,
-                background: "#7b2ff7",
-                borderColor: "#7b2ff7",
-              }}
-              onClick={() => handleSendLoyaltyEmails(selectedStatus)}
-            >
-              {getButtonText(selectedStatus)}
-              {/* {customers.length == filtered.length
-                ? "Send To All "
-                : "Send To Selected "} */}
-            </Button>
-          </Col>
+          {selectedStatus && selectedStatus == "Initial Load" && (
+            <Col>
+              <Button
+                loading={sendingMailAll}
+                disabled={selectedTier}
+                icon={<MailOutlined />}
+                type="primary"
+                style={{
+                  marginLeft: 10,
+                  background: "#7b2ff7",
+                  borderColor: "#7b2ff7",
+                }}
+                onClick={() => handleSendLoyaltyEmails(selectedStatus)}
+              >
+                {getButtonText(selectedStatus)}
+              </Button>
+            </Col>
+          )}
         </Row>
-
+        <Divider />
         <Table
           columns={columns}
           dataSource={filtered}
@@ -1064,6 +1154,13 @@ console.log(res.data.data);
             onChange: (page, pageSize) =>
               setPagination({ current: page, pageSize }),
           }}
+          onRow={(record) => ({
+            onClick: () => {
+              const mobile = record.MobileNumber;
+
+              openCustomerModal(mobile);
+            },
+          })}
           rowClassName={(record) => {
             const tier = record.CustomerInfo?.Current_Loyalty_Tier;
             if (tier === "Platinum") return "tier-row-platinum";
@@ -1327,7 +1424,15 @@ console.log(res.data.data);
           </Button>
         </div>
       </Modal>
-
+      <CustomerLoyaltyModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        mobileNumber={modalCustomer}
+        history={modalCustomerHistory}
+        populationAverages={populationAverages}
+        tierColors={tierColors}
+        lotteryKeys={LOTTERY_KEYS}
+      />
       <CustomerModel
         open={isModalVisible}
         onClose={() => setIsModalVisible(false)}

@@ -283,7 +283,7 @@ const LoyalityPromotions = () => {
   ];
 
   return (
-    <Card style={{ borderRadius: 12 }}>
+    <>
       <Title level={3}>Loyalty Promotions</Title>
       <Text type="secondary">
         Manage loyalty and public promotions
@@ -425,7 +425,7 @@ const LoyalityPromotions = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </>
   );
 };
 

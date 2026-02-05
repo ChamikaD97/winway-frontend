@@ -416,8 +416,11 @@ function MonthlyUpgrade() {
       console.error(err);
       message.error("❌ Failed to save loyalty data!");
     } finally {
-      handleSendLoyaltyEmails();
       setLoading(false);
+
+      setTimeout(() => {
+        handleSubmitNewLoyalityMembers();
+      }, 5000);
     }
   };
 
@@ -608,10 +611,6 @@ function MonthlyUpgrade() {
     }
 
     setSendingMailAll(false);
-
-    setTimeout(() => {
-      setLogModalVisible(false);
-    }, 3000);
 
     setTimeout(() => {
       handleSubmitNewLoyalityMembers();
@@ -914,7 +913,6 @@ function MonthlyUpgrade() {
     setLogModalVisible(false);
     message.info("🛑 Email sending stopped.");
   };
-
   const successCount = logList.filter((l) => l.status === "success").length;
   const failCount = logList.filter((l) => l.status === "failed").length;
   const imageCount = logList.filter((l) => l.status === "image").length;
@@ -961,9 +959,9 @@ function MonthlyUpgrade() {
     } finally {
       setLoading(false);
 
-      setTimeout(() => {
-        handleSendLoyaltyWelcomeEmails();
-      }, 5000);
+      // setTimeout(() => {
+      //   handleSendLoyaltyWelcomeEmails();
+      // }, 5000);
     }
   };
 
@@ -1071,8 +1069,7 @@ function MonthlyUpgrade() {
             tip="Processing..."
           >
             <Title level={3} style={{ textAlign: "left" }}>
-              Upload ZIP and Customer Files - (Enables only every 1st of the
-              month)
+              Upload Sales and Customer Files
             </Title>
             <Divider />
             <Row gutter={[24, 24]} justify="center">
@@ -1081,7 +1078,7 @@ function MonthlyUpgrade() {
                   <Row gutter={[12, 12]} justify="center">
                     <Col xs={24} sm={12} md={8}>
                       {renderUpload(
-                        "Tickets ZIP (.zip)",
+                        "Ticket Sales  ZIP (.zip)",
                         "zip_file",
                         ".zip",
                         <FileZipOutlined style={{ color: "#1890ff" }} />,
@@ -1309,7 +1306,6 @@ function MonthlyUpgrade() {
                   <Title level={3} style={{ marginBottom: 0 }}>
                     Upgraded Loyality Members
                   </Title>
-                  Summery Table Also Need here
                   {summary?.date_range && (
                     <div
                       style={{
@@ -1591,7 +1587,7 @@ function MonthlyUpgrade() {
                     style={{ marginLeft: 10 }}
                     onClick={handleSaveLoyalty}
                   >
-                  Save And Send Loyalty Update Emails
+                    Save And Send Loyalty Update Emails
                   </Button>
                   <Button
                     icon={<DownloadOutlined />}
@@ -1907,7 +1903,7 @@ function MonthlyUpgrade() {
             disabled={loading}
             style={{ marginRight: 10 }}
           >
-            {loading ? "Processing..." : " Send Loyalty Welcome Emails "}
+            {loading ? "Processing..." : "Save New Loyality Members"}
           </Button>
         </>
       )}

@@ -30,17 +30,14 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
     { key: "5-1", label: "Initial Process" },
     { key: "5-3", label: "Monthly Upgrade Process" },
     { key: "5-2", label: "Loyalty Customers" },
-    { key: "5-4", label: "Loyalty Histoty" },
+    { key: "5-4", label: "Loyalty Promotions" },
     { key: "5-5", label: "Send Loyalty Emails" },
     { key: "5-6", label: "Send Loyalty SMS" },
-
-
+    { key: "5-7", label: "Monthly Upgrades Table" },
   ];
-    const messageMenu = [
+  const messageMenu = [
     { key: "6-1", label: "SMS" },
     { key: "6-2", label: "Emails" },
-   
-
   ];
 
   return (
@@ -123,9 +120,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             {
               key: "1",
               icon: <CloudUploadOutlined />,
-              label: "Weekly Purchase ",
+              label: "Weekly Summary",
             },
-           
 
             {
               key: "5",
@@ -133,12 +129,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               label: "Loyalty",
               children: loyaltyMenu,
             },
-             {
-              key: "7",
-          
-              label: "Promotions",
-             
-            },
+
             {
               key: "6",
               icon: <MessageOutlined />,
@@ -189,7 +180,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
                 textShadow: "0 2px 8px rgba(0,0,0,0.25)",
               }}
             >
-              {activeTab === "1" && "Weekly Purchase "}
+              {activeTab === "1" && "Weekly Summary"}
+              {activeTab === "0" && "Dashboard"}
               {activeTab === "2" && "Results & Rankings"}
 
               {activeTab === "5" && "Loyalty"}

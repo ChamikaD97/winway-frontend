@@ -10,7 +10,6 @@ import Loyality from "./Pages/Loyality";
 import MonthlyUpgrade from "./Pages/MonthlyUpgrade";
 import Settings from "./Pages/Settings";
 import LoyaltyCustomers from "./Pages/LoyaltyCustomers";
-import LoyaltyHistory from "./Pages/LoyalityHistory";
 import LoyaltyEmails from "./Pages/LoyaltyEmails";
 import UpgradeHistory from "./Pages/UpgradeHistory";
 import Dashboard from "./Pages/DashBoardPage";
@@ -19,7 +18,7 @@ import LoyaltyHub from "./Pages/LoyaltyHub";
 import CustomSMS from "./Pages/CustomSMS";
 import CustomEmails from "./Pages/CustomEmails";
 import LoyalityPromotions from "./Pages/LoyalityPromotions";
-
+import MonthlyUpgradesTable from "./Pages/MonthlyUpgradesTable";
 function App() {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
@@ -89,13 +88,12 @@ function App() {
               {activeTab === "5-1" && <Loyality />}
               {activeTab === "5-2" && <LoyaltyCustomers />}
               {activeTab === "5-3" && <MonthlyUpgrade />}
-              {activeTab === "5-4" && <LoyaltyHistory />}
+              {activeTab === "5-4" && <LoyalityPromotions />}
               {activeTab === "5-5" && <LoyaltyEmails />}
-   {activeTab === "7" && <LoyalityPromotions />}
 
               {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
               {activeTab === "5-6" && <LoyaltyHub />}
-
+              {activeTab === "5-7" && <MonthlyUpgradesTable />}
               {activeTab === "6-1" && <CustomSMS />}
               {activeTab === "6-2" && <CustomEmails />}
             </DashboardLayout>
