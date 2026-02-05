@@ -132,7 +132,7 @@ const getYesterday2 = () => {
         (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0)
       );
 
-      const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
+      const res = await axios.post(`${API_BASE_Local}/api/loyalCustomer`, {
         customers: sortedResults,
         Last_Update: "Entry",
         current_count: 200,

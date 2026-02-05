@@ -391,7 +391,7 @@ function MonthlyUpgrade() {
       setLoading(true);
 
       const res = await axios.post(
-        `${API_BASE_Local}/api/initialCustomer/monthly-update`,
+        `${API_BASE_Local}/api/loyalCustomer/monthly-update`,
         {
           customers: results,
           Last_Update: Last_Update,
@@ -532,7 +532,7 @@ function MonthlyUpgrade() {
     );
 
     const res = await axios.get(
-      `${API_BASE_Local}/api/initialCustomer/monthly-upgrades`,
+      `${API_BASE_Local}/api/loyalCustomer/monthly-upgrades`,
     );
 
     if (res.data?.success && Array.isArray(res.data.data)) {
@@ -934,7 +934,7 @@ function MonthlyUpgrade() {
       const sortedResults = [...results2].sort(
         (a, b) => (b.Ticket_Count || 0) - (a.Ticket_Count || 0),
       );
-      const res = await axios.post(`${API_BASE_Local}/api/initialCustomer`, {
+      const res = await axios.post(`${API_BASE_Local}/api/loyalCustomer`, {
         customers: sortedResults,
         Last_Update_Summery: Last_Update,
         New_Customers: summary2.loyal_customers,

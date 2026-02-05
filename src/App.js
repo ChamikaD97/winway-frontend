@@ -18,6 +18,7 @@ import Dashboard from "./Pages/DashBoardPage";
 import LoyaltyHub from "./Pages/LoyaltyHub";
 import CustomSMS from "./Pages/CustomSMS";
 import CustomEmails from "./Pages/CustomEmails";
+import LoyalityPromotions from "./Pages/LoyalityPromotions";
 
 function App() {
   const [results, setResults] = useState(null);
@@ -90,6 +91,7 @@ function App() {
               {activeTab === "5-3" && <MonthlyUpgrade />}
               {activeTab === "5-4" && <LoyaltyHistory />}
               {activeTab === "5-5" && <LoyaltyEmails />}
+   {activeTab === "7" && <LoyalityPromotions />}
 
               {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
               {activeTab === "5-6" && <LoyaltyHub />}

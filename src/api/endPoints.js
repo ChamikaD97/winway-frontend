@@ -3,14 +3,14 @@ import axios from "axios";
 const API_BASE_LOCAL = "http://localhost:8001";
 
 export const getCombinedCustomers = () => {
-  return axios.get(`${API_BASE_LOCAL}/api/initialCustomer/combined`);
+  return axios.get(`${API_BASE_LOCAL}/api/loyalCustomer/combined`);
 };
 
 /**
  * Get monthly loyalty upgrades
  */
 export const getMonthlyUpgrades = () => {
-  return axios.get(`${API_BASE_LOCAL}/api/initialCustomer/monthly-upgrades`);
+  return axios.get(`${API_BASE_LOCAL}/api/loyalCustomer/monthly-upgrades`);
 };
 
 /**

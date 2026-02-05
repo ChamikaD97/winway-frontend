@@ -184,7 +184,7 @@ function ResultsView({ results, lotteryPrizes }) {
     const total = IS_TEST_MODE ? 5 : rankedData.length;
     let sentCount = 0;
 
-    for (let i = 4; i < total; i++) {
+    for (let i = 0; i < total; i++) {
       const customer = rankedData[i];
       if (stoppedRef.current) break;
 

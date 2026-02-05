@@ -158,7 +158,7 @@ function LoyalityUpgrade() {
   const separation = async () => {
     try {
       const res = await axios.get(
-        `${API_BASE_Local}/api/initialCustomer/combined`
+        `${API_BASE_Local}/api/loyalCustomer/combined`
       );
 
       const ll = checkFoldersSameMonth(fileNames);
@@ -266,7 +266,7 @@ function LoyalityUpgrade() {
           setLoading(true);
 
           const res = await axios.post(
-            `${API_BASE_Local}/api/initialCustomer/monthly-update`,
+            `${API_BASE_Local}/api/loyalCustomer/monthly-update`,
             {
               updates: finalMerged,
             }

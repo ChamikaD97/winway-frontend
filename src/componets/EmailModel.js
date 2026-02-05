@@ -28,7 +28,7 @@ const extractKeys = (obj, prefix = "") =>
   Object.entries(obj || {}).flatMap(([k, v]) =>
     typeof v === "object" && v !== null
       ? extractKeys(v, `${prefix}${k}.`)
-      : `${prefix}${k}`
+      : `${prefix}${k}`,
   );
 const getGenderTitle = (customer = {}) => {
   const g = (customer.Gender || "").toLowerCase();
@@ -76,7 +76,7 @@ const generateLoyaltyCustomeEmail = (
   customer = {},
   title,
   headerLogo,
-  footerLogo
+  footerLogo,
 ) => {
   const renderedBody = applyTemplate(body, customer);
 
@@ -224,7 +224,7 @@ const EmailModal = ({
       customers[0].CustomerInfo,
       title,
       headerLogo,
-      footerLogo
+      footerLogo,
     );
   }, [editorValue, customers, title, headerLogo, footerLogo]);
 

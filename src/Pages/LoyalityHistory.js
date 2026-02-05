@@ -215,7 +215,7 @@ function LoyaltyHistory() {
     setLoading(true);
     try {
       const res = await axios.get(
-        `${API_BASE}/api/initialCustomer/monthly-upgrades`
+        `${API_BASE}/api/loyalCustomer/monthly-upgrades`
       );
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),

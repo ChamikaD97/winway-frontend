@@ -133,6 +133,12 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               label: "Loyalty",
               children: loyaltyMenu,
             },
+             {
+              key: "7",
+          
+              label: "Promotions",
+             
+            },
             {
               key: "6",
               icon: <MessageOutlined />,

@@ -324,7 +324,7 @@ function LoyaltyCustomers() {
     setLoading(true);
     try {
       const res = await axios.get(
-        `${API_BASE}/api/initialCustomer/monthly-upgrades`,
+        `${API_BASE}/api/loyalCustomer/monthly-upgrades`,
       );
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),
@@ -342,7 +342,7 @@ function LoyaltyCustomers() {
     setLoading(true);
     try {
       const res = await axios.get(
-        `${API_BASE}/api/initialCustomer/monthly-upgrade-summery`,
+        `${API_BASE}/api/loyalCustomer/monthly-upgrade-summery`,
       );
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),
@@ -493,7 +493,7 @@ console.log(res.data.data);
       if (!confirmDelete) return;
       setLoading(true);
       await axios.delete(
-        `${API_BASE}/api/initialCustomer/delete-all?confirm=true`,
+        `${API_BASE}/api/loyalCustomer/delete-all?confirm=true`,
       );
       setCustomers([]);
       setFiltered([]);

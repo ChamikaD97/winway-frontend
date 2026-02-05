@@ -468,7 +468,7 @@ function LoyaltyEmails() {
       if (!confirmDelete) return;
       setLoading(true);
       await axios.delete(
-        `${API_BASE_LOCAL}/api/initialCustomer/delete-all?confirm=true`
+        `${API_BASE_LOCAL}/api/loyalCustomer/delete-all?confirm=true`
       );
       setCustomers([]);
       setFiltered([]);
@@ -510,7 +510,7 @@ function LoyaltyEmails() {
     try {
       setLoading(true);
       const res = await axios.get(
-        `${API_BASE_LOCAL}/api/initialCustomer/${record.MobileNumber}`
+        `${API_BASE_LOCAL}/api/loyalCustomer/${record.MobileNumber}`
       );
       if (res.data?.success) {
         setSelectedCustomer(res.data.data);
