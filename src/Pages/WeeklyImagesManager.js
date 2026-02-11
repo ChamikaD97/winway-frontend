@@ -1,0 +1,312 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Table,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Spin,
+  Divider,
+  message,
+  Button,
+  Typography,
+  Space,
+  Tooltip,
+  Modal,
+  Popconfirm,
+  Tag,
+  Empty,
+} from "antd";
+import {
+  FileImageOutlined,
+  FileExcelOutlined,
+  FileZipOutlined,
+  FileTextOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  DownloadOutlined,
+  DatabaseOutlined,
+} from "@ant-design/icons";
+import axios from "axios";
+import { saveAs } from "file-saver";
+
+const { Title, Text } = Typography;
+const API_BASE = "http://localhost:8001";
+
+function WeeklyImagesManager() {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState("");
+
+
+  
+  const fetchFiles = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/weekly-images`);
+      setFiles(res.data?.files || []);
+    } catch {
+      message.error("Failed to load files");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+  }, []);
+
+  // ---------------- METRICS ----------------
+  const totalSizeKB = useMemo(() => {
+    if (!files.length) return 0;
+    return (files.reduce((sum, f) => sum + f.size_bytes, 0) / 1024).toFixed(2);
+  }, [files]);
+
+  // ---------------- FILE ICON ----------------
+  const getFileIcon = (ext) => {
+    switch (ext) {
+      case ".png":
+      case ".jpg":
+      case ".jpeg":
+      case ".gif":
+      case ".webp":
+        return <FileImageOutlined style={{ color: "#faad14" }} />;
+      case ".csv":
+      case ".xlsx":
+        return <FileExcelOutlined style={{ color: "#52c41a" }} />;
+      case ".zip":
+        return <FileZipOutlined style={{ color: "#722ed1" }} />;
+      default:
+        return <FileTextOutlined style={{ color: "#8c8c8c" }} />;
+    }
+  };
+
+  const isImage = (ext) =>
+    [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext);
+
+  // ---------------- DELETE ----------------
+  const deleteFile = async (filename) => {
+    try {
+      await axios.delete(
+        `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`,
+      );
+      message.success("File deleted successfully");
+      fetchFiles();
+    } catch {
+      message.error("Delete failed");
+    }
+  };
+
+  // ---------------- DOWNLOAD ZIP ----------------
+  const downloadZip = async () => {
+    if (!selectedRowKeys.length) {
+      message.warning("No files selected");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_BASE}/weekly-images/download-zip`,
+        { files: selectedRowKeys },
+        { responseType: "blob" },
+      );
+
+      saveAs(res.data, `weekly_files_${Date.now()}.zip`);
+      message.success("ZIP downloaded");
+    } catch {
+      message.error("ZIP download failed");
+    }
+  };
+
+  // ---------------- TABLE ----------------
+  const columns = [
+    {
+      title: "Preview",
+      width: 120,
+      align: "center",
+      render: (record) =>
+        isImage(record.extension) ? (
+          <img
+            src={`${API_BASE}/weekly-images/view/${record.name}`}
+            alt={record.name}
+            style={{
+              width: 80,
+              height: 60,
+              objectFit: "cover",
+              borderRadius: 8,
+              cursor: "pointer",
+              border: "1px solid #f0f0f0",
+            }}
+            onClick={() => {
+              setPreviewImage(`${API_BASE}/weekly-images/view/${record.name}`);
+              setPreviewOpen(true);
+            }}
+          />
+        ) : (
+          getFileIcon(record.extension)
+        ),
+    },
+    {
+      title: "File Name",
+      dataIndex: "name",
+      render: (name, record) => (
+        <div>
+          <Space>
+            {getFileIcon(record.extension)}
+            <Text strong>{name}</Text>
+          </Space>
+          <div style={{ fontSize: 12, color: "#999" }}>
+            {record.modified
+              ? `Modified: ${new Date(record.modified).toLocaleDateString()}`
+              : ""}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Size",
+      align: "center",
+      render: (record) => (
+        <Tag color="blue">{(record.size_bytes / 1024).toFixed(2)} KB</Tag>
+      ),
+    },
+    {
+      title: "Actions",
+      align: "center",
+      render: (record) => (
+        <Space>
+          {isImage(record.extension) && (
+            <Tooltip title="Preview">
+              <Button
+                type="text"
+                icon={<EyeOutlined />}
+                onClick={() => {
+                  setPreviewImage(
+                    `${API_BASE}/weekly-images/view/${record.name}`,
+                  );
+                  setPreviewOpen(true);
+                }}
+              />
+            </Tooltip>
+          )}
+
+          <Tooltip title="Download">
+            <Button
+              type="text"
+              icon={<DownloadOutlined />}
+              href={`${API_BASE}/weekly-images/download/${encodeURIComponent(
+                record.name,
+              )}`}
+            />
+          </Tooltip>
+
+          <Popconfirm
+            title="Delete this file?"
+            onConfirm={() => deleteFile(record.name)}
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Spin spinning={loading}>
+      <Row justify="space-between" align="middle">
+        <Title level={3}>Weekly Files</Title>
+      </Row>
+
+      <Divider />
+
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Total Files"
+              value={files.length}
+              prefix={<DatabaseOutlined />}
+            />
+          </Card>
+        </Col>
+
+        <Col span={6}>
+          <Card>
+            <Statistic title="Total Size" value={totalSizeKB} suffix="KB" />
+          </Card>
+        </Col>
+      </Row>
+
+      <Table
+        columns={columns}
+        dataSource={files}
+        rowKey="name"
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        pagination={{ pageSize: 10 }}
+        locale={{
+          emptyText: <Empty description="No files found" />,
+        }}
+      />
+
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={fetchFiles}
+          style={{ marginRight: 10 }}
+        >
+          Refresh
+        </Button>
+<Button
+  style={{ marginLeft: 10, background: "#722ed1", borderColor: "#722ed1" }}
+  type="primary"
+  onClick={async () => {
+    try {
+      await axios.post("http://localhost:8001/email/all-weekly-files");
+      message.success("📧 Weekly files sent to chamikadeshan97@gmail.com");
+    } catch {
+      message.error("Failed to send weekly files");
+    }
+  }}
+>
+  Email All Weekly Files
+</Button>
+
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          onClick={downloadZip}
+          disabled={!selectedRowKeys.length}
+        >
+          Download ZIP
+        </Button>
+      </div>
+
+      <Modal
+        open={previewOpen}
+        footer={null}
+        onCancel={() => setPreviewOpen(false)}
+        centered
+        width={900}
+      >
+        <img
+          src={previewImage}
+          alt="Preview"
+          style={{
+            width: "100%",
+            borderRadius: 10,
+            maxHeight: "80vh",
+            objectFit: "contain",
+          }}
+        />
+      </Modal>
+    </Spin>
+  );
+}
+
+export default WeeklyImagesManager;

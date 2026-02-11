@@ -141,6 +141,16 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               icon: <SettingOutlined />,
               label: "Settings",
             },
+            {
+              key: "7",
+              icon: <SettingOutlined />,
+              label: "Files",
+            },
+              {
+              key: "8",
+              icon: <SettingOutlined />,
+              label: "Images",
+            },
           ]}
           theme="dark"
         />

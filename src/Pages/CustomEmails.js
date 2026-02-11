@@ -22,6 +22,7 @@ import {
   List,
   Tooltip,
   Switch,
+  UploadFile,
 } from "antd";
 import axios from "axios";
 import headerLogo from "../assets/logo.png";
@@ -54,20 +55,23 @@ import {
   CloseCircleOutlined,
   CheckCircleOutlined,
   MailOutlined,
+  UploadOutlined,
+  FileTextOutlined,
+  DownloadOutlined,
+  MoneyCollectFilled,
+  DollarCircleFilled,
 } from "@ant-design/icons";
-import { UploadOutlined } from "@ant-design/icons";
-
+// Add these imports
+import { ReloadOutlined } from "@ant-design/icons";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
 /* ================= CONFIG ================= */
 const API_BASE = "http://127.0.0.1:8000";
-
 const API_BASE_LOCAL = "http://localhost:8001";
-/* 🔁 SWITCH MODE HERE */
-
-/* 🇱🇰 Sri Lanka number normalizer */
 
 /* ================= COMPONENT ================= */
 function CustomEmails() {
@@ -76,60 +80,92 @@ function CustomEmails() {
   const [IS_TEST_MODE, Set_IS_TEST_MODE] = useState(true);
 
   const [form] = Form.useForm();
+  const [uploadForm] = Form.useForm(); // Separate form for upload
+
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [mobile_column, setMobileColoum] = useState("Mobile Number");
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [searchText, setSearchText] = useState("");
-  // which dynamic columns are visible
   const [visibleColumns, setVisibleColumns] = useState([]);
   const [title, setTitle] = useState("");
-
-  /* SMS */
-
+  const [filename, setFilename] = useState(""); // New state for filename
+  const [uploadedFileInfo, setUploadedFileInfo] = useState(null); // Store upload response
+  const [showMonthModal, setShowMonthModal] = useState(false);
+  const [monthForm] = Form.useForm();
+  /* Email sending states */
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
   const [filtered, setFiltered] = useState([]);
-
   const [sendingMailAll, setSendingMailAll] = useState(false);
   const [logList, setLogList] = useState([]);
   const [progress, setProgress] = useState(0);
   const [noEmailList, setNoEmailList] = useState([]);
-
   const [logModalVisible, setLogModalVisible] = useState(false);
-
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState(0);
   const [totalToSend, setTotalToSend] = useState(0);
   const [editorValue, setEditorValue] = useState("");
+  /* ================= CARD THEME ================= */
+  const cardBase = {
+    borderRadius: 14,
+    transition: "all 0.25s ease",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+  };
+
+  const cardStyles = {
+    blue: {
+      background: "linear-gradient(145deg, #e3f2fd, #ffffff)",
+      border: "1px solid #bbdefb",
+    },
+    green: {
+      background: "linear-gradient(145deg, #e8f5e9, #ffffff)",
+      border: "1px solid #c8e6c9",
+    },
+    orange: {
+      background: "linear-gradient(145deg, #fff3e0, #ffffff)",
+      border: "1px solid #ffe0b2",
+    },
+    red: {
+      background: "linear-gradient(145deg, #fff1f0, #ffffff)",
+      border: "1px solid #ffa39e",
+    },
+    purple: {
+      background: "linear-gradient(145deg, #f3e8ff, #ffffff)",
+      border: "1px solid #d3adf7",
+    },
+    neutral: {
+      background: "#ffffff",
+      border: "1px solid #e0e0e0",
+    },
+  };
+
+  /* ================= UTILITY FUNCTIONS ================= */
   function toProperCase(name = "") {
     return name
-      .replace(/[^a-zA-Z ]/g, "") // remove commas & symbols
+      .replace(/[^a-zA-Z ]/g, "")
       .toLowerCase()
       .trim()
       .split(/\s+/)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
-  const getGenderTitle = (customer = {}) => {
-    const g = (customer.Gender || "").toLowerCase();
 
+  const getGenderTitle = (customer = {}) => {
+    const g = (customer.GENDER || "").toLowerCase();
     if (g === "male") return "Mr.";
     if (g === "female") return "Ms.";
-
-    return ""; // fallback
+    return "";
   };
+
   const transformValue = (key, value) => {
     if (!value) return "";
-
-    // Gender → Mr / Ms mapping
     if (key.toLowerCase() === "gender") {
       const v = value.toString().toLowerCase();
       if (["male", "m"].includes(v)) return "Mr";
       if (["female", "f"].includes(v)) return "Ms";
       return "";
     }
-
     return value;
   };
 
@@ -138,15 +174,15 @@ function CustomEmails() {
       const rawValue = key
         .split(".")
         .reduce((o, i) => (o ? o[i] : ""), customer);
-
       return transformValue(key, rawValue) ?? "";
     });
+
   const generateLoyaltyCustomeEmail = (
     body,
     customer = {},
     title,
     headerLogo,
-    footerLogo
+    footerLogo,
   ) => {
     const renderedBody = applyTemplate(body, customer);
 
@@ -156,9 +192,7 @@ function CustomEmails() {
 <head>
   <meta charset="UTF-8" />
 </head>
-
-<body style="margin:0; padding:0;   sans-serif;           border-radius:18px;
-" >
+<body style="margin:0; padding:0; sans-serif; border-radius:18px;">
   <table width="100%" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center" style="padding:0;">
@@ -169,13 +203,10 @@ function CustomEmails() {
           border:3px solid #000;
           box-shadow:0 5px 25px rgba(0,0,0,0.1);
         ">
-
           <!-- HEADER -->
           <tr>
             <td align="center">
-              <div style="
-                        border-radius:18px;
-
+              <div style="border-radius:18px;
                 background:linear-gradient(135deg,#7b2ff7,#f107a3);
                 padding:22px 30px;
               ">
@@ -184,13 +215,11 @@ function CustomEmails() {
                     <td align="left" width="70">
                       <img src="${headerLogo}" width="90" height="90" style="border-radius:8px;" />
                     </td>
-
                     <td align="center">
                       <h1 style="color:#fff; font-size:32px; margin:0; font-family:'Crimson Text';">
                         ${title}
                       </h1>
                     </td>
-
                     <td width="70"></td>
                   </tr>
                 </table>
@@ -201,18 +230,12 @@ function CustomEmails() {
           <!-- BODY -->
           <tr>
             <td style="padding:40px; font-size:16px; color:#333; line-height:1.6;">
-             <p style="font-size:18px; font-family:'Sylfaen'; font-style:italic;">
-  <strong>
-
-   ${getFullGreeting(customer)},
-  </strong>
-</p>
-
-  <p style="margin:0 0 0 0; font-family:'Sylfaen'; font-style: italic;font-size:15px;">
-
-
-              ${renderedBody}</p>
-
+              <p style="font-size:18px; font-family:'Sylfaen'; font-style:italic;">
+                <strong>${getFullGreeting(customer)},</strong>
+              </p>
+              <p style="margin:0 0 0 0; font-family:'Sylfaen'; font-style: italic;font-size:15px;">
+                ${renderedBody}
+              </p>
             </td>
           </tr>
 
@@ -230,7 +253,6 @@ function CustomEmails() {
                     <a href="https://www.winway.lk">www.winway.lk</a> |
                     <a href="https://www.884.lk">www.884.lk</a>
                   </td>
-
                   <td align="right" width="60">
                     <img src="${footerLogo}" width="55" height="55" />
                   </td>
@@ -238,21 +260,18 @@ function CustomEmails() {
               </table>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
   </table>
 </body>
-</html>
-`;
+</html>`;
   };
 
   function getFullGreeting(customer = {}) {
     const greeting = getGenderTitle(customer);
-    const firstName = customer.FirstName?.trim();
+    const firstName = customer.FIRSTNAME?.trim();
     const lastName = customer.LastName?.trim();
-
     const name =
       firstName && lastName
         ? `${firstName} ${lastName}`
@@ -267,7 +286,7 @@ function CustomEmails() {
       customers[0],
       title,
       headerLogo,
-      footerLogo
+      footerLogo,
     );
   }, [editorValue, customers, title, headerLogo, footerLogo]);
 
@@ -276,70 +295,80 @@ function CustomEmails() {
     Object.entries(obj || {}).flatMap(([k, v]) =>
       typeof v === "object" && v !== null
         ? extractKeys(v, `${prefix}${k}.`)
-        : `${prefix}${k}`
+        : `${prefix}${k}`,
     );
 
   const templateKeys = useMemo(
     () => (customers.length ? extractKeys(customers[0]) : []),
-    [customers]
+    [customers],
   );
 
-  const normalizeLK = (n) => {
-    if (!n) return null;
-    let num = n.toString().trim().replace(/\s+/g, "");
-    if (num.startsWith("+94")) num = num.replace("+94", "94");
-    if (num.startsWith("0")) num = "94" + num.slice(1);
-    if (num.length === 9) num = "94" + num;
-    return num.startsWith("94") && num.length === 11 ? num : null;
-  };
+  /* ================= CSV UPLOAD HANDLER ================= */
+  const handleCsvUpload = async () => {
+    const values = await uploadForm.validateFields();
+    const file = values.customers?.[0]?.originFileObj;
 
-  /* ================= CARD UPLOADER ================= */
-  const renderUpload = (title, accept, icon, text, onUpload) => (
-    <Upload accept={accept} showUploadList={false} customRequest={onUpload}>
-      <Card
-        hoverable
-        style={{
-          textAlign: "center",
-          borderRadius: 12,
-          height: 140,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
-          <Text strong>{title}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {text}
-          </Text>
-        </div>
-      </Card>
-    </Upload>
-  );
-
-  useEffect(() => {
-    if (!searchText) {
-      setFilteredCustomers(customers);
+    if (!file) {
+      message.error("Please select a CSV file");
       return;
     }
 
-    const s = searchText.toLowerCase();
+    const formData = new FormData();
+    formData.append("customers", file);
 
-    const filtered = customers.filter((row) =>
-      visibleColumns.some((key) => {
-        const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
+    // Add optional filename if provided
+    if (filename.trim()) {
+      formData.append("filename", filename.trim());
+    }
 
-        return value && value.toString().toLowerCase().includes(s);
-      })
-    );
+    // Add optional mobile number override if provided
+    if (values.mobile_override?.trim()) {
+      formData.append("mobile_number", values.mobile_override.trim());
+    }
 
-    setFilteredCustomers(filtered);
-  }, [customers, searchText, visibleColumns]);
-  /* ================= CSV UPLOAD ================= */
-  /* ================= CSV EXPORT (NO EMAIL CUSTOMERS) ================= */
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
+      const rows = res.data.data || [];
+      console.log("Upload response:", res.data);
+
+      setCustomers(rows);
+      setFiltered(rows);
+      setFilteredCustomers(rows);
+      setMobileColoum(res.data.mobile_column || "MobileNumber");
+      setUploadedFileInfo({
+        saved_file: res.data.saved_file,
+        user_provided_name: res.data.user_provided_name,
+        saved_path: res.data.saved_path,
+        file_size_bytes: res.data.file_size_bytes,
+        upload_timestamp: res.data.upload_timestamp,
+      });
+
+      if (rows.length > 0) {
+        setVisibleColumns(Object.keys(rows[0]));
+      }
+
+      setSelectedRowKeys([]);
+      message.success(
+        `CSV loaded (${res.data.total_rows} rows) - Saved as: ${res.data.saved_file}`,
+      );
+
+      // Reset filename after successful upload
+      setFilename("");
+      uploadForm.resetFields(["filename"]);
+    } catch (error) {
+      console.error("Upload error:", error);
+      message.error(error.response?.data?.error || "CSV upload failed");
+    } finally {
+      setStep(1);
+      setLoading(false);
+    }
+  };
+
+  /* ================= CSV EXPORT ================= */
   const exportNoEmailCSV = () => {
     const csv = [
       "Name,Mobile,Tier",
@@ -354,41 +383,31 @@ function CustomEmails() {
     a.click();
   };
 
-  const handleCsvUpload = async ({ file }) => {
-    const formData = new FormData();
-    formData.append("customers", file);
-
-    setLoading(true);
-    try {
-      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData);
-      const rows = res.data.data || [];
-      console.log(rows);
-
-      setCustomers(rows);
-      setFiltered(rows);
-
-      setFilteredCustomers(rows);
-      setMobileColoum(res.data.mobile_column || "MobileNumber");
-
-      if (rows.length > 0) {
-        setVisibleColumns(Object.keys(rows[0]));
-      }
-
-      setSelectedRowKeys([]);
-      message.success(`CSV loaded (${res.data.total_rows} rows)`);
-    } catch {
-      message.error("CSV upload failed");
-    } finally {
-      setLoading(false);
+  /* ================= SEARCH FILTER ================= */
+  useEffect(() => {
+    if (!searchText) {
+      setFilteredCustomers(customers);
+      return;
     }
-  };
-  // Fields you DON'T want as table columns
+
+    const s = searchText.toLowerCase();
+    const filtered = customers.filter((row) =>
+      visibleColumns.some((key) => {
+        const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
+        return value && value.toString().toLowerCase().includes(s);
+      }),
+    );
+
+    setFilteredCustomers(filtered);
+  }, [customers, searchText, visibleColumns]);
+
+  /* ================= TABLE CONFIG ================= */
   const EXCLUDED_FIELDS = ["id", "createdAt", "updatedAt", mobile_column];
 
   const dynamicColumns = useMemo(() => {
     return templateKeys
       .filter(
-        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key)
+        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key),
       )
       .map((key) => ({
         title: key,
@@ -400,47 +419,34 @@ function CustomEmails() {
   }, [templateKeys, visibleColumns, mobile_column]);
 
   const columns = useMemo(() => {
-    return [
-      {
-        title: "Mobile",
-        dataIndex: mobile_column,
-        key: mobile_column,
-        fixed: "left",
-      },
+    return [...dynamicColumns];
+  }, [dynamicColumns, mobile_column]);
 
-      ...dynamicColumns,
-    ];
-  }, [dynamicColumns]);
-
-  const [testModalOpen, setTestModalOpen] = useState(false);
-
-  const goBack = () => setStep((s) => s - 1);
-
+  /* ================= EMAIL SENDING ================= */
   const sendLoyaltyEmail = async (customer, i, subject, body, title) => {
     try {
-      const formData = new FormData();
+      console.log(customer.EMAIL);
 
-      formData.append("to", customer.Email ? customer.Email : "");
-      if (i < 20 ) {
-        formData.append("cc", "info@winway.lk");
+      const formData = new FormData();
+      formData.append("to", customer.EMAIL ? customer.EMAIL : "");
+      if (i < 20) {
+        // formData.append("cc", "info@winway.lk");
       }
       formData.append(
         "name",
-        `${customer?.FirstName || ""} ${customer?.LastName || ""}`
+        `${customer?.FIRSTNAME || ""} ${customer?.LASTNAME || ""}`,
       );
       formData.append("type", "loyalty_welcome");
       formData.append("number", i);
-
       formData.append("subject", subject);
       formData.append("body", body);
       formData.append("title", title);
-      // NEW → send full object
       formData.append("customerData", JSON.stringify(customer));
 
       const res = await axios.post(
         `${API_BASE_LOCAL}/email/loyality/custome-email`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       message.success(`✅ Email sent`);
@@ -451,6 +457,20 @@ function CustomEmails() {
       return { status: "failed" };
     }
   };
+  // Email validation function
+  const isValidEmail = (email) => {
+    if (!email) return false;
+
+    const emailStr = String(email).trim().toLowerCase();
+
+    // Basic email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Additional checks
+    if (!emailRegex.test(emailStr)) return false;
+
+    return true;
+  };
 
   const handleSendLoyaltyEmails = async () => {
     const subject = form.getFieldValue("subject");
@@ -459,16 +479,36 @@ function CustomEmails() {
     pausedRef.current = false;
     stoppedRef.current = false;
     const total = filtered.length;
-    let sentCount = 0;
-    setLogModalVisible(true);
 
-    for (let i = 0; i <= total; i++) {
+    let sentCount = 0;
+    let failCount = 0;
+    setLogModalVisible(true);
+    setSending(true);
+    setLogList([]);
+    setNoEmailList([]);
+    setProgress(0);
+
+    for (let i = 0; i < total; i++) {
       const customer = filtered[i];
 
-      if (customer && customer.Email) {
+      setProgress(Math.round(((i + 1) / total) * 100));
+
+      const customerEmail =
+        customer?.EMAIL || customer?.Email || customer?.email || "";
+
+      // Check if email exists AND is valid
+      const hasValidEmail =
+        customerEmail &&
+        customerEmail.trim() !== "" &&
+        customerEmail !== "null" &&
+        customerEmail !== "undefined" &&
+        customerEmail !== "nan" &&
+        isValidEmail(customerEmail);
+
+      if (customer && hasValidEmail) {
         if (stoppedRef.current) break;
 
-        // Pause behaviour
+        // Pause behavior
         while (pausedRef.current && !stoppedRef.current) {
           await new Promise((r) => setTimeout(r, 400));
         }
@@ -476,74 +516,83 @@ function CustomEmails() {
         setLogList((prev) => [
           ...prev,
           {
-            name: `${customer.FirstName} ${customer.LastName}`,
-            email: customer.Email,
+            name: `${customer.FIRSTNAME || customer.FirstName || ""} ${customer.LASTNAME || customer.LastName || ""}`,
+            email: customerEmail,
             status: "sending",
           },
         ]);
 
-        // Actual send
-
+        // Send email
         const result = await sendLoyaltyEmail(
           customer,
           i,
           subject,
           body,
-          title
+          title,
         );
-        sentCount++;
-        setProgress(Math.round((sentCount + noEmailList.length / total) * 100));
 
-        // Update log
+        sentCount++;
+        setSentCount(sentCount);
+
+        // Update log - fix the comparison to use customerEmail
         setLogList((prev) =>
           prev.map((l) =>
-            l.email === customer.Email ? { ...l, status: result.status } : l
-          )
+            l.email === customerEmail ? { ...l, status: result.status } : l,
+          ),
         );
 
         await new Promise((r) => setTimeout(r, 500)); // Rate limit
       } else {
         failCount++;
-
         const noEmailCustomer = {
-          MobileNumber: customer["MobileNumber"] || "",
-          firstName: customer["FirstName"] || "",
-          lastName: customer["LastName"] || "",
-          cashBackAmount: customer["cashBack amount"] || "",
-          Gender: customer["Gender"] || "",
-          ticketCountInDecember: customer["Tickect Count In December"] || "",
+          name: `${customer?.FIRSTNAME || customer?.FirstName || ""} ${customer?.LASTNAME || customer?.LastName || ""}`,
+          mobile: customer?.[mobile_column] || "",
+          tier: customer?.TIER || customer?.Tier || "",
+          email: customerEmail || "(empty/invalid)",
         };
 
-        // 🔥 STORE NO-EMAIL CUSTOMERS
         setNoEmailList((prev) => [...prev, noEmailCustomer]);
 
         setLogList((prev) => [
           ...prev,
           {
-            name: noEmailCustomer.firstName + " " + noEmailCustomer.lastName,
-            email: "N/A",
+            name: noEmailCustomer.name,
+            email: customerEmail || "(empty/invalid)",
             status: "no-email",
           },
         ]);
       }
-
-      setSendingMailAll(false);
     }
 
-    //setLogList([]);
-    setTotalToSend(total);
-
-    return;
+    setSending(false);
+    setSendingMailAll(false);
+    message.success(
+      `Email sending completed! Success: ${sentCount}, No Email: ${failCount}`,
+    );
   };
+
   const goNext = () => {
-    if (step === 2) {
-      handleSendLoyaltyEmails(title, editorValue);
+    console.log(step);
+
+    if (step === 0 && customers.length === 0) {
+      message.error("Please upload a CSV file first");
+      return;
+    }
+
+    if (step === 1) {
+      // if (!form.getFieldValue("subject") || !editorValue.trim()) {
+      //   message.error("Please fill in subject and email body");
+      //   return;
+      // }
+      setStep(2);
+    } else if (step === 2) {
+      handleSendLoyaltyEmails();
     } else {
       setStep((s) => s + 1);
     }
   };
-  let successCount = logList.filter((l) => l.status === "success").length;
-  let failCount = logList.filter((l) => l.status === "failed").length;
+
+  const goBack = () => setStep((s) => s - 1);
 
   const handlePause = () => (pausedRef.current = true);
   const handleResume = () => (pausedRef.current = false);
@@ -554,49 +603,221 @@ function CustomEmails() {
     setProgress(0);
     setNoEmailList([]);
     setLogModalVisible(false);
+    setSending(false);
     message.info("🛑 Email sending stopped.");
   };
 
+  const successCount = logList.filter((l) => l.status === "success").length;
+  const failCount = logList.filter((l) => l.status === "failed").length;
+  const noEmailCount = logList.filter((l) => l.status === "no-email").length;
+  const handleCashbackTemplateClick = () => {
+    setShowMonthModal(true);
+  };
+
+  const handleMonthConfirm = () => {
+    monthForm
+      .validateFields()
+      .then((values) => {
+        const selectedMonth = dayjs(values.month);
+        loadCashbackTemplate(selectedMonth.format("MMMM YYYY"));
+        setShowMonthModal(false);
+        monthForm.resetFields();
+      })
+      .catch((error) => {
+        console.error("Validation failed:", error);
+      });
+  };
+
+  const loadCashbackTemplate = (monthYear) => {
+    // Set subject with dynamic month
+    form.setFieldsValue({
+      subject: `Your WIN WAY Cashback for ${monthYear} Has Been Credited`,
+    });
+
+    // Set email title
+    setTitle("WIN WAY Cashback");
+
+    // Set the exact HTML template with bold formatting
+    const template = `
+<p>We are pleased to inform you that your<strong>  Rs. {{CASHBACK_AMOUNT}}.00 cashback for ${monthYear} </strong>, earned under the WIN WAY Loyalty Rewards Program, has been successfully credited to your WIN WAY Wallet.</p>
+<p>Loyalty cashback amount is determined based on your monthly ticket purchases, allowing you to earn cashback and enjoy greater benefits each month.</p>
+<p>Should you have any questions, please feel free to reach out to our support team at info@winway.lk or contact us directly at <strong>0707 884 884 | 0722 884 884</strong>.</p>
+<p>Thank you for choosing WIN WAY. We truly appreciate your continued loyalty.</p>
+<p>Best regards,<br><strong>WIN WAY</strong><br>National Lotteries Board</p>`;
+
+    setEditorValue(template);
+
+    // Update the preview
+  };
+
+  const resetForm = () => {
+    // Reset the form
+    form.resetFields();
+    setTitle("");
+    setEditorValue("");
+
+    // Optional: Show confirmation message
+    message.success("Form has been reset");
+  };
+
+  /* ================= RENDER ================= */
   return (
     <>
       <Title level={3}>Custom EMAIL Portal</Title>
 
+      {/* STEP 0: UPLOAD CSV */}
       {step === 0 && (
         <Card>
-          {/* ================= UPLOAD ================= */}
-          <Row justify="center">
-            <Col>
-              {renderUpload(
-                "Customer CSV (.csv)",
-                ".csv",
-                <UploadOutlined style={{ color: "#52c41a" }} />,
-                customers.length ? "CSV Uploaded" : "Click to upload CSV",
-                handleCsvUpload
-              )}
-            </Col>
-          </Row>
+          <Title level={4} style={{ marginBottom: 24 }}>
+            Upload Customer CSV
+          </Title>
 
-          {/* ================= DATA PART ================= */}
+          <Form form={uploadForm} layout="vertical" onFinish={handleCsvUpload}>
+            <Row gutter={24}>
+              <Col span={12}>
+                <Form.Item
+                  label="CSV File"
+                  name="customers"
+                  rules={[
+                    { required: true, message: "Please upload a CSV file" },
+                  ]}
+                  valuePropName="fileList"
+                  getValueFromEvent={(e) =>
+                    Array.isArray(e) ? e : e?.fileList
+                  }
+                >
+                  <Upload
+                    accept=".csv"
+                    maxCount={1}
+                    beforeUpload={() => false}
+                    showUploadList={true}
+                  >
+                    <Button
+                      icon={<UploadOutlined />}
+                      block
+                      style={{ height: 40 }}
+                    >
+                      Click to upload CSV
+                    </Button>
+                  </Upload>
+                </Form.Item>
+              </Col>
+
+              <Col span={12}>
+                <Form.Item
+                  label="Save As"
+                  name="filename"
+                  rules={[{ required: true, message: "Filename is required" }]}
+                >
+                  <Input
+                    placeholder="e.g., customer_data_jan2024"
+                    value={filename}
+                    onChange={(e) => setFilename(e.target.value)}
+                    suffix={<FileTextOutlined />}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={24}>
+              <Col span={12}>
+                <Form.Item
+                  label="Mobile Number Override (Optional)"
+                  name="mobile_override"
+                  tooltip="Override all mobile numbers with this value"
+                >
+                  <Input placeholder="e.g., 94771234567" />
+                </Form.Item>
+              </Col>
+
+              <Col
+                span={12}
+                style={{ display: "flex", alignItems: "flex-end" }}
+              >
+                <Form.Item style={{ marginBottom: 0, width: "100%" }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    block
+                    style={{ height: 40 }}
+                  >
+                    {loading ? "Processing..." : "Upload & Process CSV"}
+                  </Button>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Card>
+      )}
+      {step === 1 && (
+        <>
           {customers.length > 0 && (
             <>
               <Divider />
 
-              {/* ===== STATS ===== */}
               <Row gutter={16}>
-                <Col span={6}>
-                  <Statistic
-                    title="Customers Loaded"
-                    value={customers.length}
-                  />
+                <Col span={4}>
+                  <Card hoverable style={{ ...cardBase, ...cardStyles.blue }}>
+                    <Statistic
+                      title={
+                        <Text style={{ color: "#1976d2", fontWeight: 600 }}>
+                          Customers
+                        </Text>
+                      }
+                      value={customers.length}
+                      valueStyle={{ fontSize: 18, fontWeight: 500 }}
+                    />
+                  </Card>
+                </Col>
+                <Col span={8}>
+                  <Card hoverable style={{ ...cardBase, ...cardStyles.orange }}>
+                    <Statistic
+                      title={
+                        <Text style={{ color: "#f57c00", fontWeight: 600 }}>
+                          Your Filename
+                        </Text>
+                      }
+                      value={uploadedFileInfo.user_provided_name}
+                      valueStyle={{ fontSize: 18, fontWeight: 500 }}
+                    />
+                  </Card>
+                </Col>
+                <Col span={8}>
+                  <Card hoverable style={{ ...cardBase, ...cardStyles.green }}>
+                    <Statistic
+                      title={
+                        <Text style={{ color: "#2e7d32", fontWeight: 600 }}>
+                          File Saved As
+                        </Text>
+                      }
+                      value={uploadedFileInfo.saved_file}
+                      valueStyle={{ fontSize: 18, fontWeight: 500 }}
+                    />
+                  </Card>
+                </Col>
+
+                <Col span={4}>
+                  <Card hoverable style={{ ...cardBase, ...cardStyles.purple }}>
+                    <Statistic
+                      title={
+                        <Text style={{ color: "#722ed1", fontWeight: 600 }}>
+                          Size
+                        </Text>
+                      }
+                      value={`${(uploadedFileInfo.file_size_bytes / 1024).toFixed(2)} KB`}
+                      valueStyle={{ fontSize: 18, fontWeight: 500 }}
+                    />
+                  </Card>
                 </Col>
               </Row>
 
               <Divider />
 
-              {/* ================= DYNAMIC FIELDS ================= */}
+              {/* DYNAMIC FIELDS SELECTION */}
               <Card
                 size="small"
-                title="Available Dynamic Fields (Click to show / hide columns)"
+                title="Available Dynamic Fields (Click to show/hide columns)"
                 style={{ marginBottom: 16, background: "#fafafa" }}
               >
                 <Space wrap>
@@ -604,7 +825,6 @@ function CustomEmails() {
                     .filter((key) => !EXCLUDED_FIELDS.includes(key))
                     .map((key) => {
                       const active = visibleColumns.includes(key);
-
                       return (
                         <Tag
                           key={key}
@@ -614,7 +834,7 @@ function CustomEmails() {
                             setVisibleColumns((prev) =>
                               prev.includes(key)
                                 ? prev.filter((k) => k !== key)
-                                : [...prev, key]
+                                : [...prev, key],
                             )
                           }
                         >
@@ -623,7 +843,6 @@ function CustomEmails() {
                       );
                     })}
                 </Space>
-
                 <Text
                   type="secondary"
                   style={{ display: "block", marginTop: 8 }}
@@ -631,6 +850,8 @@ function CustomEmails() {
                   Click a field to add or remove it from the table view.
                 </Text>
               </Card>
+
+              {/* SEARCH */}
               <Card
                 size="small"
                 style={{ marginBottom: 16, background: "#fafafa" }}
@@ -639,7 +860,6 @@ function CustomEmails() {
                   wrap
                   style={{ width: "100%", justifyContent: "space-between" }}
                 >
-                  {/* 🔍 Global Search */}
                   <Input.Search
                     placeholder="Search customers, mobile, or any field..."
                     allowClear
@@ -647,22 +867,13 @@ function CustomEmails() {
                     style={{ maxWidth: 420 }}
                     onChange={(e) => setSearchText(e.target.value)}
                   />
-
-                  {/* Optional helper text / count */}
                   <Text type="secondary">
                     Showing {filteredCustomers.length} result(s)
                   </Text>
                 </Space>
-
-                <Text
-                  type="secondary"
-                  style={{ display: "block", marginTop: 8 }}
-                >
-                  Type to search across all visible columns.
-                </Text>
               </Card>
 
-              {/* ================= TABLE ================= */}
+              {/* TABLE */}
               <Table
                 rowKey={mobile_column}
                 columns={columns}
@@ -672,14 +883,60 @@ function CustomEmails() {
               />
             </>
           )}
-        </Card>
+        </>
       )}
+      {/* STEP 1: COMPOSE EMAIL */}
+      {step === 2 && (
+        <Card>
+          {/* Pre-defined template section */}
+          <Title level={4} style={{ marginBottom: 24 }}>
+            Compose Email
+          </Title>
 
-      {/* ================= STEP 3 ================= */}
-      {step === 1 && (
-        <>
+          <Divider />
+
+          {/* Template selection and reset buttons */}
+          <Space>
+            <Button
+              icon={<DollarCircleFilled />}
+              onClick={handleCashbackTemplateClick}
+            >
+              Cash Back Template
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={resetForm}>
+              Reset Form
+            </Button>
+          </Space>
+
+          <Divider />
+
+          {/* Month Selection Modal */}
+          <Modal
+            title="Select Month for Template"
+            open={showMonthModal}
+            onOk={handleMonthConfirm}
+            onCancel={() => setShowMonthModal(false)}
+          >
+            <Form form={monthForm} layout="vertical">
+              <Form.Item
+                name="month"
+                label="Select Month and Year"
+                rules={[
+                  { required: true, message: "Please select month and year" },
+                ]}
+              >
+                <DatePicker
+                  picker="month"
+                  format="MMMM YYYY"
+                  style={{ width: "100%" }}
+                  placeholder="Select month and year"
+                />
+              </Form.Item>
+            </Form>
+          </Modal>
+
           <Row gutter={20}>
-            {/* LEFT */}
+            {/* LEFT SIDE: FORM */}
             <Col span={8}>
               <Form form={form} layout="vertical">
                 <Form.Item
@@ -690,23 +947,23 @@ function CustomEmails() {
                   <Input />
                 </Form.Item>
 
-                <Form.Item label="Email Title">
+                <Form.Item
+                  label="Email Title"
+                  rules={[
+                    { required: true, message: "Email title is required" },
+                  ]}
+                >
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please select a Email Title",
-                      },
-                    ]}
+                    placeholder="Enter email title"
                   />
                 </Form.Item>
 
                 <Form.Item label="Insert Dynamic Field">
                   <Select
                     showSearch
-                    placeholder="Select field"
+                    placeholder="Select field to insert"
                     onSelect={(v) =>
                       setEditorValue((prev) => `${prev} {{${v}}}`)
                     }
@@ -719,7 +976,13 @@ function CustomEmails() {
                   </Select>
                 </Form.Item>
 
-                <Form.Item label="Email Body" required>
+                <Form.Item
+                  label="Email Body"
+                  required
+                  rules={[
+                    { required: true, message: "Email body is required" },
+                  ]}
+                >
                   <EditorProvider>
                     <Editor
                       value={editorValue}
@@ -745,9 +1008,11 @@ function CustomEmails() {
               </Form>
             </Col>
 
-            {/* RIGHT */}
+            {/* RIGHT SIDE: PREVIEW */}
             <Col span={16}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview</div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                Email Preview
+              </div>
               <iframe
                 title="Email Preview"
                 srcDoc={previewHtml}
@@ -759,51 +1024,19 @@ function CustomEmails() {
                   background: "white",
                 }}
               />
-            </Col>
-          </Row>
-        </>
-      )}
-
-      {/* ================= STEP 4 ================= */}
-      {step === 2 && (
-        <Card>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Statistic title="Customers Loaded" value={customers.length} />
-            </Col>
-          </Row>
-
-          <Divider />
-
-          {/* ===== PROGRESS ===== */}
-          {sending && (
-            <>
-              <Text strong>
-                Sending SMS {sentCount} / {totalToSend}
+              <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                Preview shows how the email will look for the first customer
               </Text>
-
-              <Progress
-                percent={Math.round((sentCount / totalToSend) * 100)}
-                status="active"
-                style={{ marginTop: 8, marginBottom: 16 }}
-              />
-            </>
-          )}
+            </Col>
+          </Row>
         </Card>
       )}
-
       <Modal
         open={logModalVisible}
         onCancel={handleStop}
         width={720}
         centered
         footer={null}
-        styles={{
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(8px)",
-          borderRadius: 16,
-          padding: "28px 36px",
-        }}
         style={{
           borderRadius: 18,
           overflow: "hidden",
@@ -827,7 +1060,7 @@ function CustomEmails() {
           </div>
         }
       >
-        {/* 🔮 Gradient Progress */}
+        {/* PROGRESS */}
         <Progress
           percent={progress}
           strokeWidth={10}
@@ -840,16 +1073,10 @@ function CustomEmails() {
           }}
         />
 
-        {/* 📊 STATS */}
+        {/* STATS */}
         <Row gutter={16} style={{ marginBottom: 26 }}>
-          <Col span={8}>
-            <Card
-              bordered={false}
-              style={{
-                background: "linear-gradient(145deg,#f3e8ff,#ffffff)",
-                borderRadius: 14,
-              }}
-            >
+          <Col span={6}>
+            <Card bordered={false} style={{ ...cardBase, ...cardStyles.blue }}>
               <Statistic
                 title="Total"
                 value={filtered.length}
@@ -857,70 +1084,57 @@ function CustomEmails() {
               />
             </Card>
           </Col>
-
-          <Col span={8}>
-            <Card
-              bordered={false}
-              style={{
-                background: "linear-gradient(145deg,#e7fbe7,#ffffff)",
-                borderRadius: 14,
-              }}
-            >
+          <Col span={6}>
+            <Card bordered={false} style={{ ...cardBase, ...cardStyles.blue }}>
               <Statistic
                 title="Success"
                 value={successCount}
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: "#00bd00", fontWeight: 700 }}
+                valueStyle={{ color: "#52c41a", fontWeight: 700 }}
               />
             </Card>
           </Col>
-
-          <Col span={8}>
-            <Card
-              bordered={false}
-              style={{
-                background: "linear-gradient(145deg,#fff2e8,#ffffff)",
-                borderRadius: 14,
-              }}
-            >
+          <Col span={6}>
+            <Card bordered={false} style={{ ...cardBase, ...cardStyles.blue }}>
               <Statistic
                 title="No Email"
-                value={noEmailList.length}
+                value={noEmailCount}
+                prefix={<MailOutlined />}
+                valueStyle={{ color: "#fa8c16", fontWeight: 700 }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card bordered={false} style={{ ...cardBase, ...cardStyles.blue }}>
+              <Statistic
+                title="Failed"
+                value={failCount}
                 prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: "#d46b08", fontWeight: 700 }}
+                valueStyle={{ color: "#f5222d", fontWeight: 700 }}
               />
             </Card>
           </Col>
         </Row>
 
-        {/* 📋 EMAIL LOG */}
+        {/* EMAIL LOG */}
         <List
           size="small"
           bordered
-          dataSource={logList.sort((a, b) => {
-            const statusOrder = {
-              sending: 0,
-              failed: 1,
-              "no-email": 2,
-              success: 3,
-            };
-            return -statusOrder[a.status] + statusOrder[b.status];
-          })}
+          dataSource={logList}
           renderItem={(item) => (
             <List.Item
               style={{
                 padding: "10px 16px",
                 margin: "6px 0",
                 borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.04)",
                 background:
                   item.status === "sending"
-                    ? "linear-gradient(90deg,rgba(123,47,247,0.08),#fff)"
+                    ? "rgba(123,47,247,0.08)"
                     : item.status === "success"
-                    ? "linear-gradient(90deg,rgba(82,196,26,0.1),#fff)"
-                    : item.status === "no-email"
-                    ? "linear-gradient(90deg,rgba(250,173,20,0.14),#fff)"
-                    : "linear-gradient(90deg,rgba(255,77,79,0.1),#fff)",
+                      ? "rgba(82,196,26,0.1)"
+                      : item.status === "no-email"
+                        ? "rgba(250,173,20,0.14)"
+                        : "rgba(255,77,79,0.1)",
               }}
             >
               <Space>
@@ -936,7 +1150,6 @@ function CustomEmails() {
                 {item.status === "no-email" && (
                   <MailOutlined style={{ color: "#faad14" }} />
                 )}
-
                 <Text strong>{item.name}</Text>
                 <Text type="secondary">
                   {item.email || "No Email Available"}
@@ -948,19 +1161,17 @@ function CustomEmails() {
             maxHeight: 260,
             overflowY: "auto",
             borderRadius: 10,
-            background: "rgba(255,255,255,0.6)",
             marginBottom: 22,
           }}
         />
 
-        {/* ❌ NO EMAIL LIST */}
+        {/* NO EMAIL LIST */}
         {noEmailList.length > 0 && (
           <>
             <Divider />
             <Title level={4} style={{ color: "#722ed1" }}>
               Customers Without Email ({noEmailList.length})
             </Title>
-
             <List
               size="small"
               bordered
@@ -968,8 +1179,9 @@ function CustomEmails() {
               renderItem={(item) => (
                 <List.Item>
                   <Space>
-                    <Text strong>{item.FirstName}</Text>
-                    <Text type="secondary">{item.MobileNumber}</Text>
+                    <Text strong>{item.name}</Text>
+                    <Text type="secondary">{item.mobile}</Text>
+                    <Text type="secondary">({item.tier})</Text>
                   </Space>
                 </List.Item>
               )}
@@ -980,42 +1192,36 @@ function CustomEmails() {
                 borderRadius: 10,
               }}
             />
+
+            <div style={{ textAlign: "center", marginTop: 16 }}>
+              <Button onClick={exportNoEmailCSV} icon={<DownloadOutlined />}>
+                Export No-Email List as CSV
+              </Button>
+            </div>
           </>
         )}
 
-        {/* ✅ COMPLETED */}
+        {/* COMPLETION MESSAGE */}
         {progress === 100 && (
           <Alert
             message="Email process completed"
-            description={`Success: ${successCount}, No Email: ${noEmailList.length}`}
+            description={`Success: ${successCount}, No Email: ${noEmailCount}, Failed: ${failCount}`}
             type="success"
             showIcon
             style={{ marginTop: 22 }}
           />
         )}
 
-        {/* 🕹 CONTROLS */}
+        {/* CONTROLS */}
         <Divider style={{ margin: "26px 0 12px" }} />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
           {pausedRef.current ? (
             <Button
               icon={<PlayCircleOutlined />}
               onClick={handleResume}
               size="large"
-              style={{
-                background: "linear-gradient(90deg,#52c41a,#8bc34a)",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 600,
-                border: "none",
-              }}
+              type="primary"
+              style={{ background: "#52c41a" }}
             >
               Resume
             </Button>
@@ -1024,31 +1230,9 @@ function CustomEmails() {
               icon={<PauseCircleOutlined />}
               onClick={handlePause}
               size="large"
-              style={{
-                background: "linear-gradient(90deg,#faad14,#fadb14)",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 600,
-                border: "none",
-              }}
+              style={{ background: "#faad14", color: "#fff" }}
             >
               Pause
-            </Button>
-          )}
-
-          {noEmailList.length > 0 && (
-            <Button
-              onClick={exportNoEmailCSV}
-              size="large"
-              style={{
-                background: "linear-gradient(90deg,#722ed1,#9254de)",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 600,
-                border: "none",
-              }}
-            >
-              Export No-Email CSV
             </Button>
           )}
 
@@ -1056,30 +1240,27 @@ function CustomEmails() {
             icon={<StopOutlined />}
             size="large"
             onClick={handleStop}
-            style={{
-              background: "linear-gradient(90deg,#ff4d4f,#cf1322)",
-              color: "#fff",
-              borderRadius: 8,
-              fontWeight: 600,
-              border: "none",
-            }}
+            danger
           >
             Stop & Close
           </Button>
         </div>
       </Modal>
 
-      {/* ================= FOOTER ================= */}
-
-      <Space style={{ width: "100%", justifyContent: "space-between" }}>
+      <div
+        style={{
+          marginTop: 24,
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
         <Button disabled={step === 0} onClick={goBack}>
           Back
         </Button>
-
         <Button type="primary" onClick={goNext}>
-          Next
+          {step === 2 ? "Send Emails" : "Next"}
         </Button>
-      </Space>
+      </div>
     </>
   );
 }

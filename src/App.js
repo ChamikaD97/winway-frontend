@@ -19,6 +19,9 @@ import CustomSMS from "./Pages/CustomSMS";
 import CustomEmails from "./Pages/CustomEmails";
 import LoyalityPromotions from "./Pages/LoyalityPromotions";
 import MonthlyUpgradesTable from "./Pages/MonthlyUpgradesTable";
+import FileManager from "./Pages/FileManager.js";
+import WeeklyImagesManager from "./Pages/WeeklyImagesManager.js";
+
 function App() {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
@@ -96,6 +99,8 @@ function App() {
               {activeTab === "5-7" && <MonthlyUpgradesTable />}
               {activeTab === "6-1" && <CustomSMS />}
               {activeTab === "6-2" && <CustomEmails />}
+              {activeTab === "7" && <FileManager/>}
+               {activeTab === "8" && <WeeklyImagesManager/>}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />

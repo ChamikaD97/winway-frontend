@@ -151,11 +151,11 @@ function LoyaltyCustomers() {
         //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
         //   : ""
 
-        customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
+        // customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
       );
 
-      if (i <= 10) {
-        formData.append("cc", "info@winway.lk");
+      if (i <= 5 && customer.CustomerInfo.Email) {
+        //formData.append("cc", "info@winway.lk");
       }
 
       formData.append(
@@ -228,7 +228,6 @@ function LoyaltyCustomers() {
     pausedRef.current = false;
     stoppedRef.current = false;
     const total = filtered.length;
-    console.log(filtered.length);
 
     let sentCount = 0;
 
@@ -1117,7 +1116,7 @@ function LoyaltyCustomers() {
               }}
             />
           </Col>
-          {selectedStatus && selectedStatus == "Initial Load" && (
+          {selectedStatus && (
             <Col>
               <Button
                 loading={sendingMailAll}
