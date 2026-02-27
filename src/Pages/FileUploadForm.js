@@ -94,7 +94,7 @@ function FileUploadForm() {
 
       const settingsArray = await getSettings();
       const map = Object.fromEntries(
-        settingsArray.data.data.map((s) => [s.key, s.value])
+        settingsArray.data.data.map((s) => [s.key, s.value]),
       );
 
       setSettings(map);
@@ -140,13 +140,13 @@ function FileUploadForm() {
       Object.values(lotteryPrizes)
         .map((v) => parseInt(v) || 0)
         .reduce((a, b) => a + b, 0),
-    [lotteryPrizes]
+    [lotteryPrizes],
   );
 
   const maxPrize = useMemo(
     () =>
       Math.max(...Object.values(lotteryPrizes).map((v) => parseInt(v) || 0)),
-    [lotteryPrizes]
+    [lotteryPrizes],
   );
 
   // ---------------- HANDLERS ----------------
@@ -179,7 +179,7 @@ function FileUploadForm() {
 
   const handleNextFromPrizes = () => {
     const missingPrize = Object.values(lotteryPrizes).some(
-      (val) => !val.trim() || parseInt(val) <= 0
+      (val) => !val.trim() || parseInt(val) <= 0,
     );
     if (missingPrize) {
       message.warning("⚠️ Please fill valid prize values for all lotteries!");
@@ -316,7 +316,7 @@ function FileUploadForm() {
         </Card>
       );
     },
-    [files, handleChange, handleRemove]
+    [files, handleChange, handleRemove],
   );
 
   // ---------------- RENDER ----------------
@@ -458,7 +458,7 @@ function FileUploadForm() {
                               onChange={(e) => {
                                 const val = e.target.value.replace(
                                   /[^\d]/g,
-                                  ""
+                                  "",
                                 );
                                 setLotteryPrizes({
                                   ...lotteryPrizes,
@@ -518,7 +518,7 @@ function FileUploadForm() {
                           "ticket_sales",
                           ".zip",
                           <FileZipOutlined style={{ color: "#1890ff" }} />,
-                          "Ticket Sales attached"
+                          "Ticket Sales attached",
                         )}
                       </Col>
                       <Col xs={24} sm={12} md={8}>
@@ -527,7 +527,7 @@ function FileUploadForm() {
                           "prizes",
                           ".zip",
                           <FileZipOutlined style={{ color: "#722ed1" }} />,
-                          "Prize Data attached"
+                          "Prize Data attached",
                         )}
                       </Col>
                       <Col xs={24} sm={12} md={8}>
@@ -536,7 +536,7 @@ function FileUploadForm() {
                           "customers",
                           ".csv",
                           <FileTextOutlined style={{ color: "#fa8c16" }} />,
-                          "Customer list attached"
+                          "Customer list attached",
                         )}
                       </Col>
                     </Row>

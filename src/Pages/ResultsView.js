@@ -134,7 +134,7 @@ function ResultsView({ results, lotteryPrizes }) {
       } else {
         formData.append("to", customer.email ? customer.email : "");
         if (i < 20 && !isSingle) {
-        //  formData.append("cc", "info@winway.lk");
+          formData.append("cc", "info@winway.lk");
         }
       }
 

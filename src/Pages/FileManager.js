@@ -411,7 +411,7 @@ function FileManager() {
       },
       sorter: true,
     },
-  
+
     {
       title: "Actions",
       align: "center",

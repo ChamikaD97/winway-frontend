@@ -11,6 +11,9 @@ import {
   MenuUnfoldOutlined,
   MessageTwoTone,
   MessageOutlined,
+  FileOutlined,
+  FileAddOutlined,
+  FileImageOutlined,
 } from "@ant-design/icons";
 import logo from "../assets/logo.png"; // ✅ make sure path is correct
 
@@ -38,6 +41,12 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
   const messageMenu = [
     { key: "6-1", label: "SMS" },
     { key: "6-2", label: "Emails" },
+  ];
+  const reports = [
+    { key: "9-1", label: "Registrations" },
+    // { key: "9-2", label: "Daily Sales Summery" },
+    //  { key: "9-3", label: "Last Sold Time" },
+          { key: "9-4", label: "Summery" },
   ];
 
   return (
@@ -143,13 +152,19 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             },
             {
               key: "7",
-              icon: <SettingOutlined />,
+              icon: <FileAddOutlined />,
               label: "Files",
             },
-              {
+            {
               key: "8",
-              icon: <SettingOutlined />,
+              icon: <FileImageOutlined />,
               label: "Images",
+            },
+            {
+              key: "9",
+              icon: <FileImageOutlined />,
+              label: "Reports",
+              children: reports,
             },
           ]}
           theme="dark"

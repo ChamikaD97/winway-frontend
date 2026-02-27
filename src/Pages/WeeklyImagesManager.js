@@ -41,8 +41,6 @@ function WeeklyImagesManager() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
 
-
-  
   const fetchFiles = async () => {
     setLoading(true);
     try {
@@ -120,7 +118,32 @@ function WeeklyImagesManager() {
       message.error("ZIP download failed");
     }
   };
+  // ---------------- DELETE SELECTED ----------------
+  const deleteSelected = async () => {
+    if (!selectedRowKeys.length) {
+      message.warning("No files selected");
+      return;
+    }
 
+    try {
+      setLoading(true);
+
+      for (const filename of selectedRowKeys) {
+        await axios.delete(
+          `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`,
+        );
+      }
+
+      message.success("Selected files deleted successfully");
+      setSelectedRowKeys([]);
+      fetchFiles();
+    } catch (err) {
+      console.error(err);
+      message.error("Some files failed to delete");
+    } finally {
+      setLoading(false);
+    }
+  };
   // ---------------- TABLE ----------------
   const columns = [
     {
@@ -262,29 +285,52 @@ function WeeklyImagesManager() {
         >
           Refresh
         </Button>
-<Button
-  style={{ marginLeft: 10, background: "#722ed1", borderColor: "#722ed1" }}
-  type="primary"
-  onClick={async () => {
-    try {
-      await axios.post("http://localhost:8001/email/all-weekly-files");
-      message.success("📧 Weekly files sent to chamikadeshan97@gmail.com");
-    } catch {
-      message.error("Failed to send weekly files");
-    }
-  }}
->
-  Email All Weekly Files
-</Button>
+        <Button
+          style={{
+            marginLeft: 10,
+            background: "#722ed1",
+            borderColor: "#722ed1",
+          }}
+          type="primary"
+          onClick={async () => {
+            try {
+              await axios.post("http://localhost:8001/email/all-weekly-files");
+              message.success(
+                "📧 Weekly files sent to chamikadeshan97@gmail.com",
+              );
+            } catch {
+              message.error("Failed to send weekly files");
+            }
+          }}
+        >
+          Email All Weekly Files
+        </Button>
 
         <Button
           type="primary"
           icon={<DownloadOutlined />}
           onClick={downloadZip}
           disabled={!selectedRowKeys.length}
+          style={{ marginLeft: 10 }}
         >
           Download ZIP
         </Button>
+
+        <Popconfirm
+          title={`Delete ${selectedRowKeys.length} selected file(s)?`}
+          onConfirm={deleteSelected}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            disabled={!selectedRowKeys.length}
+            style={{ marginLeft: 10 }}
+          >
+            Delete Selected
+          </Button>
+        </Popconfirm>
       </div>
 
       <Modal

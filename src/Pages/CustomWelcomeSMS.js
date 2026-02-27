@@ -59,8 +59,7 @@ function CustomSMS() {
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   // which dynamic columns are visible
   const [visibleColumns, setVisibleColumns] = useState([]);
-  /* ================= WELCOME TEMPLATE STATE ================= */
-  const [welcomeLang, setWelcomeLang] = useState("e");
+
   /* SMS */
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState(0);
@@ -85,25 +84,15 @@ function CustomSMS() {
     return value;
   };
 
-const applyTemplate = (template, customer) =>
-  template.replace(/{{(.*?)}}/g, (_, key) => {
-    if (key === "welcome_link") {
-      const name = encodeURIComponent(
-        customer?.FirstName ||
-        customer?.Name ||
-        customer?.CustomerName ||
-        ""
-      );
+  const applyTemplate = (template, customer) =>
+    template.replace(/{{(.*?)}}/g, (_, key) => {
+      const rawValue = key
+        .split(".")
+        .reduce((o, i) => (o ? o[i] : ""), customer);
 
-      return `http://192.168.137.1:3001/sms/welcome?name=${name}`;
-    }
+      return transformValue(key, rawValue) ?? "";
+    });
 
-    const rawValue = key
-      .split(".")
-      .reduce((o, i) => (o ? o[i] : ""), customer);
-
-    return transformValue(key, rawValue) ?? "";
-  });
   const getSendNumber = (customer) => {
     console.log(customer);
     const mobile = normalizeLK(customer?.[mobile_column]);
@@ -122,11 +111,11 @@ const applyTemplate = (template, customer) =>
     Object.entries(obj || {}).flatMap(([k, v]) =>
       typeof v === "object" && v !== null
         ? extractKeys(v, `${prefix}${k}.`)
-        : `${prefix}${k}`,
+        : `${prefix}${k}`
     );
   const templateKeys = useMemo(
     () => (customers.length ? extractKeys(customers[0]) : []),
-    [customers],
+    [customers]
   );
 
   /* ================= LOGIN ================= */
@@ -171,46 +160,7 @@ const applyTemplate = (template, customer) =>
     if (num.length === 9) num = "94" + num;
     return num.startsWith("94") && num.length === 11 ? num : null;
   };
-  /* ================= WELCOME SMS TEMPLATE ================= */
-  const getWelcomeTemplate = (lang) => {
-    const templates = {
-      e: `Hello {{Gender}} {{FirstName}},
 
-Welcome to winway.lk!
-
-Thank you for registering with us. To get started easily, please watch our quick guide video here:
-{{welcome_link}}
-
-If you need any assistance, our Customer Care team is ready to help you.
-Call us on 0707 884 884 anytime.
-
-- WIN WAY`,
-
-      s: `{{FirstName}} {{Gender}},
-
-winway.lk වෙත ඔබව සාදරයෙන් පිළිගනිමු!
-
-අපගේ වෙබ් අඩවිය / App පහසුවෙන්ම භාවිතා කරන විදිහ ගැන දැනගන්න කෙටි මාර්ගෝපදේශ වීඩියෝව මෙතැනින් නරඹන්න:
-{{welcome_link}}
-
-ඔබට අපේ සහය අවශ්‍යනම් 0707 884 884 අංකයට ඕනෑම වේලාවක සම්බන්ධ වන්න.
-
-- WIN WAY`,
-
-      t: `{{FirstName}},
-
-winway.lk க்கு வரவேற்கிறோம்!
-
-எங்களுடன் பதிவு செய்ததற்கு நன்றி. எளிதாக தொடங்க, எங்கள் விரைவான வழிகாட்டி வீடியோவை இங்கே பார்க்கவும்:
-{{welcome_link}}
-
-உங்களுக்கு ஏதேனும் உதவி தேவைப்பட்டால், 0707 884 884 என்ற எண்ணில் எங்களை தொடர்பு கொள்ளவும்.
-
-- WIN WAY`,
-    };
-
-    return templates[lang] || templates.e;
-  };
   /* ================= CARD UPLOADER ================= */
   const renderUpload = (title, accept, icon, text, onUpload) => (
     <Upload accept={accept} showUploadList={false} customRequest={onUpload}>
@@ -250,7 +200,7 @@ winway.lk க்கு வரவேற்கிறோம்!
         const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
 
         return value && value.toString().toLowerCase().includes(s);
-      }),
+      })
     );
 
     setFilteredCustomers(filtered);
@@ -258,35 +208,23 @@ winway.lk க்கு வரவேற்கிறோம்!
   /* ================= CSV UPLOAD ================= */
   const handleCsvUpload = async ({ file }) => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("customers", file);
 
     setLoading(true);
-
     try {
-      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
+      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData);
       const rows = res.data.data || [];
-
       setCustomers(rows);
       setFilteredCustomers(rows);
-
-      // ✅ FIXED HERE
-      setMobileColoum(
-        res.data.detected_columns?.mobile_column || "MobileNumber",
-      );
+      setMobileColoum(res.data.mobile_column || "MobileNumber");
 
       if (rows.length > 0) {
         setVisibleColumns(Object.keys(rows[0]));
       }
-
       setSelectedCustomers([]);
       setSelectedRowKeys([]);
-
       message.success(`CSV loaded (${res.data.total_rows} rows)`);
-    } catch (err) {
-      console.error(err);
+    } catch {
       message.error("CSV upload failed");
     } finally {
       setLoading(false);
@@ -298,7 +236,7 @@ winway.lk க்கு வரவேற்கிறோம்!
   const dynamicColumns = useMemo(() => {
     return templateKeys
       .filter(
-        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key),
+        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key)
       )
       .map((key) => ({
         title: key,
@@ -419,7 +357,7 @@ winway.lk க்கு வரவேற்கிறோம்!
       message.success(
         IS_TEST_MODE
           ? "SMS sent successfully (TEST MODE)"
-          : "All SMS sent successfully",
+          : "All SMS sent successfully"
       );
     } catch (err) {
       message.error("Error occurred while sending SMS");
@@ -540,7 +478,7 @@ winway.lk க்கு வரவேற்கிறோம்!
                 ".csv",
                 <UploadOutlined style={{ color: "#52c41a" }} />,
                 customers.length ? "CSV Uploaded" : "Click to upload CSV",
-                handleCsvUpload,
+                handleCsvUpload
               )}
             </Col>
           </Row>
@@ -598,7 +536,7 @@ winway.lk க்கு வரவேற்கிறோம்!
                             setVisibleColumns((prev) =>
                               prev.includes(key)
                                 ? prev.filter((k) => k !== key)
-                                : [...prev, key],
+                                : [...prev, key]
                             )
                           }
                         >
@@ -704,35 +642,7 @@ winway.lk க்கு வரவேற்கிறோம்!
                     }
                   />
                 </Form.Item>
-                {/* ================= WELCOME TEMPLATE SECTION ================= */}
-                <Divider />
 
-                <Form.Item label="Load WinWay Welcome Template">
-                  <Select
-                    value={welcomeLang}
-                    onChange={setWelcomeLang}
-                    style={{ marginBottom: 10 }}
-                  >
-                    <Option value="e">English</Option>
-                    <Option value="s">Sinhala</Option>
-                    <Option value="t">Tamil</Option>
-                  </Select>
-
-                  <Button
-                    type="dashed"
-                    block
-                    onClick={() =>
-                      setSms((p) => ({
-                        ...p,
-                        content: getWelcomeTemplate(welcomeLang),
-                      }))
-                    }
-                  >
-                    Load Welcome SMS Template
-                  </Button>
-                </Form.Item>
-
-                <Divider />
                 <Form.Item label="Insert Dynamic Field">
                   <Select
                     onSelect={(v) =>
@@ -768,7 +678,7 @@ winway.lk க்கு வரவேற்கிறோம்!
                     showIcon
                     message={applyTemplate(
                       sms.content || "Start typing...",
-                      selectedCustomers[0],
+                      selectedCustomers[0]
                     )}
                   />
                 ) : (

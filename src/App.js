@@ -21,6 +21,11 @@ import LoyalityPromotions from "./Pages/LoyalityPromotions";
 import MonthlyUpgradesTable from "./Pages/MonthlyUpgradesTable";
 import FileManager from "./Pages/FileManager.js";
 import WeeklyImagesManager from "./Pages/WeeklyImagesManager.js";
+import RegistrationCountPage from "./Pages/RegistrationCountPage.js";
+import DailySalesSummery from "./Pages/DailySalesSummery.js";
+import SmsWelcome from "./SMS/SmsWelcome.js";
+import ReconciliationSummary from "./Pages/DailyLastSoldTime.js";
+import DailyFullSummary from "./Pages/DailyFullSummary.js";
 
 function App() {
   const [results, setResults] = useState(null);
@@ -60,7 +65,7 @@ function App() {
     <Routes>
       {/* 🔐 Login */}
       <Route path="/login" element={<Login onLogin={handleLoginSuccess} />} />
-
+      <Route path="/sms/welcome" element={<SmsWelcome />} />
       {/* 🔒 Protected Dashboard */}
       <Route
         path="/dashboard"
@@ -99,8 +104,12 @@ function App() {
               {activeTab === "5-7" && <MonthlyUpgradesTable />}
               {activeTab === "6-1" && <CustomSMS />}
               {activeTab === "6-2" && <CustomEmails />}
-              {activeTab === "7" && <FileManager/>}
-               {activeTab === "8" && <WeeklyImagesManager/>}
+              {activeTab === "7" && <FileManager />}
+              {activeTab === "8" && <WeeklyImagesManager />}
+              {activeTab === "9-1" && <RegistrationCountPage />}
+              {activeTab === "9-2" && <DailySalesSummery />}
+              {activeTab === "9-3" && <ReconciliationSummary />}
+              {activeTab === "9-4" && <DailyFullSummary />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />
