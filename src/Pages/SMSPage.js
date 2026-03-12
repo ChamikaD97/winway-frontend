@@ -172,8 +172,8 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
   /* 📦 Selection helpers */
   const selectAllFiltered = () => {
-    setSelectedRowKeys(filteredCustomers.map((c) => c.MobileNumber));
-    setSelectedCustomers(filteredCustomers);
+    setSelectedRowKeys(loyaltyCustomers.map((c) => c.MobileNumber));
+    setSelectedCustomers(loyaltyCustomers);
   };
 
   const clearSelection = () => {
@@ -265,7 +265,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
   return (
     <Card>
-      <Title level={3}>SMS Portal {IS_TEST_MODE && "(TEST MODE)"}</Title>
+      <Title level={3}>     sdadasdasd {IS_TEST_MODE && "(TEST MODE)"}</Title>
 
       <Steps current={step} style={{ marginBottom: 24 }}>
         <Step title="Login" />
@@ -462,7 +462,7 @@ function SMSPage({ loyaltyCustomers = [] }) {
           />
           <Space>
             <Button onClick={selectAllFiltered}>
-              Select All ({filteredCustomers.length})
+              Select All ({loyaltyCustomers.length})
             </Button>
             <Button danger onClick={clearSelection}>
               Clear
@@ -475,7 +475,6 @@ function SMSPage({ loyaltyCustomers = [] }) {
           columns={columns}
           dataSource={filteredCustomers}
           rowSelection={rowSelection}
-          pagination={{ pageSize: 8 }}
         />
       </Modal>
     </Card>

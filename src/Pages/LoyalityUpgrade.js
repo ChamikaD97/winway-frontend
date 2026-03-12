@@ -158,7 +158,7 @@ function LoyalityUpgrade() {
   const separation = async () => {
     try {
       const res = await axios.get(
-        `${API_BASE_Local}/api/loyalCustomer/combined`
+        `${API_BASE_Local}/loyalCustomer/combined`
       );
 
       const ll = checkFoldersSameMonth(fileNames);

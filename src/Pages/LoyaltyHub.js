@@ -13,7 +13,7 @@ function LoyaltyHub() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/api/loyalCustomer/combined`);
+      const res = await axios.get(`${API_BASE}/loyalCustomer/combined`);
       const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
       console.log(list[0]);
       setCustomers(list);

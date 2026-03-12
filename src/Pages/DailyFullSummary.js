@@ -245,33 +245,33 @@ function DailyFullSummary() {
       align: "right",
       render: (v) => formatNum(v),
     },
-    {
-      title: "Returned Qty",
-      dataIndex: "returned_qty",
-      align: "right",
-      render: (value, record) => {
-        if (record.isTotal) return formatNum(value);
+    // {
+    //   title: "Returned Qty",
+    //   dataIndex: "returned_qty",
+    //   align: "right",
+    //   render: (value, record) => {
+    //     if (record.isTotal) return formatNum(value);
 
-        return (
-          <InputNumber
-            min={0}
-            value={value}
-            onChange={(val) => handleReturnChange(val, record.key)}
-            style={{
-              width: "100%",
-            }}
-            controls={false}
-            bordered={false}
-          />
-        );
-      },
-    },
-    {
-      title: "Purchased Qty",
-      dataIndex: "purchased_qty",
-      align: "right",
-      render: (v) => formatNum(v),
-    },
+    //     return (
+    //       <InputNumber
+    //         min={0}
+    //         value={value}
+    //         onChange={(val) => handleReturnChange(val, record.key)}
+    //         style={{
+    //           width: "100%",
+    //         }}
+    //         controls={false}
+    //         bordered={false}
+    //       />
+    //     );
+    //   },
+    // },
+    // {
+    //   title: "Purchased Qty",
+    //   dataIndex: "purchased_qty",
+    //   align: "right",
+    //   render: (v) => formatNum(v),
+    // },
 
     // 🔹 PURCHASED QTY
 
@@ -360,7 +360,7 @@ function DailyFullSummary() {
       });
 
       const link = document.createElement("a");
-      link.download = `daily-sales-summary-${dayjs().format("YYYY-MM-DD")}.png`;
+      link.download = `daily-sales-summary-${drawDate}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
@@ -439,11 +439,11 @@ function DailyFullSummary() {
                     <Row gutter={[24, 24]} justify="center">
                       <Col xs={24} sm={10}>
                         {renderUpload(
-                          "Reconciliation (.zip)",
+                          "Daily Transactions (.zip)",
                           "ticket_sales",
                           ".zip",
                           <FileZipOutlined style={{ color: "#2bb800" }} />,
-                          "Reconciliation attached",
+                          "Transactions attached",
                         )}
                       </Col>
                       <Col xs={24} sm={10}>

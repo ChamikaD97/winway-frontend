@@ -85,17 +85,27 @@ function CustomSMS() {
     return value;
   };
 
+const toProperCase = (str = "") =>
+  str
+    .toLowerCase()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
 const applyTemplate = (template, customer) =>
   template.replace(/{{(.*?)}}/g, (_, key) => {
     if (key === "welcome_link") {
-      const name = encodeURIComponent(
+      const rawName =
         customer?.FirstName ||
         customer?.Name ||
-        customer?.CustomerName ||
-        ""
-      );
+        customer?.FIRSTNAME ||
+        "";
 
-      return `http://192.168.137.1:3001/sms/welcome?name=${name}`;
+      const name = encodeURIComponent(toProperCase(rawName));
+
+      const gender = encodeURIComponent(customer?.gender || "");
+
+      return `https://support.winwaylottery.lk/sms/welcome?name=${name}&gender=${gender}`;
     }
 
     const rawValue = key
@@ -106,7 +116,7 @@ const applyTemplate = (template, customer) =>
   });
   const getSendNumber = (customer) => {
     console.log(customer);
-    const mobile = normalizeLK(customer?.[mobile_column]);
+    const mobile = normalizeLK(customer?.MOBILENUMBER);
 
     if (!mobile) {
       console.warn("Invalid mobile for customer:", customer);
@@ -114,7 +124,7 @@ const applyTemplate = (template, customer) =>
 
     return IS_TEST_MODE
       ? normalizeLK("0718553224")
-      : normalizeLK(customer?.[mobile_column]);
+      : normalizeLK(customer?.MOBILENUMBER);
   };
 
   /* ================= TEMPLATE UTILS ================= */
@@ -174,9 +184,9 @@ const applyTemplate = (template, customer) =>
   /* ================= WELCOME SMS TEMPLATE ================= */
   const getWelcomeTemplate = (lang) => {
     const templates = {
-      e: `Hello {{Gender}} {{FirstName}},
+      e: `Hello {{gender}} {{FIRSTNAME}},
 
-Welcome to winway.lk!
+Welcome to winway!
 
 Thank you for registering with us. To get started easily, please watch our quick guide video here:
 {{welcome_link}}
@@ -186,9 +196,9 @@ Call us on 0707 884 884 anytime.
 
 - WIN WAY`,
 
-      s: `{{FirstName}} {{Gender}},
+      s: `{{FIRSTNAME}} {{gender}},
 
-winway.lk වෙත ඔබව සාදරයෙන් පිළිගනිමු!
+winway වෙත ඔබව සාදරයෙන් පිළිගනිමු!
 
 අපගේ වෙබ් අඩවිය / App පහසුවෙන්ම භාවිතා කරන විදිහ ගැන දැනගන්න කෙටි මාර්ගෝපදේශ වීඩියෝව මෙතැනින් නරඹන්න:
 {{welcome_link}}
@@ -197,7 +207,7 @@ winway.lk වෙත ඔබව සාදරයෙන් පිළිගනිම�
 
 - WIN WAY`,
 
-      t: `{{FirstName}},
+      t: `{{FIRSTNAME}},
 
 winway.lk க்கு வரவேற்கிறோம்!
 
@@ -648,15 +658,13 @@ winway.lk க்கு வரவேற்கிறோம்!
 
               {/* ================= TABLE ================= */}
               <Table
-                rowKey={mobile_column}
+                rowKey={(record, index) => `${record[mobile_column]}-${index}`}
                 columns={columns}
                 dataSource={filteredCustomers}
                 rowSelection={{
                   selectedRowKeys,
                   onChange: (k, r) => {
-                    console.log(r);
-                    console.log(k);
-
+                    console.log(r,k);
                     setSelectedRowKeys(k);
                     setSelectedCustomers(r);
                   },

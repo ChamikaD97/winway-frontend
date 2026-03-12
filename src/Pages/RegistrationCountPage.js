@@ -554,7 +554,7 @@ function RegistrationCountView() {
                             fill="#ad852f" // softer professional blue
                             radius={[10, 10, 0, 0]} // rounded top corners
                           >
-                            <LabelList
+                            <LabelList  formatter={(value) => value.toLocaleString()}
                               dataKey={
                                 reportType === "daily"
                                   ? "registration_count"

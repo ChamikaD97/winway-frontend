@@ -27,6 +27,8 @@ import SmsWelcome from "./SMS/SmsWelcome.js";
 import ReconciliationSummary from "./Pages/DailyLastSoldTime.js";
 import DailyFullSummary from "./Pages/DailyFullSummary.js";
 
+import CustomMessages from "./Pages/CustomMessages.js";
+
 function App() {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
@@ -110,6 +112,8 @@ function App() {
               {activeTab === "9-2" && <DailySalesSummery />}
               {activeTab === "9-3" && <ReconciliationSummary />}
               {activeTab === "9-4" && <DailyFullSummary />}
+
+              {activeTab === "10-1" && <CustomMessages />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />

@@ -34,7 +34,7 @@ function CustomerLoyaltyModal({
   lotteryKeys = [],
 }) {
   const [compareAvg, setCompareAvg] = useState("Hide avg");
-console.log(history);
+  console.log(history);
 
   const displayMonth = (m) => {
     return m;

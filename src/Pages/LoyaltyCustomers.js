@@ -17,6 +17,7 @@ import {
   Progress,
   List,
   Modal,
+  Switch,
 } from "antd";
 import {
   TeamOutlined,
@@ -57,6 +58,7 @@ import {
   getSettings,
 } from "../api/endPoints";
 import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
+import EvaluationHistoryModal from "../componets/EvaluationHistoryModal";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -72,6 +74,9 @@ function LoyaltyCustomers() {
   const [selectedTier, setSelectedTier] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
 
+  const [IS_TEST_MODE, Set_IS_TEST_MODE] = useState(true);
+  const [stageModalOpen, setStageModalOpen] = useState(false);
+
   const [summary, setSummary] = useState({});
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [selectedCustomer, setSelectedCustomer] = useState();
@@ -81,7 +86,13 @@ function LoyaltyCustomers() {
   const [logList, setLogList] = useState([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setisLoading] = useState(false);
+
   const [uniqueMonths, setUniqueMonths] = useState([]);
+
+  const firstStages = uniqueMonths?.slice(0, 1) || [];
+  const lastStages = uniqueMonths?.slice(-1) || [];
+
+  const showViewAll = uniqueMonths?.length > 2;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCustomer, setModalCustomer] = useState(null);
   const [populationAverages, setPopulationAverages] = useState({});
@@ -144,18 +155,19 @@ function LoyaltyCustomers() {
   const sendLoyaltyEmail = async (customer, type, i) => {
     try {
       const formData = new FormData();
-
-      formData.append(
-        "to",
-        // customer.CustomerInfo.Email
-        //   ? "chamikadeshan97@gmail.com,isurudineshcm@gmail.com,ampdharmapriya@gmail.com"
-        //   : ""
-
-        // customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
-      );
-
-      if (i <= 5 && customer.CustomerInfo.Email) {
-        //formData.append("cc", "info@winway.lk");
+      if (IS_TEST_MODE) {
+        formData.append(
+          "to",
+          customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : "",
+        );
+      } else {
+        formData.append(
+          "to",
+          customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
+        );
+        if (i <= 5 && customer.CustomerInfo.Email) {
+          formData.append("cc", "info@winway.lk");
+        }
       }
 
       formData.append(
@@ -227,7 +239,7 @@ function LoyaltyCustomers() {
     setProgress(0);
     pausedRef.current = false;
     stoppedRef.current = false;
-    const total = filtered.length;
+    const total = IS_TEST_MODE ? 3 : filtered.length;
 
     let sentCount = 0;
 
@@ -378,9 +390,7 @@ function LoyaltyCustomers() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `${API_BASE}/api/loyalCustomer/monthly-upgrades`,
-      );
+      const res = await axios.get(`${API_BASE}/loyalCustomer/monthly-upgrades`);
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),
       ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
@@ -409,26 +419,31 @@ function LoyaltyCustomers() {
       setLoading(false);
     }
   };
-  const fetchSummery = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(
-        `${API_BASE}/api/loyalCustomer/monthly-upgrade-summery`,
-      );
-      const uniqueMonthsArr = [
-        ...new Set(res.data.data.map((r) => r.Last_Update)),
-      ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
-      console.log(res.data.data);
+const [evaluationSummary, setEvaluationSummary] = useState([]);
 
-      //setUniqueMonths(uniqueMonthsArr);
-    } catch (e) {
-      console.error(e);
-      message.error("Failed to load loyalty history");
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchSummery = async () => {
+  setLoading(true);
+  try {
+    const res = await axios.get(
+      `${API_BASE}/loyalCustomer/monthly-upgrade-summery`
+    );
 
+    setEvaluationSummary(res.data || []);
+  } catch (e) {
+    console.error(e);
+    message.error("Failed to load loyalty history");
+  } finally {
+    setLoading(false);
+  }
+};const formatEvaluationName = (value) => {
+  if (!value) return "-";
+  if (value === "First Evaluation") return "First Evaluation";
+  return value.replace(/_/g, " ");
+};
+  
+  function removeUnderscore(text) {
+    return text.replace("_", " ");
+  }
   const handleDownloadAll = () => {
     if (customers.length === 0) {
       message.info("All customers have emails — nothing to download.");
@@ -494,19 +509,33 @@ function LoyaltyCustomers() {
     try {
       const settingsArray = await getSettings();
       const customers = await getCombinedCustomers();
+      const grouped = await getMonthlyUpgrades();
 
       const map = Object.fromEntries(
         settingsArray.data.data.map((s) => [s.key, s.value]),
       );
+      //console.log(grouped.data.data);
+      const groupedN = {};
 
+      grouped.data.data.forEach((item) => {
+        if (!groupedN[item.Month_Tier]) {
+          groupedN[item.Month_Tier] = [];
+        }
+        groupedN[item.Month_Tier].push(item.MobileNumber);
+      });
+
+      console.log(groupedN);
       setSettings(map);
       if (customers.data?.success) {
         const data = customers.data.data || [];
-        console.log(data[200]);
+        console.log(customers.data);
 
         setCustomers(data);
         setFiltered(data);
         setSummary(getCustomerSummary(customers.data));
+
+        console.log(getCustomerSummary(customers.data));
+
         message.success("✅ Entry customers loaded successfully");
       } else {
         message.warning("No customer data found.");
@@ -566,9 +595,7 @@ function LoyaltyCustomers() {
       );
       if (!confirmDelete) return;
       setLoading(true);
-      await axios.delete(
-        `${API_BASE}/api/loyalCustomer/delete-all?confirm=true`,
-      );
+      await axios.delete(`${API_BASE}/loyalCustomer/delete-all?confirm=true`);
       setCustomers([]);
       setFiltered([]);
       setSummary({});
@@ -593,8 +620,13 @@ function LoyaltyCustomers() {
       LastMonth_Loyalty_Tier: item.CustomerInfo?.lastMonthLoyaltyTier,
       Loyalty_Tier: item.CustomerInfo?.Current_Loyalty_Tier,
       Ticket_Count: item.CustomerInfo?.Current_Ticket_Count,
-      Loyalty_Number: item.CustomerInfo?.L,
-      Last_Update: item.Last_Update,
+      Loyalty_Number: item.CustomerInfo?.Loyalty_Number,
+      Last_Update:
+        item.Last_Update == "Entry" ? "New Customer" : item.Last_Update,
+
+      Ticket_Count_Last_Month:
+        -item.CustomerInfo?.Last_Month_Ticket_Count +
+        item.CustomerInfo?.Current_Ticket_Count,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -604,7 +636,7 @@ function LoyaltyCustomers() {
       bookType: "csv",
       type: "array",
     });
-    saveAs(new Blob([excelBuffer]), `${selectedStatus}.csv`);
+    saveAs(new Blob([excelBuffer]), `all.csv`);
   };
 
   const columns = [
@@ -700,7 +732,7 @@ function LoyaltyCustomers() {
       },
     },
     {
-      title: "Tickets",
+      title: "Tickets So Far",
       dataIndex: ["CustomerInfo", "Current_Ticket_Count"],
       key: "Current_Ticket_Count",
       width: 100,
@@ -714,20 +746,39 @@ function LoyaltyCustomers() {
         </span>
       ),
     },
+
     {
-      title: "Last_Month_Ticket_Count",
-      dataIndex: ["CustomerInfo", "Last_Month_Ticket_Count"],
-      key: "Last_Month_Ticket_Count",
+      title: "Last Month Tictets",
+      key: "ticket_diff",
       width: 100,
       align: "center",
       sorter: (a, b) =>
+        (a.CustomerInfo?.Current_Ticket_Count || 0) -
         (a.CustomerInfo?.Last_Month_Ticket_Count || 0) -
-        (b.CustomerInfo?.Last_Month_Ticket_Count || 0),
-      render: (value) => (
-        <span style={{ fontWeight: 500, color: "#000000ff" }}>
-          {Number(value || 0).toLocaleString()}
-        </span>
-      ),
+        ((b.CustomerInfo?.Current_Ticket_Count || 0) -
+          (b.CustomerInfo?.Last_Month_Ticket_Count || 0)),
+
+      render: (_, record) => {
+        const current = record.CustomerInfo?.Current_Ticket_Count || 0;
+        const last = record.CustomerInfo?.Last_Month_Ticket_Count || 0;
+        const diff = current - last;
+
+        return (
+          <span
+            style={{
+              fontWeight: 600,
+              color:
+                diff > 0
+                  ? "#16a34a" // green → increased
+                  : diff < 0
+                    ? "#dc2626" // red → decreased
+                    : "#6b7280", // gray → same
+            }}
+          >
+            {diff > 0 ? `${diff}` : diff}
+          </span>
+        );
+      },
     },
     {
       title: "Last Update",
@@ -798,12 +849,13 @@ function LoyaltyCustomers() {
         <Row
           justify="space-between"
           align="middle"
-          style={{ marginBottom: 20 }}
+          style={{ marginBottom: 12 }}
         >
           <Title level={3}>Loyalty Customers</Title>
         </Row>
 
         <Divider />
+
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} md={6}>
             <Card
@@ -900,41 +952,100 @@ function LoyaltyCustomers() {
           )}
         </Row>
         <Divider />
-        {/* Overview Stats */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
-          {/* 🔵 Total Customers (Reset) */}
-          <Col xs={24} sm={12} md={8}>
+        <Row justify="center" gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col>
             <Card
               style={{
-                borderRadius: 14,
+                borderRadius: 16,
+                border: "1px solid #f0f0f0",
+                boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
+                background: "linear-gradient(135deg,#ffffff,#fafafa)",
               }}
+              bodyStyle={{ padding: "16px 24px" }}
             >
               {uniqueMonths?.length ? (
-                <Space wrap size="middle">
-                  {uniqueMonths.map((month, index) => {
-                    const isLatest = index === uniqueMonths.length - 1;
+                <Space wrap size="middle" align="center">
+                  {/* FIRST STAGE */}
+                  {firstStages.map((month) => (
+                    <Tag
+                      key={month}
+                      color="processing"
+                      style={{
+                        fontSize: 13,
+                        padding: "6px 14px",
+                        borderRadius: 20,
+                        fontWeight: 500,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                      }}
+                    >
+                      {month == "Entry"
+                        ? "First Evaluation in 2025 November"
+                        : removeUnderscore(month)}
+                    </Tag>
+                  ))}
+
+                  {/* CONNECTOR */}
+                  {showViewAll && (
+                    <>
+                      <span
+                        style={{
+                          color: "#bfbfbf",
+                          fontWeight: 600,
+                          fontSize: 16,
+                        }}
+                      >
+                        • • •
+                      </span>
+
+                      {/* VIEW ALL BUTTON */}
+                      <Button
+                        type="default"
+                        size="small"
+                        onClick={() => setStageModalOpen(true)}
+                        style={{
+                          borderRadius: 20,
+                          padding: "0 14px",
+                          fontWeight: 500,
+                          background: "#f5f5f5",
+                          border: "1px solid #e6e6e6",
+                        }}
+                      >
+                        View Full History
+                      </Button>
+
+                      <span
+                        style={{
+                          color: "#bfbfbf",
+                          fontWeight: 600,
+                          fontSize: 16,
+                        }}
+                      >
+                        • • •
+                      </span>
+                    </>
+                  )}
+
+                  {/* LAST STAGE */}
+                  {lastStages.map((month, index) => {
+                    const isLatest = index === lastStages.length - 1;
 
                     return (
-                      <React.Fragment key={month}>
-                        <Tag
-                          color={isLatest ? "green" : "blue"}
-                          style={{
-                            fontSize: 13,
-                            padding: "4px 12px",
-                            fontWeight: isLatest ? 600 : 500,
-                            borderRadius: 12,
-                          }}
-                        >
-                          {month}
-                          {isLatest && " (Latest)"}
-                        </Tag>
-
-                        {index < uniqueMonths.length - 1 && (
-                          <span style={{ color: "#999", fontWeight: 600 }}>
-                            →
-                          </span>
-                        )}
-                      </React.Fragment>
+                      <Tag
+                        key={month}
+                        color={isLatest ? "success" : "blue"}
+                        style={{
+                          fontSize: 13,
+                          padding: "6px 14px",
+                          fontWeight: isLatest ? 600 : 500,
+                          borderRadius: 20,
+                          boxShadow: isLatest
+                            ? "0 4px 12px rgba(82,196,26,0.25)"
+                            : "0 2px 6px rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        {removeUnderscore(month)}
+                        {isLatest && "  Latest"}
+                      </Tag>
                     );
                   })}
                 </Space>
@@ -943,6 +1054,13 @@ function LoyaltyCustomers() {
               )}
             </Card>
           </Col>
+        </Row>
+        <Divider />
+        <Row
+          justify="space-between"
+          gutter={[16, 16]}
+          style={{ marginBottom: 12 }}
+        >
           <Col xs={24} sm={12} md={4}>
             <Card
               hoverable
@@ -1105,7 +1223,35 @@ function LoyaltyCustomers() {
           </Col>
         </Row>
         <Divider />
-        <Row justify="end" style={{ marginBottom: 20 }}>
+        <Row justify="space-between" style={{ marginBottom: 20 }}>
+          <Col xs={24} md={6} style={{ textAlign: "right" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 14px",
+                borderRadius: 12,
+                background: IS_TEST_MODE
+                  ? "linear-gradient(90deg,#fff7e6,#fff1b8)"
+                  : "linear-gradient(90deg,#e6f4ff,#bae0ff)",
+                border: `1px solid ${IS_TEST_MODE ? "#ffd591" : "#91caff"}`,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                  color: IS_TEST_MODE ? "#d46b08" : "#0958d9",
+                }}
+              >
+                {IS_TEST_MODE ? "TEST MODE ACTIVATED" : "LIVE MODE ACTIVATED"}
+              </span>
+
+              <Switch checked={IS_TEST_MODE} onChange={Set_IS_TEST_MODE} />
+            </div>
+          </Col>
           <Col xs={24} sm={12} md={10}>
             <Input.Search
               placeholder="Search by name, email, or mobile"
@@ -1147,7 +1293,7 @@ function LoyaltyCustomers() {
             current: pagination.current,
             pageSize: pagination.pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ["5", "10", "25", "50", "100"],
+            pageSizeOptions: ["5", "10", "25", "50", "100", "300"],
             showTotal: (total, range) =>
               `Showing ${range[0]}-${range[1]} of ${total} customers`,
             onChange: (page, pageSize) =>
@@ -1204,6 +1350,7 @@ function LoyaltyCustomers() {
         onCancel={() => setLogModalVisible(false)}
         width={650}
         centered
+        maskClosable={false}
         footer={null}
         styles={{
           background: "rgba(255,255,255,0.95)",
@@ -1437,6 +1584,11 @@ function LoyaltyCustomers() {
         onClose={() => setIsModalVisible(false)}
         customer={selectedCustomer}
         settings={settings}
+      />
+      <EvaluationHistoryModal
+        open={stageModalOpen}
+        onClose={() => setStageModalOpen(false)}
+        months={uniqueMonths}
       />
     </>
   );

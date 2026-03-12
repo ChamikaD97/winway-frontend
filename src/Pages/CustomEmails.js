@@ -314,14 +314,12 @@ function CustomEmails() {
     }
 
     const formData = new FormData();
-    formData.append("customers", file);
+    formData.append("file", file);
 
-    // Add optional filename if provided
     if (filename.trim()) {
       formData.append("filename", filename.trim());
     }
 
-    // Add optional mobile number override if provided
     if (values.mobile_override?.trim()) {
       formData.append("mobile_number", values.mobile_override.trim());
     }

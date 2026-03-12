@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Menu, Button, Typography } from "antd";
+import { Layout, Menu, Button, Typography, Divider } from "antd";
 import {
   CloudUploadOutlined,
   BarChartOutlined,
@@ -42,11 +42,13 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
     { key: "6-1", label: "SMS" },
     { key: "6-2", label: "Emails" },
   ];
+
+  const specialMenu = [{ key: "10-1", label: "SMS" }];
   const reports = [
     { key: "9-1", label: "Registrations" },
     // { key: "9-2", label: "Daily Sales Summery" },
     //  { key: "9-3", label: "Last Sold Time" },
-          { key: "9-4", label: "Summery" },
+    { key: "9-4", label: "Summery" },
   ];
 
   return (
@@ -132,6 +134,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               label: "Weekly Summary",
             },
 
+            { type: "divider" }, // ✅ divider
+
             {
               key: "5",
               icon: <HeartOutlined />,
@@ -145,6 +149,9 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               label: "Custom Messages",
               children: messageMenu,
             },
+
+            { type: "divider" }, // ✅ divider
+
             {
               key: "4",
               icon: <SettingOutlined />,
@@ -160,11 +167,20 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               icon: <FileImageOutlined />,
               label: "Images",
             },
+
+            { type: "divider" }, // ✅ divider
+
             {
               key: "9",
               icon: <FileImageOutlined />,
               label: "Reports",
               children: reports,
+            },
+            {
+              key: "10",
+              icon: <FileImageOutlined />,
+              label: "Special",
+              children: specialMenu,
             },
           ]}
           theme="dark"
@@ -210,11 +226,12 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               {activeTab === "2" && "Results & Rankings"}
 
               {activeTab === "5" && "Loyalty"}
-              {activeTab === "6" && "Custme SMS"}
+              {activeTab === "6" && "Custome SMS"}
               {activeTab === "5-1" && "Entry Process"}
               {activeTab === "5-3" && "Monthly Upgrade Process"}
               {activeTab === "5-2" && "Loyalty Customers"}
               {activeTab === "4" && "Settings"}
+              {activeTab === "10" && "Custome SMS"}
             </Title>
           </div>
 
