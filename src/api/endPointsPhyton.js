@@ -32,9 +32,7 @@ export const countRegistrations = async (file, startDate, endDate) => {
 /* ------------------------------------------
    Lottery Last Purchase Time API
 ------------------------------------------ */
-export const 
-
-getLastPurchaseTime = async (zipFile, filterDate) => {
+export const getLastPurchaseTime = async (zipFile, filterDate) => {
   try {
     const formData = new FormData();
     formData.append("zip_file", zipFile);

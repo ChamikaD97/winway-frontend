@@ -245,36 +245,6 @@ function DailyFullSummary() {
       align: "right",
       render: (v) => formatNum(v),
     },
-    // {
-    //   title: "Returned Qty",
-    //   dataIndex: "returned_qty",
-    //   align: "right",
-    //   render: (value, record) => {
-    //     if (record.isTotal) return formatNum(value);
-
-    //     return (
-    //       <InputNumber
-    //         min={0}
-    //         value={value}
-    //         onChange={(val) => handleReturnChange(val, record.key)}
-    //         style={{
-    //           width: "100%",
-    //         }}
-    //         controls={false}
-    //         bordered={false}
-    //       />
-    //     );
-    //   },
-    // },
-    // {
-    //   title: "Purchased Qty",
-    //   dataIndex: "purchased_qty",
-    //   align: "right",
-    //   render: (v) => formatNum(v),
-    // },
-
-    // 🔹 PURCHASED QTY
-
     {
       title: "Sold",
       dataIndex: "sold_qty",

@@ -85,35 +85,32 @@ function CustomSMS() {
     return value;
   };
 
-const toProperCase = (str = "") =>
-  str
-    .toLowerCase()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  const toProperCase = (str = "") =>
+    str
+      .toLowerCase()
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
 
-const applyTemplate = (template, customer) =>
-  template.replace(/{{(.*?)}}/g, (_, key) => {
-    if (key === "welcome_link") {
-      const rawName =
-        customer?.FirstName ||
-        customer?.Name ||
-        customer?.FIRSTNAME ||
-        "";
+  const applyTemplate = (template, customer) =>
+    template.replace(/{{(.*?)}}/g, (_, key) => {
+      if (key === "welcome_link") {
+        const rawName =
+          customer?.FirstName || customer?.Name || customer?.FIRSTNAME || "";
 
-      const name = encodeURIComponent(toProperCase(rawName));
+        const name = encodeURIComponent(toProperCase(rawName));
 
-      const gender = encodeURIComponent(customer?.gender || "");
+        const gender = encodeURIComponent(customer?.gender || "");
 
-      return `https://support.winwaylottery.lk/sms/welcome?name=${name}&gender=${gender}`;
-    }
+        return `https://support.winwaylottery.lk/sms/welcome?name=${name}&gender=${gender}`;
+      }
 
-    const rawValue = key
-      .split(".")
-      .reduce((o, i) => (o ? o[i] : ""), customer);
+      const rawValue = key
+        .split(".")
+        .reduce((o, i) => (o ? o[i] : ""), customer);
 
-    return transformValue(key, rawValue) ?? "";
-  });
+      return transformValue(key, rawValue) ?? "";
+    });
   const getSendNumber = (customer) => {
     console.log(customer);
     const mobile = normalizeLK(customer?.MOBILENUMBER);
@@ -186,7 +183,7 @@ const applyTemplate = (template, customer) =>
     const templates = {
       e: `Hello {{gender}} {{FIRSTNAME}},
 
-Welcome to winway!
+Welcome to WIN WAY!
 
 Thank you for registering with us. To get started easily, please watch our quick guide video here:
 {{welcome_link}}
@@ -194,7 +191,7 @@ Thank you for registering with us. To get started easily, please watch our quick
 If you need any assistance, our Customer Care team is ready to help you.
 Call us on 0707 884 884 anytime.
 
-- WIN WAY`,
+- Team WIN WAY`,
 
       s: `{{FIRSTNAME}} {{gender}},
 
@@ -205,7 +202,7 @@ winway වෙත ඔබව සාදරයෙන් පිළිගනිමු!
 
 ඔබට අපේ සහය අවශ්‍යනම් 0707 884 884 අංකයට ඕනෑම වේලාවක සම්බන්ධ වන්න.
 
-- WIN WAY`,
+- Team WIN WAY`,
 
       t: `{{FIRSTNAME}},
 
@@ -655,7 +652,31 @@ winway.lk க்கு வரவேற்கிறோம்!
                   Type to search across all visible columns.
                 </Text>
               </Card>
+<Space style={{ marginBottom: 12 }}>
+  <Button
+    type="primary"
+    onClick={() => {
+      const allKeys = filteredCustomers.map(
+        (c, index) => `${c[mobile_column]}-${index}`
+      );
 
+      setSelectedRowKeys(allKeys);
+      setSelectedCustomers(filteredCustomers);
+    }}
+  >
+    Select All Customers
+  </Button>
+
+  <Button
+    danger
+    onClick={() => {
+      setSelectedRowKeys([]);
+      setSelectedCustomers([]);
+    }}
+  >
+    Clear Selection
+  </Button>
+</Space>
               {/* ================= TABLE ================= */}
               <Table
                 rowKey={(record, index) => `${record[mobile_column]}-${index}`}
@@ -664,7 +685,7 @@ winway.lk க்கு வரவேற்கிறோம்!
                 rowSelection={{
                   selectedRowKeys,
                   onChange: (k, r) => {
-                    console.log(r,k);
+                    console.log(r, k);
                     setSelectedRowKeys(k);
                     setSelectedCustomers(r);
                   },

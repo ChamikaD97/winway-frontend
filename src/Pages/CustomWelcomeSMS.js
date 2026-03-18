@@ -111,11 +111,11 @@ function CustomSMS() {
     Object.entries(obj || {}).flatMap(([k, v]) =>
       typeof v === "object" && v !== null
         ? extractKeys(v, `${prefix}${k}.`)
-        : `${prefix}${k}`
+        : `${prefix}${k}`,
     );
   const templateKeys = useMemo(
     () => (customers.length ? extractKeys(customers[0]) : []),
-    [customers]
+    [customers],
   );
 
   /* ================= LOGIN ================= */
@@ -200,7 +200,7 @@ function CustomSMS() {
         const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
 
         return value && value.toString().toLowerCase().includes(s);
-      })
+      }),
     );
 
     setFilteredCustomers(filtered);
@@ -208,23 +208,48 @@ function CustomSMS() {
   /* ================= CSV UPLOAD ================= */
   const handleCsvUpload = async ({ file }) => {
     const formData = new FormData();
-    formData.append("customers", file);
+
+    // ✅ FIX 1: correct field name
+    formData.append("file", file);
 
     setLoading(true);
-    try {
-      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData);
-      const rows = res.data.data || [];
-      setCustomers(rows);
-      setFilteredCustomers(rows);
-      setMobileColoum(res.data.mobile_column || "MobileNumber");
 
-      if (rows.length > 0) {
-        setVisibleColumns(Object.keys(rows[0]));
+    try {
+      const res = await axios.post(`${API_BASE}/csv-upload-process/`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // ✅ FIX 2: correct response mapping
+      const previewRows = res.data.preview || [];
+
+      setCustomers(previewRows);
+      setFilteredCustomers(previewRows);
+
+      // ✅ detect mobile column (frontend fallback)
+      const detectedMobile =
+        res.data.columns?.find(
+          (c) =>
+            c.toLowerCase().includes("mobile") ||
+            c.toLowerCase().includes("phone"),
+        ) || "MobileNumber";
+
+      setMobileColoum(detectedMobile);
+
+      // ✅ visible columns
+      if (previewRows.length > 0) {
+        setVisibleColumns(Object.keys(previewRows[0]));
       }
+
       setSelectedCustomers([]);
       setSelectedRowKeys([]);
-      message.success(`CSV loaded (${res.data.total_rows} rows)`);
-    } catch {
+
+      message.success(
+        `CSV loaded (${res.data.total_rows} rows, ${res.data.unique_customers} customers)`,
+      );
+    } catch (err) {
+      console.error(err);
       message.error("CSV upload failed");
     } finally {
       setLoading(false);
@@ -236,7 +261,7 @@ function CustomSMS() {
   const dynamicColumns = useMemo(() => {
     return templateKeys
       .filter(
-        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key)
+        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key),
       )
       .map((key) => ({
         title: key,
@@ -357,7 +382,7 @@ function CustomSMS() {
       message.success(
         IS_TEST_MODE
           ? "SMS sent successfully (TEST MODE)"
-          : "All SMS sent successfully"
+          : "All SMS sent successfully",
       );
     } catch (err) {
       message.error("Error occurred while sending SMS");
@@ -477,8 +502,8 @@ function CustomSMS() {
                 "Customer CSV (.csv)",
                 ".csv",
                 <UploadOutlined style={{ color: "#52c41a" }} />,
-                customers.length ? "CSV Uploaded" : "Click to upload CSV",
-                handleCsvUpload
+                customers.length ? "CSV Uploaded****" : "Click********* to upload CSV",
+                handleCsvUpload,
               )}
             </Col>
           </Row>
@@ -536,7 +561,7 @@ function CustomSMS() {
                             setVisibleColumns((prev) =>
                               prev.includes(key)
                                 ? prev.filter((k) => k !== key)
-                                : [...prev, key]
+                                : [...prev, key],
                             )
                           }
                         >
@@ -678,7 +703,7 @@ function CustomSMS() {
                     showIcon
                     message={applyTemplate(
                       sms.content || "Start typing...",
-                      selectedCustomers[0]
+                      selectedCustomers[0],
                     )}
                   />
                 ) : (

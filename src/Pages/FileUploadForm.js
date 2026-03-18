@@ -191,6 +191,8 @@ function FileUploadForm() {
 
   // ✅ Updated handleSubmit
   const handleSubmit = async () => {
+    console.log(files);
+    
     if (!files.ticket_sales || !files.prizes || !files.customers) {
       message.warning("⚠️ Please upload all required files before proceeding!");
       return;
@@ -229,7 +231,7 @@ function FileUploadForm() {
       setProgress(0);
 
       const res = await axios.post(`${API_BASE}/upload-files/`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+       
         onUploadProgress: (e) => {
           if (e.total) setProgress(Math.round((100 * e.loaded) / e.total));
         },
