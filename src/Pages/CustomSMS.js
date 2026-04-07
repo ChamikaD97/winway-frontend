@@ -65,7 +65,9 @@ function CustomSMS() {
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState(0);
   const [totalToSend, setTotalToSend] = useState(0);
-
+  const [failedCount, setFailedCount] = useState(0);
+  const [currentNumber, setCurrentNumber] = useState("");
+  const [startTime, setStartTime] = useState(null);
   const [sms, setSms] = useState({
     campaignName: "",
     mask: "WIN WAY",
@@ -181,7 +183,7 @@ function CustomSMS() {
   /* ================= WELCOME SMS TEMPLATE ================= */
   const getWelcomeTemplate = (lang) => {
     const templates = {
-      e: `Hello {{gender}} {{FIRSTNAME}},
+      e: `Hello {{GENDER}} {{FIRSTNAME}},
 
 Welcome to WIN WAY!
 
@@ -401,40 +403,49 @@ winway.lk க்கு வரவேற்கிறோம்!
 
     setTotalToSend(targets.length);
     setSentCount(0);
+    setFailedCount(0);
     setSending(true);
-    console.log("1111");
+    setStartTime(Date.now());
 
     try {
-      let count = 0;
+      let success = 0;
+      let failed = 0;
 
-      for (const c of selectedCustomers) {
+      for (const c of targets) {
         const mobile = getSendNumber(c);
 
-        if (!mobile) continue;
+        if (!mobile) {
+          failed++;
+          setFailedCount(failed);
+          continue;
+        }
 
-        await axios.post(`${API_SMS}/sms/send`, {
-          campaignName: sms.campaignName,
-          mask: sms.mask,
-          numbers: mobile,
-          content: applyTemplate(sms.content, c),
-        });
+        setCurrentNumber(mobile);
 
-        count += 1;
-        setSentCount(count);
+        try {
+          await axios.post(`${API_SMS}/sms/send`, {
+            campaignName: sms.campaignName,
+            mask: sms.mask,
+            numbers: mobile,
+            content: applyTemplate(sms.content, c),
+          });
+
+          success++;
+          setSentCount(success);
+        } catch {
+          failed++;
+          setFailedCount(failed);
+        }
       }
 
-      message.success(
-        IS_TEST_MODE
-          ? "SMS sent successfully (TEST MODE)"
-          : "All SMS sent successfully",
-      );
+      message.success("Campaign completed");
     } catch (err) {
       message.error("Error occurred while sending SMS");
     } finally {
       setSending(false);
+      setCurrentNumber("");
     }
   };
-
   /* ================= TABLE ================= */
 
   /* ================= UI ================= */
@@ -652,31 +663,31 @@ winway.lk க்கு வரவேற்கிறோம்!
                   Type to search across all visible columns.
                 </Text>
               </Card>
-<Space style={{ marginBottom: 12 }}>
-  <Button
-    type="primary"
-    onClick={() => {
-      const allKeys = filteredCustomers.map(
-        (c, index) => `${c[mobile_column]}-${index}`
-      );
+              <Space style={{ marginBottom: 12 }}>
+                <Button
+                  type="primary"
+                  onClick={() => {
+                    const allKeys = filteredCustomers.map(
+                      (c, index) => `${c[mobile_column]}-${index}`,
+                    );
 
-      setSelectedRowKeys(allKeys);
-      setSelectedCustomers(filteredCustomers);
-    }}
-  >
-    Select All Customers
-  </Button>
+                    setSelectedRowKeys(allKeys);
+                    setSelectedCustomers(filteredCustomers);
+                  }}
+                >
+                  Select All Customers
+                </Button>
 
-  <Button
-    danger
-    onClick={() => {
-      setSelectedRowKeys([]);
-      setSelectedCustomers([]);
-    }}
-  >
-    Clear Selection
-  </Button>
-</Space>
+                <Button
+                  danger
+                  onClick={() => {
+                    setSelectedRowKeys([]);
+                    setSelectedCustomers([]);
+                  }}
+                >
+                  Clear Selection
+                </Button>
+              </Space>
               {/* ================= TABLE ================= */}
               <Table
                 rowKey={(record, index) => `${record[mobile_column]}-${index}`}
@@ -845,21 +856,70 @@ winway.lk க்கு வரவேற்கிறோம்!
           </Row>
 
           <Divider />
+          {/* ===== ADVANCED PROGRESS ===== */}
+          {
+            <Card style={{ marginTop: 16, background: "#fafafa" }}>
+              <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                {/* 🔢 Main Stats */}
+                <Row gutter={16}>
+                  <Col span={6}>
+                    <Statistic title="Sent" value={sentCount} />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic title="Failed" value={failedCount} />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic title="Total" value={totalToSend} />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic
+                      title="Success Rate"
+                      value={
+                        totalToSend
+                          ? Math.round((sentCount / totalToSend) * 100)
+                          : 0
+                      }
+                      suffix="%"
+                    />
+                  </Col>
+                </Row>
 
-          {/* ===== PROGRESS ===== */}
-          {sending && (
-            <>
-              <Text strong>
-                Sending SMS {sentCount} / {totalToSend}
-              </Text>
+                {/* 📊 Progress Bar */}
+                <Progress
+                  percent={Math.round(
+                    ((sentCount + failedCount) / totalToSend) * 100,
+                  )}
+                  status="active"
+                />
 
-              <Progress
-                percent={Math.round((sentCount / totalToSend) * 100)}
-                status="active"
-                style={{ marginTop: 8, marginBottom: 16 }}
-              />
-            </>
-          )}
+                {/* 📱 Current Sending */}
+                <Text>
+                  📤 Sending to: <b>{currentNumber || "Preparing..."}</b>
+                </Text>
+
+                {/* ⏱ Speed + ETA */}
+                {startTime && (
+                  <Text type="secondary">
+                    ⏱ Speed:{" "}
+                    {(
+                      (sentCount + failedCount) /
+                      ((Date.now() - startTime) / 1000 || 1)
+                    ).toFixed(2)}{" "}
+                    SMS/sec | ETA:{" "}
+                    {Math.max(
+                      0,
+                      Math.round(
+                        (totalToSend - (sentCount + failedCount)) /
+                          ((sentCount + failedCount) /
+                            ((Date.now() - startTime) / 1000 || 1)),
+                      ),
+                    )}{" "}
+                    sec
+                  </Text>
+                )}
+              </Space>
+            </Card>
+          }
           <Space style={{ width: "100%", justifyContent: "flex-end" }}>
             <Button
               type="default"

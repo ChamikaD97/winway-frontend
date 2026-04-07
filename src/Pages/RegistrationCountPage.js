@@ -31,6 +31,7 @@ import { DatePicker } from "antd";
 import {
   countRegistrations,
   getMonthlyActivations,
+  getCustomersByDateRange,
 } from "../api/endPointsPhyton";
 
 import {
@@ -60,7 +61,8 @@ function RegistrationCountView() {
   const [chartType, setChartType] = useState("line");
   const [reportType, setReportType] = useState("daily");
   const summaryRef = useRef(null);
-
+  const [customerData, setCustomerData] = useState([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
   /* ================= QUICK DATE BUTTONS ================= */
 
   const setLast7Days = () => {
@@ -163,6 +165,12 @@ function RegistrationCountView() {
         // ✅ Daily = exact selected dates
         start = dayjs(dateRange[0]).format("YYYY-MM-DD");
         end = dayjs(dateRange[1]).format("YYYY-MM-DD");
+
+        // 🔥 NEW: fetch customer grouped data
+        setCustomerLoading(true);
+        const customerRes = await getCustomersByDateRange(file, start, end);
+        setCustomerData(customerRes?.data || []);
+        setCustomerLoading(false);
       } else {
         // ✅ Monthly = full month boundaries
         start = dayjs(dateRange[0]).startOf("month").format("YYYY-MM-DD");
@@ -187,7 +195,36 @@ function RegistrationCountView() {
       setLoading(false);
     }
   };
+  const downloadCSVFromCustomers = (customers, date) => {
+    try {
+      // Header
+      const header = ["FIRSTNAME", "MOBILENUMBER", "GENDER"];
 
+      // Rows
+      const rows = customers.map((c) => [
+        c.name || "",
+        c.mobile_number || "",
+        c.gender || "",
+      ]);
+
+      // Convert to CSV string
+      const csvContent = [header, ...rows]
+        .map((row) => row.join(","))
+        .join("\n");
+
+      // Create Blob
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+      // Download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `customers_${date}.csv`;
+      link.click();
+    } catch (e) {
+      message.error("CSV download failed");
+    }
+  };
   const handleReset = () => {
     setStep(1);
     setFile(null);
@@ -446,7 +483,10 @@ function RegistrationCountView() {
                 </Button>
               </Space>
               <div ref={summaryRef}>
-                <Title level={4} style={{ textAlign: "center" , paddingTop: 10 }}>
+                <Title
+                  level={4}
+                  style={{ textAlign: "center", paddingTop: 10 }}
+                >
                   {reportType === "daily"
                     ? "Daily Activations"
                     : "Monthly Activations"}
@@ -554,7 +594,8 @@ function RegistrationCountView() {
                             fill="#ad852f" // softer professional blue
                             radius={[10, 10, 0, 0]} // rounded top corners
                           >
-                            <LabelList  formatter={(value) => value.toLocaleString()}
+                            <LabelList
+                              formatter={(value) => value.toLocaleString()}
                               dataKey={
                                 reportType === "daily"
                                   ? "registration_count"
@@ -585,6 +626,83 @@ function RegistrationCountView() {
                 }
                 bordered
               />
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="Day-wise Customers" key="customers">
+              <Spin spinning={customerLoading}>
+                <Card>
+                  <Title level={4}>Customer Breakdown by Date</Title>
+
+                  <Table
+                    dataSource={customerData}
+                    rowKey="date"
+                    expandable={{
+                      expandedRowRender: (record) => (
+                        <Table
+                          columns={[
+                            {
+                              title: "Mobile",
+                              dataIndex: "mobile_number",
+                              render: (val) => <Tag color="blue">{val}</Tag>,
+                            },
+                            {
+                              title: "Name",
+                              dataIndex: "name",
+                            },
+                            {
+                              title: "Gender",
+                              dataIndex: "gender",
+                              render: (g) => (
+                                <Tag color={g === "Male" ? "green" : "magenta"}>
+                                  {g || "N/A"}
+                                </Tag>
+                              ),
+                            },
+                          ]}
+                          dataSource={record.customers}
+                          pagination={false}
+                          rowKey="mobile_number"
+                          size="small"
+                        />
+                      ),
+                    }}
+                    columns={[
+                      {
+                        title: "Date",
+                        dataIndex: "date",
+                        render: (date) => <Tag color="purple">{date}</Tag>,
+                      },
+                      {
+                        title: "Total Customers",
+                        dataIndex: "total_customers",
+                        render: (count) => (
+                          <Tag color="green" style={{ fontWeight: 600 }}>
+                            {count}
+                          </Tag>
+                        ),
+                      },
+                      {
+                        title: "Download",
+                        render: (_, record) => (
+                          <Button
+                            type="primary"
+                            icon={<DownloadOutlined />}
+                            size="small"
+                            onClick={() =>
+                              downloadCSVFromCustomers(
+                                record.customers,
+                                record.date,
+                              )
+                            }
+                          >
+                            CSV
+                          </Button>
+                        ),
+                      },
+                    ]}
+                    bordered
+                  />
+                </Card>
+              </Spin>
             </Tabs.TabPane>
           </Tabs>
 

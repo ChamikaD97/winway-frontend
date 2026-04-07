@@ -48,7 +48,7 @@ function DailyFullSummary() {
   const [error, setError] = useState(null);
   const [drawDate, setDrawDate] = useState();
   const formatNum = (n) => Number(n || 0).toLocaleString();
-  const formatRs = (n) => `${Number(n || 0).toLocaleString()}`;
+  const formatRs = (n) => ` ${Number(n || 0).toLocaleString()}`;
 
   /* ================= FILE HANDLING ================= */
 
@@ -454,7 +454,7 @@ function DailyFullSummary() {
           <Divider />
           <div style={{ padding: 20 }} ref={summaryRef}>
             {summaryInfo && (
-              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Row gutter={[16, 16]} style={{ marginBottom: 2 }}>
                 {/* DRAW DATE */}
                 <Col xs={24} sm={12} md={6}>
                   <Card
@@ -474,12 +474,12 @@ function DailyFullSummary() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        marginTop: 10,
+                        marginTop: 5,
                         gap: 10,
                       }}
                     >
                       <CalendarOutlined
-                        style={{ fontSize: 22, color: "#ffffff" }}
+                        style={{ fontSize: 18, color: "#ffffff" }}
                       />
                       <span
                         style={{
@@ -513,7 +513,7 @@ function DailyFullSummary() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        marginTop: 10,
+                        marginTop: 5,
                         gap: 10,
                       }}
                     >
@@ -552,12 +552,12 @@ function DailyFullSummary() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        marginTop: 10,
+                        marginTop: 5,
                         gap: 10,
                       }}
                     >
                       <ShoppingCartOutlined
-                        style={{ fontSize: 22, color: "#1677ff" }}
+                        style={{ fontSize: 18, color: "#1677ff" }}
                       />
                       <span
                         style={{
@@ -591,7 +591,7 @@ function DailyFullSummary() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        marginTop: 10,
+                        marginTop: 5,
                         gap: 10,
                       }}
                     >
@@ -624,6 +624,7 @@ function DailyFullSummary() {
                 dataSource={tableData}
                 bordered
                 pagination={false}
+                className="winway-table"
                 rowClassName={(record) =>
                   record.isTotal ? "total-row-professional" : ""
                 }

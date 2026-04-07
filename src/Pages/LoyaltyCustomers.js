@@ -711,7 +711,7 @@ const fetchSummery = async () => {
       },
     },
     {
-      title: "Loyality Tier",
+      title: "Current Tier",
       key: "Tier",
       width: 120,
       align: "center",
@@ -780,14 +780,21 @@ const fetchSummery = async () => {
         );
       },
     },
-    {
-      title: "Last Update",
-      dataIndex: "Last_Update",
-      key: "Last_Update",
-      align: "center",
-      sorter: (a, b) =>
-        (a.Last_Update || "").localeCompare(b.Last_Update || ""),
-    },
+   {
+  title: "Last Update",
+  dataIndex: "Last_Update",
+  key: "Last_Update",
+  align: "center",
+  sorter: (a, b) =>
+    (a.Last_Update || "").localeCompare(b.Last_Update || ""),
+
+  render: (text) => {
+    if (!text || text.toLowerCase().includes("Entry".toLowerCase())) {
+      return "New";
+    }
+    return text;
+  },
+},
     {
       title: "Action",
       key: "action",

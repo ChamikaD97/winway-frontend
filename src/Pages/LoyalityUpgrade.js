@@ -674,7 +674,7 @@ function LoyalityUpgrade() {
                       disabled={loading}
                       style={{ marginRight: 10 }}
                     >
-                      {loading ? "Processing..." : "Proceed to Process"}
+                      {loading ? "Processing..." : "Proceed to12313212132 Process"}
                     </Button>
                     <Button
                       icon={<ReloadOutlined />}

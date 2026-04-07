@@ -126,3 +126,31 @@ export const getSummery = async (zipFile) => {
     throw error;
   }
 };
+
+/* ------------------------------------------
+   Customers by Date Range (Grouped by Date)
+------------------------------------------ */
+export const getCustomersByDateRange = async (file, startDate, endDate) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("start_date", startDate);
+    formData.append("end_date", endDate);
+
+    const response = await axios.post(
+      `${API_BASE}/registrations/customers-by-range-grouped`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+console.log(response);
+
+    return response.data;
+  } catch (error) {
+    console.error("Customers by date range error:", error);
+    throw error;
+  }
+};

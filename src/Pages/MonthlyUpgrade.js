@@ -79,6 +79,8 @@ function MonthlyUpgrade() {
   const [summary2, setSummary2] = useState(null);
   const [groupedHistory, setGroupedHistory] = useState([]);
   const [files, setFiles] = useState({});
+  const [weekRange, setWeekRange] = useState(null);
+
   const [searchText, setSearchText] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -90,19 +92,20 @@ function MonthlyUpgrade() {
   const [sendingMailAll, setSendingMailAll] = useState(false);
   const [logList, setLogList] = useState([]);
   const [logModalVisible, setLogModalVisible] = useState(false);
+  const [fileNames, setFileNames] = useState([]);
 
   const pausedRef = useRef(false);
   const stoppedRef = useRef(false);
   // 🗓️ Default Date Helpers
   const getDefaultStartDate = () => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}-01`;
   };
 
   const getYesterday = () => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().split("T")[0]; // YYYY-MM-DD
+    return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}-31`;
   };
 
   // ⏱️ States (now with visible defaults)
@@ -227,6 +230,60 @@ function MonthlyUpgrade() {
     "94713233788",
     "94774998535",
   ];
+
+  function checkFoldersSameMonth(folderNames) {
+    if (!Array.isArray(folderNames) || folderNames.length === 0) {
+      throw new Error(
+        "❌ Invalid input: folderNames must be a non-empty array.",
+      );
+    }
+
+    // Parse all folder names as dates
+    const parsedDates = folderNames.map((f) => new Date(f));
+
+    // Validate date format
+    if (parsedDates.some((d) => isNaN(d.getTime()))) {
+      throw new Error(
+        "❌ Invalid date format detected. Use YYYY-MM-DD format.",
+      );
+    }
+
+    // Extract year and month from first
+    const firstYear = parsedDates[0].getFullYear();
+    const firstMonth = parsedDates[0].getMonth();
+
+    // Check all are same year and month
+    const allSameMonth = parsedDates.every(
+      (d) => d.getFullYear() === firstYear && d.getMonth() === firstMonth,
+    );
+
+    if (!allSameMonth) {
+      const foundMonths = [
+        ...new Set(
+          parsedDates.map(
+            (d) =>
+              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+          ),
+        ),
+      ];
+      throw new Error(
+        `❌ Folders span multiple months: ${foundMonths.join(", ")}`,
+      );
+    }
+
+    const monthText = parsedDates[0].toLocaleString("default", {
+      month: "long",
+    });
+    const monthNumber = String(firstMonth + 1).padStart(2, "0");
+
+    console.log(`✅ All folders are from ${monthText} ${firstYear}`);
+
+    return {
+      year: firstYear,
+      monthText, // e.g. "October"
+      monthNumber, // e.g. "10"
+    };
+  }
 
   const normalizeMobile = (num) => {
     if (!num) return null;
@@ -770,6 +827,85 @@ function MonthlyUpgrade() {
       message.success("✅ Ticket report generated successfully!");
     } catch (err) {
       console.error(err);
+      setError("❌ Error processing ticket data!");
+      message.error("Error generating report!");
+    } finally {
+      setLoading(false);
+    }
+  };
+  // ---------------- STEP 1 → PROCESS ----------------
+  const handleSubmit1 = async () => {
+    if (!files.zip_file || !files.customers_file) {
+      message.warning("⚠️ Please upload both ZIP and CSV files first!");
+      return;
+    }
+    const settingsArray = await getSettings();
+
+
+    const formData = new FormData();
+    const map = Object.fromEntries(
+      settingsArray.data.data.map((s) => [s.key, s.value]),
+    );
+    formData.append(
+      "platinum",
+      parseInt(map.LOYALTY_MONTHLY_PLATINUM_TICKETS, 10),
+    ); // ✅ always int
+    formData.append("gold", parseInt(map.LOYALTY_MONTHLY_GOLD_TICKETS, 10)); // ✅ always int
+    formData.append("silver", parseInt(map.LOYALTY_MONTHLY_SILVER_TICKETS, 10)); // ✅ always int
+    formData.append("minVal", parseInt(map.LOYALTY_DOWNGRADE_THRESHOLD, 10)); // ✅ always int
+    Object.entries(files).forEach(([key, file]) => formData.append(key, file));
+
+    try {
+      setLoading(true);
+      setProgress(0);
+
+      const res = await axios.post(
+        `${API_BASE}/api/customer-tickets-loyal/`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (e.total) setProgress(Math.round((100 * e.loaded) / e.total));
+          },
+        },
+      );
+
+      const data = res.data;
+
+      if (!data || !data.customers) {
+        message.warning("No valid ticket data found!");
+        return;
+      }
+
+      const tierCounts = data.customers.reduce((acc, curr) => {
+        const tier = curr.Loyalty_Tier || "None";
+        acc[tier] = (acc[tier] || 0) + 1;
+        return acc;
+      }, {});
+
+      // 🧩 Add tier counts to summary
+
+      const totalTicketsSum = data.customers.reduce(
+        (acc, curr) => acc + Number(curr.Ticket_Count || 0),
+        0,
+      );
+
+      const updatedSummary = {
+        ...data.summary,
+        tiers: tierCounts,
+        totalTicketsSum: totalTicketsSum,
+      };
+
+      setResults(data.customers);
+      setSummary(updatedSummary);
+      setWeekRange(data.week_range);
+      console.log(data.zip_folders);
+      checkFoldersSameMonth(data.zip_folders);
+      setFileNames(data.zip_folders);
+      setStep(2);
+      message.success("✅ Ticket report generated successfully!");
+    } catch (err) {
+      console.log(err);
       setError("❌ Error processing ticket data!");
       message.error("Error generating report!");
     } finally {
