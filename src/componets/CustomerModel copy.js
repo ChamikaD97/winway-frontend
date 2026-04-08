@@ -61,7 +61,7 @@ function CustomerModel({ open, onClose, customer }) {
     Silver: "#C0C0C0", // Standard silver shade
     Blue: "#2563EB", // Same strong WinWay blue
     Warning: "#FFA500", // Bright amber-orange for visibility
-    Rejected: "#E63946", // Clear red for rejected state
+    Rejected: "#E63946", // Clear red for danger state
   };
 
   function getLatestUpdate(updates) {

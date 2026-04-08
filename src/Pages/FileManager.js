@@ -93,7 +93,7 @@ function FileManager() {
     Rejected: "#E63946",
     Default: "#1976d2",
     Success: "#52c41a",
-    Danger: "#ff4d4f",
+    Rejected: "#ff4d4f",
   };
 
   const tierColorsFade = {

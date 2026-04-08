@@ -87,7 +87,7 @@ function LoyaltyEmails() {
     Silver: "#C0C0C0", // Standard silver shade
     Blue: "#2563EB", // Same strong WinWay blue
     Warning: "#FFA500", // Bright amber-orange for visibility
-    Rejected: "#E63946", // Clear red for rejected state
+    Rejected: "#E63946", // Clear red for danger state
   };
   const tierColorsFade = {
     Platinum: "rgba(155, 93, 229, 0.2)", // Elegant purple tone (modern premium look)
@@ -95,7 +95,7 @@ function LoyaltyEmails() {
     Silver: "rgba(192, 192, 192, 0.2)", // Standard silver shade
     Blue: "rgba(37, 99, 235, 0.2)", // Same strong WinWay blue
     Warning: "rgba(255, 165, 0, 0.2)", // Bright amber-orange for visibility
-    Rejected: "rgba(230, 57, 70, 0.2)", // Clear red for rejected state
+    Rejected: "rgba(230, 57, 70, 0.2)", // Clear red for danger state
   };
 
   const tierIcons = {

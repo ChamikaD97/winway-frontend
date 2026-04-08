@@ -190,7 +190,7 @@ function Dashboard() {
   );
 
   // 6️⃣ Rejected Tier
-  const rejectedTier = customers.filter(
+  const dangerTier = customers.filter(
     (c) => c.CustomerInfo.Current_Loyalty_Tier === "Rejected",
   );
 
@@ -376,7 +376,7 @@ function Dashboard() {
         {/* 6️⃣ REJECTED */}
         <Card className="segment-card" title="Rejected Tier Customers">
           <Table
-            dataSource={rejectedTier}
+            dataSource={dangerTier}
             columns={columns}
             rowKey="MobileNumber"
             pagination={{ pageSize: 5 }}

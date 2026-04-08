@@ -442,6 +442,8 @@ function MonthlyUpgrade() {
     }
 
     try {
+      console.log(summary);
+
       const date_range = splitDateRange(summary.date_range);
       const Last_Update = getYearMonthLabel(date_range);
 
@@ -715,7 +717,7 @@ function MonthlyUpgrade() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit1 = async () => {
     if (!files.zip_file || !files.customers_file) {
       message.warning("⚠️ Please upload both ZIP and Customer CSV files!");
       return;
@@ -739,7 +741,9 @@ function MonthlyUpgrade() {
       const customersToInclude = (customers.data.data || [])
         .map((item) => item.MobileNumber)
         .filter(Boolean);
-
+      customersToInclude.forEach((num) => {
+        formData.append("include_numbers", num);
+      });
       const settingsArray = await getSettings();
 
       const map = Object.fromEntries(
@@ -834,18 +838,27 @@ function MonthlyUpgrade() {
     }
   };
   // ---------------- STEP 1 → PROCESS ----------------
-  const handleSubmit1 = async () => {
+  const handleSubmit = async () => {
     if (!files.zip_file || !files.customers_file) {
       message.warning("⚠️ Please upload both ZIP and CSV files first!");
       return;
     }
     const settingsArray = await getSettings();
 
-
     const formData = new FormData();
     const map = Object.fromEntries(
       settingsArray.data.data.map((s) => [s.key, s.value]),
     );
+    const customers = await getCombinedCustomers();
+
+    if (!customers.data?.success) {
+      message.warning("No customer data found.");
+      return;
+    }
+    const customersToInclude = (customers.data.data || [])
+      .map((item) => item.MobileNumber)
+      .filter(Boolean);
+
     formData.append(
       "platinum",
       parseInt(map.LOYALTY_MONTHLY_PLATINUM_TICKETS, 10),
@@ -853,14 +866,26 @@ function MonthlyUpgrade() {
     formData.append("gold", parseInt(map.LOYALTY_MONTHLY_GOLD_TICKETS, 10)); // ✅ always int
     formData.append("silver", parseInt(map.LOYALTY_MONTHLY_SILVER_TICKETS, 10)); // ✅ always int
     formData.append("minVal", parseInt(map.LOYALTY_DOWNGRADE_THRESHOLD, 10)); // ✅ always int
+    customersToInclude.forEach((num) => {
+      formData.append("include_numbers", num);
+    });
+    formData.append("start_date", startDate);
+    formData.append("end_date", endDate);
+
     Object.entries(files).forEach(([key, file]) => formData.append(key, file));
 
     try {
       setLoading(true);
       setProgress(0);
+      const settingsArray = await getSettings();
 
+      const map = Object.fromEntries(
+        settingsArray.data.data.map((s) => [s.key, s.value]),
+      );
+
+      setSettings(map);
       const res = await axios.post(
-        `${API_BASE}/api/customer-tickets-loyal/`,
+        `${API_BASE}/api/customer-tickets-monthly/`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -900,7 +925,7 @@ function MonthlyUpgrade() {
       setSummary(updatedSummary);
       setWeekRange(data.week_range);
       console.log(data.zip_folders);
-      checkFoldersSameMonth(data.zip_folders);
+      //checkFoldersSameMonth(data.zip_folders);
       setFileNames(data.zip_folders);
       setStep(2);
       message.success("✅ Ticket report generated successfully!");
@@ -988,6 +1013,12 @@ function MonthlyUpgrade() {
       // ======================================
       setLoading(true);
       setProgress(0);
+      console.log(
+        FIXED_IGNORE_NUMBERS.length,
+        IGNORE_CURRENT_LOYAL_NUMBERS.length,
+        final_ignore_list.length,
+      );
+      console.log(IGNORE_CURRENT_LOYAL_NUMBERS);
 
       const response = await axios.post(
         `${API_BASE}/api/customer-tickets/`,
@@ -1022,6 +1053,7 @@ function MonthlyUpgrade() {
         (acc, curr) => acc + Number(curr.Ticket_Count || 0),
         0,
       );
+      console.log(data);
 
       setResults2(data.customers);
       setSummary2({
@@ -1030,7 +1062,7 @@ function MonthlyUpgrade() {
         totalTicketsSum,
       });
 
-      setStep(2);
+      // setStep(2);
       message.success("✅ Ticket report generated successfully!");
     } catch (err) {
       console.error(err);
@@ -1723,7 +1755,7 @@ function MonthlyUpgrade() {
                     style={{ marginLeft: 10 }}
                     onClick={handleSaveLoyalty}
                   >
-                    Save And Send Loyalty Update Emails
+                    Save Updates And Process New Loyality Members
                   </Button>
                   <Button
                     icon={<DownloadOutlined />}
