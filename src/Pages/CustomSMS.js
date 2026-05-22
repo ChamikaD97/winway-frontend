@@ -451,7 +451,7 @@ winway.lk க்கு வரவேற்கிறோம்!
   /* ================= UI ================= */
   return (
     <Card>
-      <Title level={3}>SMS Portal {IS_TEST_MODE && "(TEST MODE)"}</Title>
+      <Title level={3}>SMS Portal (MOBILENUMBER){IS_TEST_MODE && "(TEST MODE)"}</Title>
       <Col xs={24} md={6} style={{ textAlign: "right" }}>
         <div
           style={{

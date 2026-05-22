@@ -119,7 +119,8 @@ function LoyaltyCustomers() {
     Silver: "#C0C0C0", // Standard silver shade
     Blue: "#2563EB", // Same strong WinWay blue
     Warning: "#FFA500", // Bright amber-orange for visibility
-    Rejected: "#E63946", // Clear red for danger state
+    Removed: "#E63946", // Clear red for danger state
+    Rejected: "#6b7280", // Gray for removed customers
   };
   const tierColorsFade = {
     Platinum: "rgba(155, 93, 229, 0.2)", // Elegant purple tone (modern premium look)
@@ -127,7 +128,8 @@ function LoyaltyCustomers() {
     Silver: "rgba(192, 192, 192, 0.2)", // Standard silver shade
     Blue: "rgba(37, 99, 235, 0.2)", // Same strong WinWay blue
     Warning: "rgba(255, 165, 0, 0.2)", // Bright amber-orange for visibility
-    Rejected: "rgba(230, 57, 70, 0.2)", // Clear red for danger state
+    Removed: "rgba(230, 57, 70, 0.2)", // Clear red for danger state
+    Rejected: "rgba(107, 114, 128, 0.2)", // Gray for removed customers
   };
 
   const tierIcons = {
@@ -158,7 +160,9 @@ function LoyaltyCustomers() {
       if (IS_TEST_MODE) {
         formData.append(
           "to",
-          customer.CustomerInfo.Email ? "chamikadeshan97@gmail.com" : "",
+          customer.CustomerInfo.Email
+            ? "chamikadeshan97@gmail.com"
+            : "chamikadeshan97@gmail.com",
         );
       } else {
         formData.append(
@@ -239,7 +243,7 @@ function LoyaltyCustomers() {
     setProgress(0);
     pausedRef.current = false;
     stoppedRef.current = false;
-    const total = IS_TEST_MODE ? 3 : filtered.length;
+    const total = IS_TEST_MODE ? 10 : filtered.length;
 
     let sentCount = 0;
 
@@ -419,28 +423,29 @@ function LoyaltyCustomers() {
       setLoading(false);
     }
   };
-const [evaluationSummary, setEvaluationSummary] = useState([]);
+  const [evaluationSummary, setEvaluationSummary] = useState([]);
 
-const fetchSummery = async () => {
-  setLoading(true);
-  try {
-    const res = await axios.get(
-      `${API_BASE}/loyalCustomer/monthly-upgrade-summery`
-    );
+  const fetchSummery = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/loyalCustomer/monthly-upgrade-summery`,
+      );
 
-    setEvaluationSummary(res.data || []);
-  } catch (e) {
-    console.error(e);
-    message.error("Failed to load loyalty history");
-  } finally {
-    setLoading(false);
-  }
-};const formatEvaluationName = (value) => {
-  if (!value) return "-";
-  if (value === "First Evaluation") return "First Evaluation";
-  return value.replace(/_/g, " ");
-};
-  
+      setEvaluationSummary(res.data || []);
+    } catch (e) {
+      console.error(e);
+      message.error("Failed to load loyalty history");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const formatEvaluationName = (value) => {
+    if (!value) return "-";
+    if (value === "First Evaluation") return "First Evaluation";
+    return value.replace(/_/g, " ");
+  };
+
   function removeUnderscore(text) {
     return text.replace("_", " ");
   }
@@ -780,21 +785,21 @@ const fetchSummery = async () => {
         );
       },
     },
-   {
-  title: "Last Update",
-  dataIndex: "Last_Update",
-  key: "Last_Update",
-  align: "center",
-  sorter: (a, b) =>
-    (a.Last_Update || "").localeCompare(b.Last_Update || ""),
+    {
+      title: "Last Update",
+      dataIndex: "Last_Update",
+      key: "Last_Update",
+      align: "center",
+      sorter: (a, b) =>
+        (a.Last_Update || "").localeCompare(b.Last_Update || ""),
 
-  render: (text) => {
-    if (!text || text.toLowerCase().includes("Entry".toLowerCase())) {
-      return "New";
-    }
-    return text;
-  },
-},
+      render: (text) => {
+        if (!text || text.toLowerCase().includes("Entry".toLowerCase())) {
+          return "New";
+        }
+        return text;
+      },
+    },
     {
       title: "Action",
       key: "action",
@@ -899,64 +904,71 @@ const fetchSummery = async () => {
               />
             </Card>
           </Col>
-          {["Platinum", "Gold", "Silver", "Blue", "Warning", "Rejected","Removed"].map(
-            (tier) => {
-              const isActive = selectedTier === tier;
+          {[
+            "Platinum",
+            "Gold",
+            "Silver",
+            "Blue",
+            "Warning",
+            "Rejected",
+            "Removed",
+            "Removed Done",
+          ].map((tier) => {
+            const isActive = selectedTier === tier;
 
-              return (
-                <Col xs={24} sm={12} md={3} key={tier}>
-                  <Tooltip title={`Filter by ${tier}`}>
-                    <Card
-                      hoverable
-                      onClick={() => {
-                        if (isActive) {
-                          setSelectedStatus("");
-                          setSelectedTier("");
-                          filterByTier();
-                        } else {
-                          setSelectedTier(tier);
-                          filterByTier(tier);
-                        }
+            return (
+              <Col xs={24} sm={12} md={3} key={tier}>
+                <Tooltip title={`Filter by ${tier}`}>
+                  <Card
+                    hoverable
+                    onClick={() => {
+                      if (isActive) {
+                        setSelectedStatus("");
+                        setSelectedTier("");
+                        filterByTier();
+                      } else {
+                        setSelectedTier(tier);
+                        filterByTier(tier);
+                      }
+                    }}
+                    style={{
+                      borderRadius: 14,
+                      textAlign: "center",
+                      cursor: "pointer",
+                      border: isActive
+                        ? `2px solid ${tierColors[tier]}`
+                        : "1px solid #e0e0e0",
+                      background: isActive ? tierColorsFade[tier] : "#ffffff",
+                      boxShadow: isActive
+                        ? `0 6px 18px ${tierColors[tier]}55`
+                        : "0 2px 8px rgba(0,0,0,0.05)",
+                      transition: "all 0.25s ease",
+                    }}
+                  >
+                    <Statistic
+                      title={
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: tierColors[tier],
+                          }}
+                        >
+                          {tier}
+                        </Text>
+                      }
+                      value={summary?.tierCounts?.[tier] || 0}
+                      prefix={tierIcons[tier] || <UserOutlined />}
+                      valueStyle={{
+                        color: tierColors[tier],
+                        fontWeight: 700,
                       }}
-                      style={{
-                        borderRadius: 14,
-                        textAlign: "center",
-                        cursor: "pointer",
-                        border: isActive
-                          ? `2px solid ${tierColors[tier]}`
-                          : "1px solid #e0e0e0",
-                        background: isActive ? tierColorsFade[tier] : "#ffffff",
-                        boxShadow: isActive
-                          ? `0 6px 18px ${tierColors[tier]}55`
-                          : "0 2px 8px rgba(0,0,0,0.05)",
-                        transition: "all 0.25s ease",
-                      }}
-                    >
-                      <Statistic
-                        title={
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: tierColors[tier],
-                            }}
-                          >
-                            {tier}
-                          </Text>
-                        }
-                        value={summary?.tierCounts?.[tier] || 0}
-                        prefix={tierIcons[tier] || <UserOutlined />}
-                        valueStyle={{
-                          color: tierColors[tier],
-                          fontWeight: 700,
-                        }}
-                      />
-                    </Card>
-                  </Tooltip>
-                </Col>
-              );
-            },
-          )}
+                    />
+                  </Card>
+                </Tooltip>
+              </Col>
+            );
+          })}
         </Row>
         <Divider />
         <Row justify="center" gutter={[16, 16]} style={{ marginBottom: 16 }}>

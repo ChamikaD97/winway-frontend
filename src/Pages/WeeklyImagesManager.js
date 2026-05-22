@@ -40,7 +40,9 @@ function WeeklyImagesManager() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
-
+  // ADD THESE STATES
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const fetchFiles = async () => {
     setLoading(true);
     try {
@@ -285,7 +287,7 @@ function WeeklyImagesManager() {
         >
           Refresh
         </Button>
-        <Button
+        {/* <Button
           style={{
             marginLeft: 10,
             background: "#722ed1",
@@ -304,6 +306,18 @@ function WeeklyImagesManager() {
           }}
         >
           Email All Weekly Files
+        </Button> */}
+        
+        <Button
+          style={{
+            marginLeft: 10,
+            background: "#722ed1",
+            borderColor: "#722ed1",
+          }}
+          type="primary"
+          onClick={() => setEmailModalOpen(true)}
+        >
+          Email All Weekly Files
         </Button>
 
         <Button
@@ -315,7 +329,6 @@ function WeeklyImagesManager() {
         >
           Download ZIP
         </Button>
-
         <Popconfirm
           title={`Delete ${selectedRowKeys.length} selected file(s)?`}
           onConfirm={deleteSelected}
@@ -332,6 +345,112 @@ function WeeklyImagesManager() {
           </Button>
         </Popconfirm>
       </div>
+
+      <Modal
+        open={emailModalOpen}
+        onCancel={() => setEmailModalOpen(false)}
+        footer={null}
+        centered
+        width={650}
+      >
+        <div style={{ padding: 10 }}>
+          <Title level={4} style={{ marginBottom: 8 }}>
+            Send Weekly Files by Email
+          </Title>
+
+          <Text type="secondary">
+            Please confirm before sending all weekly files.
+          </Text>
+
+          <Divider />
+
+          <Row gutter={[16, 16]}>
+            <Col span={12}>
+              <Card
+                size="small"
+                style={{
+                  borderRadius: 12,
+                  background: "#fafafa",
+                }}
+              >
+                <Text strong>Recipient</Text>
+                <br />
+                <Text>chamikadeshan97@gmail.com</Text>
+              </Card>
+            </Col>
+
+            <Col span={12}>
+              <Card
+                size="small"
+                style={{
+                  borderRadius: 12,
+                  background: "#fafafa",
+                }}
+              >
+                <Text strong>Total Files</Text>
+                <br />
+                <Text>{files.length} files</Text>
+              </Card>
+            </Col>
+
+            <Col span={24}>
+              <Card
+                size="small"
+                style={{
+                  borderRadius: 12,
+                  background: "#fafafa",
+                }}
+              >
+                <Text strong>Total Size</Text>
+                <br />
+                <Text>{totalSizeKB} KB</Text>
+              </Card>
+            </Col>
+          </Row>
+
+          <Divider />
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+            }}
+          >
+            <Button onClick={() => setEmailModalOpen(false)}>Cancel</Button>
+
+            <Button
+              type="primary"
+              loading={sendingEmail}
+              style={{
+                background: "#722ed1",
+                borderColor: "#722ed1",
+              }}
+              onClick={async () => {
+                try {
+                  setSendingEmail(true);
+
+                  await axios.post(
+                    "http://localhost:8001/email/all-weekly-files",
+                  );
+
+                  message.success(
+                    "📧 Weekly files sent successfully to chamikadeshan97@gmail.com",
+                  );
+
+                  setEmailModalOpen(false);
+                } catch {
+                  message.error("Failed to send weekly files");
+                } finally {
+                  setSendingEmail(false);
+                }
+              }}
+            >
+              Confirm & Send
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={previewOpen}

@@ -1105,7 +1105,7 @@ function MonthlyUpgrade() {
         Last_Update_Summery: Last_Update,
         New_Customers: summary2.loyal_customers,
         Last_Update: "Entry",
-        current_count: summary.total_customers + 200,
+        current_count:496,
       });
 
       if (res.data.success) {

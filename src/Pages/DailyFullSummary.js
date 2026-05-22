@@ -129,7 +129,7 @@ function DailyFullSummary() {
       return {
         key: r.lottery_name,
         isTotal: false,
-        lottery_name: r.lottery_name,
+        lottery_name: r.lottery_name === "Jaya" ? "NLB Jaya" : r.lottery_name,
         draw_no: r.draw_no ?? "N/A",
 
         purchased_qty: purchasedQty,
@@ -391,6 +391,66 @@ function DailyFullSummary() {
       message.error("PDF download failed");
     }
   };
+  const downloadCSV = () => {
+    try {
+      if (!tableData.length) {
+        message.error("No data available to download");
+        return;
+      }
+
+      const headers = [
+        "#",
+        "Lottery Name",
+        "Draw No",
+        "Order Qty",
+        "Sold Qty",
+        "Unsold Qty",
+        "Prize Sold (Rs)",
+        "Prize Unsold (Rs)",
+        "Last Sold Time",
+      ];
+
+      const rows = tableData.map((r, index) => [
+        r.isTotal ? "" : index + 1,
+        r.lottery_name || "",
+        r.draw_no || "",
+        r.total_qty || 0,
+        r.sold_qty || 0,
+        r.unsold_qty || 0,
+        r.sold_total || 0,
+        r.unsold_total || 0,
+        r.last_purchase_time || "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+        ),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `daily-sales-summary-${dayjs().format("YYYY-MM-DD")}.csv`,
+      );
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      message.success("CSV downloaded successfully");
+    } catch (error) {
+      message.error("CSV download failed");
+    }
+  };
   return (
     <>
       {step === 0 && (
@@ -644,7 +704,6 @@ function DailyFullSummary() {
             <Button onClick={handleReset} style={{ marginRight: 10 }}>
               Start Over
             </Button>
-
             <Button
               type="primary"
               icon={<DownloadOutlined />}
@@ -652,6 +711,14 @@ function DailyFullSummary() {
               style={{ marginRight: 10 }}
             >
               Download PDF
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={downloadCSV}
+              style={{ marginRight: 10 }}
+            >
+              Download CSV
             </Button>
 
             <Button

@@ -146,7 +146,46 @@ function RegistrationCountView() {
       </Card>
     );
   };
+  const downloadCustomerSummaryCSV = () => {
+    try {
+      if (!customerData || customerData.length === 0) {
+        message.warning("No customer breakdown data available");
+        return;
+      }
 
+      // CSV Header
+      const header = ["DATE", "TOTAL_CUSTOMERS"];
+
+      // CSV Rows
+      const rows = customerData.map((item) => [
+        item.date || "",
+        item.total_customers || 0,
+      ]);
+
+      // Convert to CSV string
+      const csvContent = [header, ...rows]
+        .map((row) => row.join(","))
+        .join("\n");
+
+      // Create Blob
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+
+      // Download file
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `customer_breakdown_by_date_${dayjs().format("YYYY-MM-DD")}.csv`;
+      link.click();
+
+      window.URL.revokeObjectURL(url);
+
+      message.success("Customer breakdown CSV downloaded successfully");
+    } catch (error) {
+      message.error("CSV download failed");
+    }
+  };
   /* ================= GENERATE ================= */
 
   const handleGenerate = async () => {
@@ -631,6 +670,14 @@ function RegistrationCountView() {
               <Spin spinning={customerLoading}>
                 <Card>
                   <Title level={4}>Customer Breakdown by Date</Title>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadCustomerSummaryCSV}
+                    style={{ marginBottom: 16 }}
+                  >
+                    Download Summary CSV
+                  </Button>
 
                   <Table
                     dataSource={customerData}
