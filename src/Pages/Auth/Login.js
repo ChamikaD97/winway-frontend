@@ -42,7 +42,6 @@ const Login = () => {
         localStorage.setItem("role", data.role);
         localStorage.setItem("status", data.status);
 
-
         navigate("/change-password", { replace: true });
         return;
       }
@@ -67,9 +66,6 @@ const Login = () => {
         content: `Welcome ${data.name}`,
       });
 
-     
-      
-      
       navigate("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
@@ -368,7 +364,7 @@ const Login = () => {
                 color: "#999",
               }}
             >
-             +++++++++++++++++++++++++++++++++
+              © {new Date().getFullYear()} WinWay. All rights reserved.
             </div>
           </Card>
         </div>
