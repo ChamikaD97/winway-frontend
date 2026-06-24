@@ -29,7 +29,7 @@ const { Step } = Steps;
 const { Option } = Select;
 
 /* ================= CONFIG ================= */
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://localhost:8000";
 const API_SMS = "http://localhost:8001";
 
 /* 🔁 SWITCH MODE HERE */
@@ -994,7 +994,8 @@ Thank you.`,
           </Form>
         </Modal>
 
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
+{step !== 0 && (
+        <><Space style={{ width: "100%", justifyContent: "space-between" }}>
           <Button disabled={step === 0} onClick={goBack}>
             Back
           </Button>
@@ -1005,6 +1006,10 @@ Thank you.`,
             </Button>
           )}
         </Space>
+        </>
+)}
+
+        
       </Card>
 
       <Modal

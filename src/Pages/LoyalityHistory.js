@@ -45,7 +45,9 @@ const { Search } = Input;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-const API_BASE = "http://localhost:8001";
+
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
 
 /** ---------- Utilities ---------- */
 const tierColors = {

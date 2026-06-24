@@ -1,6 +1,9 @@
 import axios from "axios";
+import { ENV } from "../config/env";
 
-const API_BASE = "http://127.0.0.1:8000";
+const pyApi = axios.create({
+  baseURL: ENV.REACT_APP_API_BASE_PY,
+});
 
 /* ------------------------------------------
    Registration Count API
@@ -12,15 +15,11 @@ export const countRegistrations = async (file, startDate, endDate) => {
     formData.append("start_date", startDate);
     formData.append("end_date", endDate);
 
-    const response = await axios.post(
-      `${API_BASE}/registrations/count`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+    const response = await pyApi.post("/registrations/count", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    );
+    });
 
     return response.data;
   } catch (error) {
@@ -38,14 +37,14 @@ export const getLastPurchaseTime = async (zipFile, filterDate) => {
     formData.append("zip_file", zipFile);
     formData.append("filter_date", filterDate);
 
-    const response = await axios.post(
-      `${API_BASE}/lottery/last-purchase-time`,
+    const response = await pyApi.post(
+      "/lottery/last-purchase-time",
       formData,
       {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      },
+      }
     );
 
     return response.data;
@@ -61,7 +60,7 @@ export const getLastPurchaseTime = async (zipFile, filterDate) => {
 export const getMonthlyActivations = async (
   file,
   startDate = null,
-  endDate = null,
+  endDate = null
 ) => {
   try {
     const formData = new FormData();
@@ -70,14 +69,14 @@ export const getMonthlyActivations = async (
     if (startDate) formData.append("start_date", startDate);
     if (endDate) formData.append("end_date", endDate);
 
-    const response = await axios.post(
-      `${API_BASE}/registrations/monthly-activations`,
+    const response = await pyApi.post(
+      "/registrations/monthly-activations",
       formData,
       {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      },
+      }
     );
 
     return response.data;
@@ -87,34 +86,15 @@ export const getMonthlyActivations = async (
   }
 };
 
+/* ------------------------------------------
+   Reconciliation Summary API
+------------------------------------------ */
 export const getReconciliationSummary = async (zipFile) => {
   try {
     const formData = new FormData();
     formData.append("zip_file", zipFile);
 
-    const response = await axios.post(
-      `${API_BASE}/reconciliation/summary`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      },
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Reconciliation summary error:", error);
-    throw error;
-  }
-};
-
-export const getSummery = async (zipFile) => {
-  try {
-    const formData = new FormData();
-    formData.append("zip_file", zipFile);
-
-    const response = await axios.post(`${API_BASE}/summary`, formData, {
+    const response = await pyApi.post("/reconciliation/summary", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -128,7 +108,28 @@ export const getSummery = async (zipFile) => {
 };
 
 /* ------------------------------------------
-   Customers by Date Range (Grouped by Date)
+   Summary API
+------------------------------------------ */
+export const getSummery = async (zipFile) => {
+  try {
+    const formData = new FormData();
+    formData.append("zip_file", zipFile);
+
+    const response = await pyApi.post("/summary", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Summary error:", error);
+    throw error;
+  }
+};
+
+/* ------------------------------------------
+   Customers by Date Range Grouped by Date
 ------------------------------------------ */
 export const getCustomersByDateRange = async (file, startDate, endDate) => {
   try {
@@ -137,8 +138,8 @@ export const getCustomersByDateRange = async (file, startDate, endDate) => {
     formData.append("start_date", startDate);
     formData.append("end_date", endDate);
 
-    const response = await axios.post(
-      `${API_BASE}/registrations/customers-by-range-grouped`,
+    const response = await pyApi.post(
+      "/registrations/customers-by-range-grouped",
       formData,
       {
         headers: {
@@ -146,7 +147,8 @@ export const getCustomersByDateRange = async (file, startDate, endDate) => {
         },
       }
     );
-console.log(response);
+
+    console.log("Customers by date range response:", response.data);
 
     return response.data;
   } catch (error) {

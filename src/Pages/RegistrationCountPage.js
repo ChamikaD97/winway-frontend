@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef } from "react";
+
+import React, { useMemo, useRef, useState } from "react";
 import {
   Form,
   Upload,
@@ -16,6 +17,7 @@ import {
   Statistic,
   Space,
   Tabs,
+  DatePicker,
 } from "antd";
 import {
   FileTextOutlined,
@@ -27,7 +29,6 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { DatePicker } from "antd";
 import {
   countRegistrations,
   getMonthlyActivations,
@@ -60,20 +61,125 @@ function RegistrationCountView() {
   const [error, setError] = useState(null);
   const [chartType, setChartType] = useState("line");
   const [reportType, setReportType] = useState("daily");
+
   const summaryRef = useRef(null);
+
   const [customerData, setCustomerData] = useState([]);
   const [customerLoading, setCustomerLoading] = useState(false);
+
+  /* ================= HELPERS ================= */
+
+  const unwrapResponse = (res) => {
+    return res?.data !== undefined ? res.data : res;
+  };
+
+  const extractCustomerRows = (res) => {
+    const payload = unwrapResponse(res);
+
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.customers)) return payload.customers;
+    if (Array.isArray(payload?.customers_by_date)) {
+      return payload.customers_by_date;
+    }
+
+    return [];
+  };
+
+  const csvValue = (value) => {
+    const text = String(value ?? "");
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const downloadCSV = (filename, headers, rows) => {
+    const csvContent = [
+      headers.map(csvValue).join(","),
+      ...rows.map((row) => row.map(csvValue).join(",")),
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    link.click();
+
+    window.URL.revokeObjectURL(url);
+  };
+
+  const getRecordDate = (record = {}) => {
+    return (
+      record.date ||
+      record.RegisteredDate ||
+      record.registered_date ||
+      record.REGISTEREDDATE ||
+      ""
+    );
+  };
+
+  const getRecordTotalCustomers = (record = {}) => {
+    return (
+      record.total_customers ||
+      record.totalCustomers ||
+      record.customer_count ||
+      record.count ||
+      0
+    );
+  };
+
+  const getRecordCustomers = (record = {}) => {
+    if (Array.isArray(record.customers)) return record.customers;
+    if (Array.isArray(record.customer_details)) return record.customer_details;
+    if (Array.isArray(record.data)) return record.data;
+    return [];
+  };
+
+  const getCustomerName = (customer = {}) => {
+    return (
+      customer.name ||
+      customer.FIRSTNAME ||
+      customer.FirstName ||
+      customer.first_name ||
+      customer.NAME ||
+      ""
+    );
+  };
+
+  const getCustomerMobile = (customer = {}) => {
+    return (
+      customer.mobile_number ||
+      customer.MobileNumber ||
+      customer.MOBILENUMBER ||
+      customer.mobile ||
+      customer.phone ||
+      ""
+    );
+  };
+
+  const getCustomerGender = (customer = {}) => {
+    return (
+      customer.gender ||
+      customer.GENDER ||
+      customer.Gender ||
+      ""
+    );
+  };
+
   /* ================= QUICK DATE BUTTONS ================= */
 
   const setLast7Days = () => {
-    setDateRange([dayjs().subtract(6, "day"), dayjs()]);
+    setDateRange([dayjs().subtract(7, "day"), dayjs().subtract(1, "day")]);
   };
 
   const setLast30Days = () => {
-    setDateRange([dayjs().subtract(29, "day"), dayjs()]);
+    setDateRange([dayjs().subtract(30, "day"), dayjs().subtract(1, "day")]);
   };
 
-  /* ================= UPLOAD CARD (UNCHANGED STYLE) ================= */
+  /* ================= UPLOAD CARD ================= */
 
   const renderUpload = () => {
     const hasFile = !!file;
@@ -107,13 +213,27 @@ function RegistrationCountView() {
             )}
 
             <Upload.Dragger
-              beforeUpload={(f) => {
-                setFile(f);
+              beforeUpload={(selectedFile) => {
+                setFile(selectedFile);
                 message.success("CSV file selected");
                 return false;
               }}
-              fileList={hasFile ? [file] : []}
-              onRemove={() => setFile(null)}
+              fileList={
+                hasFile
+                  ? [
+                      {
+                        uid: file.uid || "-1",
+                        name: file.name,
+                        status: "done",
+                        originFileObj: file,
+                      },
+                    ]
+                  : []
+              }
+              onRemove={() => {
+                setFile(null);
+                return true;
+              }}
               accept=".csv"
               maxCount={1}
               style={{
@@ -146,6 +266,9 @@ function RegistrationCountView() {
       </Card>
     );
   };
+
+  /* ================= DOWNLOAD FUNCTIONS ================= */
+
   const downloadCustomerSummaryCSV = () => {
     try {
       if (!customerData || customerData.length === 0) {
@@ -153,129 +276,56 @@ function RegistrationCountView() {
         return;
       }
 
-      // CSV Header
-      const header = ["DATE", "TOTAL_CUSTOMERS"];
-
-      // CSV Rows
       const rows = customerData.map((item) => [
-        item.date || "",
-        item.total_customers || 0,
+        getRecordDate(item),
+        getRecordTotalCustomers(item),
       ]);
 
-      // Convert to CSV string
-      const csvContent = [header, ...rows]
-        .map((row) => row.join(","))
-        .join("\n");
-
-      // Create Blob
-      const blob = new Blob([csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-
-      // Download file
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `customer_breakdown_by_date_${dayjs().format("YYYY-MM-DD")}.csv`;
-      link.click();
-
-      window.URL.revokeObjectURL(url);
+      downloadCSV(
+        `customer_breakdown_by_date_${dayjs().format("YYYY-MM-DD")}.csv`,
+        ["DATE", "TOTAL_CUSTOMERS"],
+        rows,
+      );
 
       message.success("Customer breakdown CSV downloaded successfully");
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
       message.error("CSV download failed");
     }
   };
-  /* ================= GENERATE ================= */
 
-  const handleGenerate = async () => {
-    if (!file || !dateRange) {
-      message.error("Upload file and select date range.");
-      return;
-    }
-
+  const downloadCSVFromCustomers = (customers = [], date) => {
     try {
-      setLoading(true);
-      setError(null);
-
-      let start, end;
-
-      if (reportType === "daily") {
-        // ✅ Daily = exact selected dates
-        start = dayjs(dateRange[0]).format("YYYY-MM-DD");
-        end = dayjs(dateRange[1]).format("YYYY-MM-DD");
-
-        // 🔥 NEW: fetch customer grouped data
-        setCustomerLoading(true);
-        const customerRes = await getCustomersByDateRange(file, start, end);
-        setCustomerData(customerRes?.data || []);
-        setCustomerLoading(false);
-      } else {
-        // ✅ Monthly = full month boundaries
-        start = dayjs(dateRange[0]).startOf("month").format("YYYY-MM-DD");
-
-        end = dayjs(dateRange[1]).endOf("month").format("YYYY-MM-DD");
+      if (!customers.length) {
+        message.warning("No customer data available for this date");
+        return;
       }
 
-      let data;
-
-      if (reportType === "daily") {
-        data = await countRegistrations(file, start, end);
-      } else {
-        data = await getMonthlyActivations(file, start, end);
-      }
-
-      setResult(data);
-      setStep(2);
-      message.success("Report generated successfully");
-    } catch (err) {
-      setError("Processing failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const downloadCSVFromCustomers = (customers, date) => {
-    try {
-      // Header
-      const header = ["FIRSTNAME", "MOBILENUMBER", "GENDER"];
-
-      // Rows
-      const rows = customers.map((c) => [
-        c.name || "",
-        c.mobile_number || "",
-        c.gender || "",
+      const rows = customers.map((customer) => [
+        getCustomerName(customer),
+        getCustomerMobile(customer),
+        getCustomerGender(customer),
       ]);
 
-      // Convert to CSV string
-      const csvContent = [header, ...rows]
-        .map((row) => row.join(","))
-        .join("\n");
+      downloadCSV(
+        `customers_${date || dayjs().format("YYYY-MM-DD")}.csv`,
+        ["FIRSTNAME", "MOBILENUMBER", "GENDER"],
+        rows,
+      );
 
-      // Create Blob
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-
-      // Download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `customers_${date}.csv`;
-      link.click();
-    } catch (e) {
+      message.success("Customer CSV downloaded");
+    } catch (err) {
+      console.error(err);
       message.error("CSV download failed");
     }
   };
-  const handleReset = () => {
-    setStep(1);
-    setFile(null);
-    setDateRange(null);
-    setResult(null);
-    setError(null);
-    setChartType("line");
-    setReportType("daily");
-  };
+
   const downloadImage = async () => {
     try {
-      if (!summaryRef.current) return;
+      if (!summaryRef.current) {
+        message.warning("No chart available to download");
+        return;
+      }
 
       const canvas = await html2canvas(summaryRef.current, {
         scale: 2,
@@ -284,19 +334,160 @@ function RegistrationCountView() {
       });
 
       const link = document.createElement("a");
-      link.download = `daily-sales-summary-${dayjs().format("YYYY-MM-DD")}.png`;
+      link.download = `${reportType}-registration-summary-${dayjs().format(
+        "YYYY-MM-DD",
+      )}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-    } catch (e) {
+    } catch (err) {
+      console.error(err);
       message.error("Image download failed");
     }
   };
+
+  /* ================= GENERATE ================= */
+
+  const handleGenerate = async () => {
+    if (!file || !dateRange || dateRange.length !== 2) {
+      message.error("Upload file and select date range.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setResult(null);
+      setCustomerData([]);
+
+      let start;
+      let end;
+
+      if (reportType === "daily") {
+        start = dayjs(dateRange[0]).format("YYYY-MM-DD");
+        end = dayjs(dateRange[1]).format("YYYY-MM-DD");
+
+        try {
+          setCustomerLoading(true);
+          const customerRes = await getCustomersByDateRange(file, start, end);
+          setCustomerData(extractCustomerRows(customerRes));
+        } catch (customerErr) {
+          console.error(customerErr);
+          setCustomerData([]);
+          message.warning("Customer breakdown failed, but report will continue");
+        } finally {
+          setCustomerLoading(false);
+        }
+      } else {
+        start = dayjs(dateRange[0]).startOf("month").format("YYYY-MM-DD");
+        end = dayjs(dateRange[1]).endOf("month").format("YYYY-MM-DD");
+      }
+
+      const apiRes =
+        reportType === "daily"
+          ? await countRegistrations(file, start, end)
+          : await getMonthlyActivations(file, start, end);
+
+      setResult(unwrapResponse(apiRes));
+      setStep(2);
+
+      message.success("Report generated successfully");
+    } catch (err) {
+      console.error(err);
+
+      const apiError =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        "Processing failed.";
+
+      setError(Array.isArray(apiError) ? "Processing failed." : apiError);
+      message.error("Report generation failed");
+    } finally {
+      setLoading(false);
+      setCustomerLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setStep(1);
+    setFile(null);
+    setDateRange(null);
+    setResult(null);
+    setError(null);
+    setChartType("line");
+    setReportType("daily");
+    setCustomerData([]);
+  };
+
   /* ================= SAFE DATA ================= */
 
-  const dailyData = reportType === "daily" ? result?.daily_breakdown || [] : [];
+  const dailyData = useMemo(() => {
+    if (reportType !== "daily") return [];
 
-  const monthlyData =
-    reportType === "monthly" ? result?.monthly_breakdown || [] : [];
+    if (Array.isArray(result)) return result;
+    if (Array.isArray(result?.daily_breakdown)) return result.daily_breakdown;
+    if (Array.isArray(result?.data?.daily_breakdown)) {
+      return result.data.daily_breakdown;
+    }
+
+    return [];
+  }, [result, reportType]);
+
+  const monthlyData = useMemo(() => {
+    if (reportType !== "monthly") return [];
+
+    if (Array.isArray(result)) return result;
+    if (Array.isArray(result?.monthly_breakdown)) {
+      return result.monthly_breakdown;
+    }
+    if (Array.isArray(result?.data?.monthly_breakdown)) {
+      return result.data.monthly_breakdown;
+    }
+
+    return [];
+  }, [result, reportType]);
+
+  const chartData = useMemo(() => {
+    if (reportType === "daily") {
+      return dailyData.map((item) => ({
+        label:
+          item.RegisteredDate ||
+          item.date ||
+          item.registered_date ||
+          "",
+        value: Number(
+          item.registration_count ??
+            item.count ??
+            item.activation_count ??
+            0,
+        ),
+      }));
+    }
+
+    return monthlyData.map((item) => ({
+      label:
+        item.month_name ||
+        item.month ||
+        item.Month ||
+        "",
+      value: Number(
+        item.activation_count ??
+          item.registration_count ??
+          item.count ??
+          0,
+      ),
+    }));
+  }, [dailyData, monthlyData, reportType]);
+
+  const totalRegistrations = useMemo(() => {
+    return chartData.reduce((sum, item) => sum + (item.value || 0), 0);
+  }, [chartData]);
+
+  const averagePerDay =
+    reportType === "daily" && chartData.length > 0
+      ? (totalRegistrations / chartData.length).toFixed(1)
+      : 0;
+
+  /* ================= CHART TOOLTIP ================= */
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload || !payload.length) return null;
@@ -322,56 +513,126 @@ function RegistrationCountView() {
     );
   };
 
-  const totalRegistrations =
-    reportType === "daily"
-      ? dailyData.reduce(
-          (sum, item) => sum + (item?.registration_count || 0),
-          0,
-        )
-      : monthlyData.reduce(
-          (sum, item) => sum + (item?.activation_count || 0),
-          0,
-        );
+  /* ================= TABLE COLUMNS ================= */
 
-  const averagePerDay =
-    reportType === "daily" && dailyData.length > 0
-      ? (totalRegistrations / dailyData.length).toFixed(1)
-      : 0;
-
-  const columns =
+  const resultColumns =
     reportType === "daily"
       ? [
           {
             title: "Date",
-            dataIndex: "RegisteredDate",
-            render: (date) => <Tag color="purple">{date}</Tag>,
+            key: "date",
+            render: (_, record) => (
+              <Tag color="purple">
+                {record.RegisteredDate || record.date || "-"}
+              </Tag>
+            ),
           },
           {
             title: "Registrations",
-            dataIndex: "registration_count",
-            render: (count) => <Tag color="green">{count}</Tag>,
+            key: "registrations",
+            render: (_, record) => (
+              <Tag color="green">
+                {record.registration_count ?? record.count ?? 0}
+              </Tag>
+            ),
           },
         ]
       : [
           {
             title: "Month",
-            dataIndex: "month_name",
-            render: (month) => <Tag color="blue">{month}</Tag>,
+            key: "month",
+            render: (_, record) => (
+              <Tag color="blue">
+                {record.month_name || record.month || "-"}
+              </Tag>
+            ),
           },
           {
             title: "Activations",
-            dataIndex: "activation_count",
-            render: (count) => <Tag color="green">{count}</Tag>,
+            key: "activations",
+            render: (_, record) => (
+              <Tag color="green">
+                {record.activation_count ?? record.count ?? 0}
+              </Tag>
+            ),
           },
         ];
 
+  const customerInnerColumns = [
+    {
+      title: "Mobile",
+      key: "mobile_number",
+      render: (_, record) => (
+        <Tag color="blue">{getCustomerMobile(record) || "N/A"}</Tag>
+      ),
+    },
+    {
+      title: "Name",
+      key: "name",
+      render: (_, record) => getCustomerName(record) || "N/A",
+    },
+    {
+      title: "Gender",
+      key: "gender",
+      render: (_, record) => {
+        const gender = getCustomerGender(record);
+
+        return (
+          <Tag color={gender === "Male" ? "green" : "magenta"}>
+            {gender || "N/A"}
+          </Tag>
+        );
+      },
+    },
+  ];
+
+  const customerSummaryColumns = [
+    {
+      title: "Date",
+      key: "date",
+      render: (_, record) => (
+        <Tag color="purple">{getRecordDate(record) || "N/A"}</Tag>
+      ),
+    },
+    {
+      title: "Total Customers",
+      key: "total_customers",
+      render: (_, record) => (
+        <Tag color="green" style={{ fontWeight: 600 }}>
+          {getRecordTotalCustomers(record)}
+        </Tag>
+      ),
+    },
+    {
+      title: "Download",
+      key: "download",
+      render: (_, record) => (
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          size="small"
+          onClick={() =>
+            downloadCSVFromCustomers(
+              getRecordCustomers(record),
+              getRecordDate(record),
+            )
+          }
+        >
+          CSV
+        </Button>
+      ),
+    },
+  ];
+
+  /* ================= RENDER ================= */
+
   return (
-    <>
+    <Spin spinning={loading} indicator={<LoadingOutlined spin />}>
       {/* ================= STEP 1 ================= */}
       {step === 1 && (
         <>
-          <Spin spinning={loading} indicator={<LoadingOutlined spin />} />
           <Title level={3}>Registration Analytics</Title>
+
           <Divider />
 
           <Row gutter={[24, 24]} justify="center">
@@ -382,23 +643,31 @@ function RegistrationCountView() {
                     {renderUpload()}
                   </Col>
                 </Row>
+
                 <Row justify="center" style={{ marginBottom: 20 }}>
                   <Space>
                     <Button
                       type={reportType === "daily" ? "primary" : "default"}
-                      onClick={() => setReportType("daily")}
+                      onClick={() => {
+                        setReportType("daily");
+                        setDateRange(null);
+                      }}
                     >
                       Daily
                     </Button>
 
                     <Button
                       type={reportType === "monthly" ? "primary" : "default"}
-                      onClick={() => setReportType("monthly")}
+                      onClick={() => {
+                        setReportType("monthly");
+                        setDateRange(null);
+                      }}
                     >
                       Monthly
                     </Button>
                   </Space>
                 </Row>
+
                 {reportType === "daily" && (
                   <Row justify="center" style={{ marginBottom: 20 }}>
                     <Space>
@@ -407,6 +676,7 @@ function RegistrationCountView() {
                     </Space>
                   </Row>
                 )}
+
                 {reportType === "daily" && (
                   <Row justify="center" style={{ marginTop: 20 }}>
                     <Col xs={24} md={12}>
@@ -421,6 +691,7 @@ function RegistrationCountView() {
                     </Col>
                   </Row>
                 )}
+
                 {reportType === "monthly" && (
                   <Row justify="center" style={{ marginTop: 20 }}>
                     <Col xs={24} md={12}>
@@ -437,9 +708,14 @@ function RegistrationCountView() {
                   </Row>
                 )}
 
-                {/* NEW REPORT TYPE SELECTOR (NO STYLE CHANGES ABOVE) */}
-
-                {error && <Alert type="error" message={error} showIcon />}
+                {error && (
+                  <Alert
+                    type="error"
+                    message={error}
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
 
                 <div style={{ textAlign: "center" }}>
                   <Button
@@ -521,31 +797,26 @@ function RegistrationCountView() {
                   Bar
                 </Button>
               </Space>
+
               <div ref={summaryRef}>
                 <Title
                   level={4}
                   style={{ textAlign: "center", paddingTop: 10 }}
                 >
                   {reportType === "daily"
-                    ? "Daily Activations"
+                    ? "Daily Registrations"
                     : "Monthly Activations"}
                 </Title>
-                <Card ref={summaryRef}>
+
+                <Card>
                   <div style={{ width: "100%", height: 500 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       {chartType === "line" ? (
-                        <LineChart
-                          data={
-                            reportType === "daily" ? dailyData : monthlyData
-                          }
-                        >
+                        <LineChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" />
+
                           <XAxis
-                            dataKey={
-                              reportType === "daily"
-                                ? "RegisteredDate"
-                                : "month_name"
-                            }
+                            dataKey="label"
                             tickFormatter={(value) =>
                               reportType === "daily"
                                 ? dayjs(value).format("MM-DD")
@@ -555,36 +826,30 @@ function RegistrationCountView() {
                             interval="preserveStartEnd"
                             minTickGap={25}
                           />
+
                           <YAxis />
+
                           <Tooltip content={<CustomTooltip />} />
+
                           <Line
                             type="monotone"
-                            dataKey={
-                              reportType === "daily"
-                                ? "registration_count"
-                                : "activation_count"
-                            }
+                            dataKey="value"
                             stroke="#7b2ff7"
                             strokeWidth={3}
                           />
                         </LineChart>
                       ) : (
                         <BarChart
-                          data={
-                            reportType === "daily" ? dailyData : monthlyData
-                          }
+                          data={chartData}
                           margin={{ top: 30, right: 20, left: 10, bottom: 10 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
+
                           <XAxis
-                            dataKey={
-                              reportType === "daily"
-                                ? "RegisteredDate"
-                                : "month_name"
-                            }
+                            dataKey="label"
                             tickFormatter={(value) =>
                               reportType === "daily"
-                                ? dayjs(value).format("D-MMM") // 1-Feb format
+                                ? dayjs(value).format("D-MMM")
                                 : value
                             }
                             angle={-40}
@@ -592,8 +857,7 @@ function RegistrationCountView() {
                             height={70}
                             tick={{
                               fontSize: 14,
-
-                              fill: "#000000", // 👈 change color here
+                              fill: "#000000",
                             }}
                             label={{
                               value: reportType === "daily" ? "Date" : "Month",
@@ -606,13 +870,14 @@ function RegistrationCountView() {
                               },
                             }}
                           />
+
                           <YAxis
                             tick={{ fontSize: 14, fill: "#000000" }}
                             domain={[0, "dataMax + 300"]}
                             label={{
                               value:
                                 reportType === "daily"
-                                  ? "Activations"
+                                  ? "Registrations"
                                   : "Activations",
                               angle: -90,
                               position: "insideLeft",
@@ -623,23 +888,19 @@ function RegistrationCountView() {
                               },
                             }}
                           />
+
                           <Tooltip content={<CustomTooltip />} />
+
                           <Bar
-                            dataKey={
-                              reportType === "daily"
-                                ? "registration_count"
-                                : "activation_count"
-                            }
-                            fill="#ad852f" // softer professional blue
-                            radius={[10, 10, 0, 0]} // rounded top corners
+                            dataKey="value"
+                            fill="#ad852f"
+                            radius={[10, 10, 0, 0]}
                           >
                             <LabelList
-                              formatter={(value) => value.toLocaleString()}
-                              dataKey={
-                                reportType === "daily"
-                                  ? "registration_count"
-                                  : "activation_count"
+                              formatter={(value) =>
+                                Number(value || 0).toLocaleString()
                               }
+                              dataKey="value"
                               position="top"
                               style={{
                                 fontSize: 16,
@@ -658,99 +919,57 @@ function RegistrationCountView() {
 
             <Tabs.TabPane tab="Table" key="table">
               <Table
-                columns={columns}
+                columns={resultColumns}
                 dataSource={reportType === "daily" ? dailyData : monthlyData}
-                rowKey={
-                  reportType === "daily" ? "RegisteredDate" : "month_name"
+                rowKey={(record, index) =>
+                  reportType === "daily"
+                    ? `${record.RegisteredDate || record.date || index}`
+                    : `${record.month_name || record.month || index}`
                 }
                 bordered
               />
             </Tabs.TabPane>
-            <Tabs.TabPane tab="Day-wise Customers" key="customers">
-              <Spin spinning={customerLoading}>
-                <Card>
-                  <Title level={4}>Customer Breakdown by Date</Title>
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    onClick={downloadCustomerSummaryCSV}
-                    style={{ marginBottom: 16 }}
-                  >
-                    Download Summary CSV
-                  </Button>
 
-                  <Table
-                    dataSource={customerData}
-                    rowKey="date"
-                    expandable={{
-                      expandedRowRender: (record) => (
-                        <Table
-                          columns={[
-                            {
-                              title: "Mobile",
-                              dataIndex: "mobile_number",
-                              render: (val) => <Tag color="blue">{val}</Tag>,
-                            },
-                            {
-                              title: "Name",
-                              dataIndex: "name",
-                            },
-                            {
-                              title: "Gender",
-                              dataIndex: "gender",
-                              render: (g) => (
-                                <Tag color={g === "Male" ? "green" : "magenta"}>
-                                  {g || "N/A"}
-                                </Tag>
-                              ),
-                            },
-                          ]}
-                          dataSource={record.customers}
-                          pagination={false}
-                          rowKey="mobile_number"
-                          size="small"
-                        />
-                      ),
-                    }}
-                    columns={[
-                      {
-                        title: "Date",
-                        dataIndex: "date",
-                        render: (date) => <Tag color="purple">{date}</Tag>,
-                      },
-                      {
-                        title: "Total Customers",
-                        dataIndex: "total_customers",
-                        render: (count) => (
-                          <Tag color="green" style={{ fontWeight: 600 }}>
-                            {count}
-                          </Tag>
-                        ),
-                      },
-                      {
-                        title: "Download",
-                        render: (_, record) => (
-                          <Button
-                            type="primary"
-                            icon={<DownloadOutlined />}
-                            size="small"
-                            onClick={() =>
-                              downloadCSVFromCustomers(
-                                record.customers,
-                                record.date,
-                              )
+            {reportType === "daily" && (
+              <Tabs.TabPane tab="Day-wise Customers" key="customers">
+                <Spin spinning={customerLoading}>
+                  <Card>
+                    <Title level={4}>Customer Breakdown by Date</Title>
+
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={downloadCustomerSummaryCSV}
+                      style={{ marginBottom: 16 }}
+                    >
+                      Download Summary CSV
+                    </Button>
+
+                    <Table
+                      dataSource={customerData}
+                      rowKey={(record, index) =>
+                        `${getRecordDate(record) || "date"}-${index}`
+                      }
+                      expandable={{
+                        expandedRowRender: (record) => (
+                          <Table
+                            columns={customerInnerColumns}
+                            dataSource={getRecordCustomers(record)}
+                            pagination={false}
+                            rowKey={(customer, index) =>
+                              `${getCustomerMobile(customer) || "mobile"}-${index}`
                             }
-                          >
-                            CSV
-                          </Button>
+                            size="small"
+                          />
                         ),
-                      },
-                    ]}
-                    bordered
-                  />
-                </Card>
-              </Spin>
-            </Tabs.TabPane>
+                      }}
+                      columns={customerSummaryColumns}
+                      bordered
+                    />
+                  </Card>
+                </Spin>
+              </Tabs.TabPane>
+            )}
           </Tabs>
 
           <div style={{ textAlign: "center", marginTop: 20 }}>
@@ -780,7 +999,7 @@ function RegistrationCountView() {
           </div>
         </>
       )}
-    </>
+    </Spin>
   );
 }
 

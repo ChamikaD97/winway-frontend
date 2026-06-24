@@ -7,8 +7,8 @@ import {
   ArrowDownOutlined,
   MinusOutlined,
 } from "@ant-design/icons";
-
-const API_BASE = "http://localhost:8001";
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
 
 const removeUnderscore = (text) => text?.replace(/_/g, " ");
 

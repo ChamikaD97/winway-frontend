@@ -3,8 +3,10 @@ import axios from "axios";
 import { Progress, Tooltip, Typography, message } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
 
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
 const { Text } = Typography;
-const API_BASE = "http://localhost:8001";
+
 
 const TierBreakdown = ({ ticketCount, currentTier }) => {
   const [settings, setSettings] = useState(null);

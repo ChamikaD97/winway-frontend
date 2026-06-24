@@ -24,12 +24,14 @@ import {
 import axios from "axios";
 import { Pie, Column } from "@ant-design/plots";
 
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
+
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const API_BASE = "http://localhost:8001";
 
 function UpgradeHistory() {
   const [loading, setLoading] = useState(false);

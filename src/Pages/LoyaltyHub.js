@@ -4,7 +4,9 @@ import axios from "axios";
 import LoyalityCustomersSMS from "./LoyalityCustomersSMS";
 import SMSPage from "./SMSPage";
 
-const API_BASE = "http://localhost:8001";
+
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
 
 function LoyaltyHub() {
   const [customers, setCustomers] = useState([]);

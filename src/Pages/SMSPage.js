@@ -25,11 +25,13 @@ import {
   RiseOutlined,
 } from "@ant-design/icons";
 
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
+
 const { Title, Text } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
-const API_BASE = "http://localhost:8001";
 
 /* =====================================================
    🔁 TEST / LIVE SWITCH (ONLY CHANGE THIS)
@@ -80,8 +82,8 @@ function SMSPage({ loyaltyCustomers = [] }) {
 
   /* 🔐 Login */
   const [login, setLogin] = useState({
-    username: "chamika@winway.lk",
-    password: "iq_!85PB",
+    username: "",
+    password: "",
   });
 
   /* ✉️ SMS (NO numbers here) */

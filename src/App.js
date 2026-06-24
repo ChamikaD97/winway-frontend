@@ -11,10 +11,7 @@ import MonthlyUpgrade from "./Pages/MonthlyUpgrade";
 import Settings from "./Pages/Settings";
 import LoyaltyCustomers from "./Pages/LoyaltyCustomers";
 import LoyaltyEmails from "./Pages/LoyaltyEmails";
-import UpgradeHistory from "./Pages/UpgradeHistory";
 import Dashboard from "./Pages/DashBoardPage";
-// ✅ NEW: Shared Loyalty + SMS Hub
-import LoyaltyHub from "./Pages/LoyaltyHub";
 import CustomSMS from "./Pages/CustomSMS";
 import CustomEmails from "./Pages/CustomEmails";
 import LoyalityPromotions from "./Pages/LoyalityPromotions";
@@ -26,105 +23,127 @@ import DailySalesSummery from "./Pages/DailySalesSummery.js";
 import SmsWelcome from "./SMS/SmsWelcome.js";
 import ReconciliationSummary from "./Pages/DailyLastSoldTime.js";
 import DailyFullSummary from "./Pages/DailyFullSummary.js";
-
-import CustomMessages from "./Pages/CustomMessages.js";
-
+import SuperAdminUsersPage from "./Pages/Auth/SuperAdminUsersPage.js";
+import ChangePassword from "./Pages/Auth/ChangePassword";
 function App() {
   const [results, setResults] = useState(null);
-  const [activeTab, setActiveTab] = useState("1");
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [activeTab, setActiveTab] = useState("0");
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("token"),
+  );
+
   const navigate = useNavigate();
 
-  // 🛑 Warn user before closing/refreshing
+  const isLoggedIn = isAuthenticated || !!localStorage.getItem("token");
+
+  // Check auth when app loads
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  // Warn user before closing/refreshing
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
       e.returnValue = "";
     };
+
     window.addEventListener("beforeunload", handler);
+
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // 📩 Handle file upload results
   const handleResults = (data) => {
     setResults(data);
     setActiveTab("2");
   };
 
-  // 🟢 After successful login
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
+    setActiveTab("0");
     navigate("/dashboard");
   };
 
-  // 🚪 Logout handler
   const handleLogout = () => {
     localStorage.clear();
+    setIsAuthenticated(false);
+    setActiveTab("0");
+    setResults(null);
     navigate("/login");
   };
 
   return (
     <Routes>
-      {/* 🔐 Login */}
-      <Route path="/login" element={<Login onLogin={handleLoginSuccess} />} />
+      {/* Login */}
+      <Route
+        path="/login"
+        element={
+          isLoggedIn ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Login onLogin={handleLoginSuccess} />
+          )
+        }
+      />
+
       <Route path="/sms/welcome" element={<SmsWelcome />} />
-      {/* 🔒 Protected Dashboard */}
+
+      {/* Protected Dashboard */}
       <Route
         path="/dashboard"
         element={
-          isAuthenticated ? (
+          isLoggedIn ? (
             <DashboardLayout
               activeTab={activeTab}
               onTabChange={setActiveTab}
               onLogout={handleLogout}
             >
-              {/* 0️⃣ Dashboard */}
               {activeTab === "0" && <Dashboard />}
 
-              {/* 1️⃣ Weekly Purchase */}
               {activeTab === "1" && (
                 <FileUploadForm setResults={handleResults} />
               )}
 
-              {/* 2️⃣ Results */}
               {activeTab === "2" && <ResultsView results={results} />}
 
-              {/* 3️⃣ Reports */}
-
-              {/* 4️⃣ Settings */}
               {activeTab === "4" && <Settings />}
 
-              {/* 5️⃣ Loyalty */}
               {activeTab === "5-1" && <Loyality />}
               {activeTab === "5-2" && <LoyaltyCustomers />}
               {activeTab === "5-3" && <MonthlyUpgrade />}
               {activeTab === "5-4" && <LoyalityPromotions />}
               {activeTab === "5-5" && <LoyaltyEmails />}
-
-              {/* ✅ 5-6 SMS + Loyalty Customers (SHARED DATA) */}
-              {activeTab === "5-6" && <LoyaltyHub />}
               {activeTab === "5-7" && <MonthlyUpgradesTable />}
+
               {activeTab === "6-1" && <CustomSMS />}
               {activeTab === "6-2" && <CustomEmails />}
+
               {activeTab === "7" && <FileManager />}
               {activeTab === "8" && <WeeklyImagesManager />}
+
               {activeTab === "9-1" && <RegistrationCountPage />}
               {activeTab === "9-2" && <DailySalesSummery />}
               {activeTab === "9-3" && <ReconciliationSummary />}
               {activeTab === "9-4" && <DailyFullSummary />}
 
-              {activeTab === "10-1" && <CustomMessages />}
+              {activeTab === "11" && <SuperAdminUsersPage />}
             </DashboardLayout>
           ) : (
             <Navigate to="/login" replace />
           )
         }
       />
-
+      <Route path="/change-password" element={<ChangePassword />} />
       {/* Default */}
       <Route
         path="*"
-        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+        element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} replace />}
       />
     </Routes>
   );

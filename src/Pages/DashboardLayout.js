@@ -1,55 +1,184 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Menu, Button, Typography, Divider } from "antd";
+import { Layout, Menu, Button, Typography } from "antd";
 import {
   CloudUploadOutlined,
-  BarChartOutlined,
   SettingOutlined,
   LogoutOutlined,
-  TrophyOutlined,
   HeartOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MessageTwoTone,
   MessageOutlined,
-  FileOutlined,
-  FileAddOutlined,
   FileImageOutlined,
+  UserSwitchOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
-import logo from "../assets/logo.png"; // ✅ make sure path is correct
+import logo from "../assets/logo.png";
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
   const [userName, setUserName] = useState("User");
+  const [userRole, setUserRole] = useState("user");
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const storedName = localStorage.getItem("name");
+    const storedRole = localStorage.getItem("role");
+
     if (storedName) setUserName(storedName);
+    if (storedRole) setUserRole(storedRole);
   }, []);
 
+  const isAdmin = userRole === "admin";
+  const isLoyaltyManager = userRole === "loyalty_manager";
+  const isDataAnalyzer = userRole === "data_analyzer";
+
+  const canViewLoyalty = isAdmin || isLoyaltyManager;
+  const canViewMessages = isAdmin || isLoyaltyManager;
+  const canViewAnalytics = isAdmin || isDataAnalyzer;
+  const canViewSettings = isAdmin;
+  const canViewSystemUsers = isAdmin;
+
   const loyaltyMenu = [
-    { key: "5-1", label: "Initial Process" },
     { key: "5-3", label: "Monthly Upgrade Process" },
     { key: "5-2", label: "Loyalty Customers" },
-    { key: "5-4", label: "Loyalty Promotions" },
-    { key: "5-5", label: "Send Loyalty Emails" },
-    { key: "5-6", label: "Send Loyalty SMS" },
-    { key: "5-7", label: "Monthly Upgrades Table" },
   ];
+
   const messageMenu = [
     { key: "6-1", label: "SMS" },
     { key: "6-2", label: "Emails" },
   ];
 
-  const specialMenu = [{ key: "10-1", label: "SMS" }];
   const reports = [
     { key: "9-1", label: "Registrations" },
-    // { key: "9-2", label: "Daily Sales Summery" },
-    //  { key: "9-3", label: "Last Sold Time" },
-    { key: "9-4", label: "Summery" },
+    { key: "9-4", label: "Summary" },
   ];
+
+  const menuItems = [
+    {
+      key: "0",
+      icon: <BarChartOutlined />,
+      label: "Dashboard",
+    },
+
+    canViewAnalytics
+      ? {
+          key: "1",
+          icon: <CloudUploadOutlined />,
+          label: "Weekly Summary",
+        }
+      : null,
+
+    canViewAnalytics
+      ? {
+          key: "8",
+          icon: <FileImageOutlined />,
+          label: "Images",
+        }
+      : null,
+
+    { type: "divider" },
+
+    canViewLoyalty
+      ? {
+          key: "5",
+          icon: <HeartOutlined />,
+          label: "Loyalty",
+          children: loyaltyMenu,
+        }
+      : null,
+
+    canViewMessages
+      ? {
+          key: "6",
+          icon: <MessageOutlined />,
+          label: "Custom Messages",
+          children: messageMenu,
+        }
+      : null,
+
+    { type: "divider" },
+
+    canViewAnalytics
+      ? {
+          key: "9",
+          icon: <FileImageOutlined />,
+          label: "Reports",
+          children: reports,
+        }
+      : null,
+
+    canViewSettings
+      ? {
+          key: "4",
+          icon: <SettingOutlined />,
+          label: "Settings",
+        }
+      : null,
+
+    canViewSystemUsers
+      ? {
+          key: "11",
+          icon: <UserSwitchOutlined />,
+          label: "System Users",
+        }
+      : null,
+  ].filter(Boolean);
+
+  const getRoleLabel = () => {
+    switch (userRole) {
+      case "admin":
+        return "Admin";
+      case "loyalty_manager":
+        return "Loyalty Manager";
+      case "data_analyzer":
+        return "Data Analyzer";
+      default:
+        return "User";
+    }
+  };
+
+  const getPageTitle = () => {
+    switch (activeTab) {
+      case "0":
+        return "Dashboard";
+      case "1":
+        return "Weekly Summary";
+      case "2":
+        return "Results & Rankings";
+      case "4":
+        return "Settings";
+      case "5":
+        return "Loyalty";
+      case "5-1":
+        return "Entry Process";
+      case "5-2":
+        return "Loyalty Customers";
+      case "5-3":
+        return "Monthly Upgrade Process";
+      case "6":
+        return "Custom Messages";
+      case "6-1":
+        return "SMS";
+      case "6-2":
+        return "Emails";
+      case "8":
+        return "Images";
+      case "9":
+        return "Reports";
+      case "9-1":
+        return "Registrations";
+      case "9-4":
+        return "Summary";
+      case "10":
+        return "Custom SMS";
+      case "11":
+        return "System Users";
+      default:
+        return "WinWay";
+    }
+  };
 
   return (
     <Layout
@@ -58,7 +187,6 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
         background: "linear-gradient(145deg,#f9f6ff,#fff4f9)",
       }}
     >
-      {/* ========================== SIDEBAR ========================== */}
       <Sider
         collapsible
         collapsed={collapsed}
@@ -66,12 +194,11 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
         width={280}
         theme="light"
         style={{
-          background: "#001529", // same color as header
+          background: "#001529",
           transition: "all 0.3s ease",
           boxShadow: "4px 0 25px rgba(0,0,0,0.15)",
         }}
       >
-        {/* ---------- LOGO AREA ---------- */}
         <div
           style={{
             display: "flex",
@@ -92,6 +219,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               transition: "all 0.3s ease",
             }}
           />
+
           {!collapsed && (
             <>
               <Title
@@ -104,6 +232,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               >
                 WinWay
               </Title>
+
               <Text style={{ color: "#ccc", fontSize: 12 }}>
                 Smart Insights
               </Text>
@@ -111,7 +240,6 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
           )}
         </div>
 
-        {/* ---------- MAIN NAV MENU ---------- */}
         <Menu
           mode="inline"
           selectedKeys={[activeTab]}
@@ -122,74 +250,12 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             fontWeight: 500,
             color: "#fff",
           }}
-          items={[
-            {
-              key: "0",
-              icon: <CloudUploadOutlined />,
-              label: "Dashboard",
-            },
-            {
-              key: "1",
-              icon: <CloudUploadOutlined />,
-              label: "Weekly Summary",
-            },
-
-            { type: "divider" }, // ✅ divider
-
-            {
-              key: "5",
-              icon: <HeartOutlined />,
-              label: "Loyalty",
-              children: loyaltyMenu,
-            },
-
-            {
-              key: "6",
-              icon: <MessageOutlined />,
-              label: "Custom Messages",
-              children: messageMenu,
-            },
-
-            { type: "divider" }, // ✅ divider
-
-            {
-              key: "4",
-              icon: <SettingOutlined />,
-              label: "Settings",
-            },
-            {
-              key: "7",
-              icon: <FileAddOutlined />,
-              label: "Files",
-            },
-            {
-              key: "8",
-              icon: <FileImageOutlined />,
-              label: "Images",
-            },
-
-            { type: "divider" }, // ✅ divider
-
-            {
-              key: "9",
-              icon: <FileImageOutlined />,
-              label: "Reports",
-              children: reports,
-            },
-            {
-              key: "10",
-              icon: <FileImageOutlined />,
-              label: "Special",
-              children: specialMenu,
-            },
-          ]}
+          items={menuItems}
           theme="dark"
         />
       </Sider>
 
-      {/* ========================== MAIN AREA ========================== */}
       <Layout>
-        {/* ---------- HEADER ---------- */}
         <Header
           style={{
             height: 70,
@@ -197,7 +263,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            background: "#001529", // ✅ same as sider
+            background: "#001529",
             boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
             transition: "all 0.3s ease",
           }}
@@ -213,6 +279,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
                 borderRadius: 8,
               }}
             />
+
             <Title
               level={4}
               style={{
@@ -221,17 +288,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
                 textShadow: "0 2px 8px rgba(0,0,0,0.25)",
               }}
             >
-              {activeTab === "1" && "Weekly Summary"}
-              {activeTab === "0" && "Dashboard"}
-              {activeTab === "2" && "Results & Rankings"}
-
-              {activeTab === "5" && "Loyalty"}
-              {activeTab === "6" && "Custome SMS"}
-              {activeTab === "5-1" && "Entry Process"}
-              {activeTab === "5-3" && "Monthly Upgrade Process"}
-              {activeTab === "5-2" && "Loyalty Customers"}
-              {activeTab === "4" && "Settings"}
-              {activeTab === "10" && "Custome SMS"}
+              {getPageTitle()}
             </Title>
           </div>
 
@@ -244,9 +301,14 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
               fontWeight: 500,
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: 600 }}>
-              Hi, {userName.split(" ")[0]}
-            </Text>
+            <div style={{ textAlign: "right" }}>
+              <Text style={{ color: "#fff", fontWeight: 600 }}>
+                Hi, {userName.split(" ")[0]}
+              </Text>
+              <br />
+
+
+            </div>
 
             <Button
               icon={<LogoutOutlined />}
@@ -261,7 +323,6 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
           </div>
         </Header>
 
-        {/* ---------- CONTENT ---------- */}
         <Content
           style={{
             padding: "40px",

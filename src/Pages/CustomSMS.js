@@ -29,127 +29,254 @@ const { Step } = Steps;
 const { Option } = Select;
 
 /* ================= CONFIG ================= */
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://localhost:8000";
 const API_SMS = "http://localhost:8001";
 
-/* 🔁 SWITCH MODE HERE */
+/* ================= HELPERS ================= */
 
-/* 🇱🇰 Sri Lanka number normalizer */
+// Sri Lanka mobile normalizer
+const normalizeLK = (number) => {
+  if (!number) return null;
+
+  let num = number
+    .toString()
+    .trim()
+    .replace(/[^\d+]/g, "");
+
+  // Remove .0 issue from Excel numbers
+  num = num.replace(/\.0$/, "");
+
+  if (num.startsWith("+94")) {
+    num = "94" + num.slice(3);
+  }
+
+  if (num.startsWith("0094")) {
+    num = "94" + num.slice(4);
+  }
+
+  if (num.startsWith("0")) {
+    num = "94" + num.slice(1);
+  }
+
+  // Example: 718553224 -> 94718553224
+  if (num.length === 9 && num.startsWith("7")) {
+    num = "94" + num;
+  }
+
+  // Valid format: 947XXXXXXXX
+  if (/^947\d{8}$/.test(num)) {
+    return num;
+  }
+
+  return null;
+};
+
+const toProperCase = (str = "") =>
+  str
+    .toString()
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+const normalizeKey = (key = "") =>
+  key.toString().toLowerCase().replace(/\s+/g, "").replace(/_/g, "");
+
+const getNestedValue = (obj, path) => {
+  if (!obj || !path) return "";
+
+  if (Object.prototype.hasOwnProperty.call(obj, path)) {
+    return obj[path];
+  }
+
+  return path.split(".").reduce((acc, part) => {
+    if (!acc) return "";
+    return acc[part] ?? "";
+  }, obj);
+};
+
+const getFieldValue = (customer, key) => {
+  if (!customer || !key) return "";
+
+  // Exact key
+  const exactValue = getNestedValue(customer, key);
+  if (exactValue !== undefined && exactValue !== null && exactValue !== "") {
+    return exactValue;
+  }
+
+  // Case-insensitive / space-insensitive key match
+  const wanted = normalizeKey(key);
+  const foundKey = Object.keys(customer).find(
+    (k) => normalizeKey(k) === wanted,
+  );
+
+  return foundKey ? customer[foundKey] : "";
+};
+
+const extractKeys = (obj, prefix = "") =>
+  Object.entries(obj || {}).flatMap(([key, value]) => {
+    if (key === "_rowId") return [];
+
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      return extractKeys(value, `${prefix}${key}.`);
+    }
+
+    return `${prefix}${key}`;
+  });
+
+const transformValue = (key, value) => {
+  if (value === undefined || value === null) return "";
+
+  const keyName = key.toString().toLowerCase();
+  const textValue = value.toString().trim();
+
+  // Gender → Mr / Ms mapping
+  if (keyName === "gender") {
+    const v = textValue.toLowerCase();
+
+    if (["male", "m", "mr", "sir"].includes(v)) return "Mr";
+    if (["female", "f", "ms", "mrs", "miss"].includes(v)) return "Ms";
+
+    return "";
+  }
+
+  return textValue;
+};
 
 /* ================= COMPONENT ================= */
 function CustomSMS() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [IS_TEST_MODE, Set_IS_TEST_MODE] = useState(true);
+
+  const [isTestMode, setIsTestMode] = useState(true);
 
   /* Login */
   const [login, setLogin] = useState({
     username: "chamika@winway.lk",
     password: "iq_!85PB",
   });
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   /* Customers */
-
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [mobile_column, setMobileColoum] = useState("Mobile Number");
+  const [mobileColumn, setMobileColumn] = useState("MobileNumber");
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [searchText, setSearchText] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState([]);
-  // which dynamic columns are visible
+  const [searchText, setSearchText] = useState("");
   const [visibleColumns, setVisibleColumns] = useState([]);
-  /* ================= WELCOME TEMPLATE STATE ================= */
+
+  /* Welcome template */
   const [welcomeLang, setWelcomeLang] = useState("e");
+
   /* SMS */
-  const [sending, setSending] = useState(false);
-  const [sentCount, setSentCount] = useState(0);
-  const [totalToSend, setTotalToSend] = useState(0);
-  const [failedCount, setFailedCount] = useState(0);
-  const [currentNumber, setCurrentNumber] = useState("");
-  const [startTime, setStartTime] = useState(null);
   const [sms, setSms] = useState({
     campaignName: "",
     mask: "WIN WAY",
     content: "",
   });
-  const transformValue = (key, value) => {
-    if (!value) return "";
 
-    // Gender → Mr / Ms mapping
-    if (key.toLowerCase() === "gender") {
-      const v = value.toString().toLowerCase();
-      if (["male", "m"].includes(v)) return "Mr";
-      if (["female", "f"].includes(v)) return "Ms";
-      return "";
+  const [sending, setSending] = useState(false);
+  const [sentCount, setSentCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [totalToSend, setTotalToSend] = useState(0);
+  const [currentNumber, setCurrentNumber] = useState("");
+  const [startTime, setStartTime] = useState(null);
+
+  /* Test modal */
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [testNumber, setTestNumber] = useState("");
+  const [testSending, setTestSending] = useState(false);
+
+  const templateKeys = useMemo(() => {
+    return customers.length ? extractKeys(customers[0]) : [];
+  }, [customers]);
+
+  const getCustomerMobileRaw = (customer) => {
+    if (!customer) return "";
+
+    const possibleMobileKeys = [
+      mobileColumn,
+      "MobileNumber",
+      "MOBILENUMBER",
+      "Mobile Number",
+      "MOBILE NUMBER",
+      "Mobile",
+      "MOBILE",
+      "Phone",
+      "PHONE",
+      "Phone No",
+      "PHONE NO",
+      "ContactNumber",
+      "CONTACTNUMBER",
+    ];
+
+    for (const key of possibleMobileKeys) {
+      const value = getFieldValue(customer, key);
+      if (value) return value;
     }
 
-    return value;
+    return "";
   };
 
-  const toProperCase = (str = "") =>
-    str
-      .toLowerCase()
-      .split(" ")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+  const getCustomerMobile = (customer) => {
+    return normalizeLK(getCustomerMobileRaw(customer));
+  };
 
-  const applyTemplate = (template, customer) =>
-    template.replace(/{{(.*?)}}/g, (_, key) => {
+  const getCustomerFirstName = (customer) => {
+    return (
+      getFieldValue(customer, "FIRSTNAME") ||
+      getFieldValue(customer, "FirstName") ||
+      getFieldValue(customer, "First Name") ||
+      getFieldValue(customer, "Name") ||
+      getFieldValue(customer, "NAME") ||
+      ""
+    );
+  };
+
+  const getCustomerGender = (customer) => {
+    return (
+      getFieldValue(customer, "GENDER") ||
+      getFieldValue(customer, "Gender") ||
+      getFieldValue(customer, "gender") ||
+      ""
+    );
+  };
+
+  const applyTemplate = (template, customer = {}) => {
+    return (template || "").replace(/{{(.*?)}}/g, (_, rawKey) => {
+      const key = rawKey.trim();
+
       if (key === "welcome_link") {
-        const rawName =
-          customer?.FirstName || customer?.Name || customer?.FIRSTNAME || "";
-
+        const rawName = getCustomerFirstName(customer);
         const name = encodeURIComponent(toProperCase(rawName));
 
-        const gender = encodeURIComponent(customer?.gender || "");
+        const gender = encodeURIComponent(
+          transformValue("gender", getCustomerGender(customer)),
+        );
 
         return `https://support.winwaylottery.lk/sms/welcome?name=${name}&gender=${gender}`;
       }
 
-      const rawValue = key
-        .split(".")
-        .reduce((o, i) => (o ? o[i] : ""), customer);
-
-      return transformValue(key, rawValue) ?? "";
+      const rawValue = getFieldValue(customer, key);
+      return transformValue(key, rawValue);
     });
-  const getSendNumber = (customer) => {
-    console.log(customer);
-    const mobile = normalizeLK(customer?.MOBILENUMBER);
-
-    if (!mobile) {
-      console.warn("Invalid mobile for customer:", customer);
-    }
-
-    return IS_TEST_MODE
-      ? normalizeLK("0718553224")
-      : normalizeLK(customer?.MOBILENUMBER);
   };
-
-  /* ================= TEMPLATE UTILS ================= */
-  const extractKeys = (obj, prefix = "") =>
-    Object.entries(obj || {}).flatMap(([k, v]) =>
-      typeof v === "object" && v !== null
-        ? extractKeys(v, `${prefix}${k}.`)
-        : `${prefix}${k}`,
-    );
-  const templateKeys = useMemo(
-    () => (customers.length ? extractKeys(customers[0]) : []),
-    [customers],
-  );
 
   /* ================= LOGIN ================= */
   const handleLogin = async () => {
-    if (!login.username || !login.password)
+    if (!login.username || !login.password) {
       return message.warning("Enter username and password");
+    }
 
     setLoading(true);
+
     try {
       await axios.post(`${API_SMS}/sms/login`, login);
-      setIsLoggedIn(true);
       setStep(1);
       message.success("Login successful");
-    } catch {
+    } catch (err) {
+      console.error(err);
       message.error("Login failed");
     } finally {
       setLoading(false);
@@ -157,29 +284,19 @@ function CustomSMS() {
   };
 
   const handleRefresh = async () => {
-    if (!login.username || !login.password)
-      return message.warning("Enter username and password");
-
     setLoading(true);
+
     try {
       await axios.post(`${API_SMS}/sms/refresh`);
-      setIsLoggedIn(true);
-      setStep(1);
-      message.success("Login successful");
-    } catch {
-      message.error("Login failed");
+      message.success("Session refreshed");
+    } catch (err) {
+      console.error(err);
+      message.error("Refresh failed");
     } finally {
       setLoading(false);
     }
   };
-  const normalizeLK = (n) => {
-    if (!n) return null;
-    let num = n.toString().trim().replace(/\s+/g, "");
-    if (num.startsWith("+94")) num = num.replace("+94", "94");
-    if (num.startsWith("0")) num = "94" + num.slice(1);
-    if (num.length === 9) num = "94" + num;
-    return num.startsWith("94") && num.length === 11 ? num : null;
-  };
+
   /* ================= WELCOME SMS TEMPLATE ================= */
   const getWelcomeTemplate = (lang) => {
     const templates = {
@@ -195,9 +312,9 @@ Call us on 0707 884 884 anytime.
 
 - Team WIN WAY`,
 
-      s: `{{FIRSTNAME}} {{gender}},
+      s: `{{FIRSTNAME}} {{GENDER}},
 
-winway වෙත ඔබව සාදරයෙන් පිළිගනිමු!
+WIN WAY වෙත ඔබව සාදරයෙන් පිළිගනිමු!
 
 අපගේ වෙබ් අඩවිය / App පහසුවෙන්ම භාවිතා කරන විදිහ ගැන දැනගන්න කෙටි මාර්ගෝපදේශ වීඩියෝව මෙතැනින් නරඹන්න:
 {{welcome_link}}
@@ -215,12 +332,286 @@ winway.lk க்கு வரவேற்கிறோம்!
 
 உங்களுக்கு ஏதேனும் உதவி தேவைப்பட்டால், 0707 884 884 என்ற எண்ணில் எங்களை தொடர்பு கொள்ளவும்.
 
-- WIN WAY`,
+- Team WIN WAY`,
     };
 
     return templates[lang] || templates.e;
   };
-  /* ================= CARD UPLOADER ================= */
+
+  /* ================= CSV UPLOAD ================= */
+  const handleCsvUpload = async ({ file, onSuccess, onError }) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setLoading(true);
+
+    try {
+      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const rows = (res.data.data || []).map((row, index) => ({
+        _rowId: `${index}-${Date.now()}`,
+        ...row,
+      }));
+
+      const detectedMobileColumn =
+        res.data.detected_columns?.mobile_column || "MobileNumber";
+
+      setMobileColumn(detectedMobileColumn);
+      setCustomers(rows);
+      setFilteredCustomers(rows);
+
+      if (rows.length > 0) {
+        setVisibleColumns(
+          Object.keys(rows[0]).filter(
+            (key) => key !== "_rowId" && key !== detectedMobileColumn,
+          ),
+        );
+      }
+
+      setSelectedCustomers([]);
+      setSelectedRowKeys([]);
+
+      message.success(
+        `CSV loaded (${res.data.total_rows || rows.length} rows)`,
+      );
+      onSuccess?.("ok");
+    } catch (err) {
+      console.error(err);
+      message.error("CSV upload failed");
+      onError?.(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= SEARCH ================= */
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setFilteredCustomers(customers);
+      return;
+    }
+
+    const search = searchText.toLowerCase();
+
+    const filtered = customers.filter((row) => {
+      const mobile = getCustomerMobileRaw(row);
+
+      if (mobile?.toString().toLowerCase().includes(search)) {
+        return true;
+      }
+
+      return visibleColumns.some((key) => {
+        const value = getFieldValue(row, key);
+        return value && value.toString().toLowerCase().includes(search);
+      });
+    });
+
+    setFilteredCustomers(filtered);
+  }, [customers, searchText, visibleColumns, mobileColumn]);
+
+  /* ================= COMPUTED ================= */
+  const excludedFields = useMemo(() => {
+    return [
+      "_rowId",
+      mobileColumn,
+      "MobileNumber",
+      "MOBILENUMBER",
+      "Mobile Number",
+      "MOBILE NUMBER",
+      "Mobile",
+      "MOBILE",
+      "Phone",
+      "PHONE",
+      "Phone No",
+      "PHONE NO",
+    ];
+  }, [mobileColumn]);
+
+  const dynamicColumns = useMemo(() => {
+    return templateKeys
+      .filter(
+        (key) =>
+          !excludedFields.some(
+            (excluded) => normalizeKey(excluded) === normalizeKey(key),
+          ) && visibleColumns.includes(key),
+      )
+      .map((key) => ({
+        title: key,
+        key,
+        render: (_, record) => {
+          const value = getFieldValue(record, key);
+          return value !== undefined && value !== null && value !== ""
+            ? value.toString()
+            : "-";
+        },
+      }));
+  }, [templateKeys, visibleColumns, excludedFields]);
+
+  const columns = useMemo(() => {
+    return [
+      {
+        title: "Mobile",
+        key: "mobile",
+        fixed: "left",
+        width: 160,
+        render: (_, record) => getCustomerMobileRaw(record) || "-",
+      },
+      ...dynamicColumns,
+    ];
+  }, [dynamicColumns, mobileColumn]);
+
+  const validNumbers = useMemo(() => {
+    return selectedCustomers
+      .map((customer) => getCustomerMobile(customer))
+      .filter(Boolean);
+  }, [selectedCustomers, mobileColumn]);
+
+  const smsCount = isTestMode
+    ? validNumbers.length > 0
+      ? 1
+      : 0
+    : validNumbers.length;
+
+  const step2Ready = customers.length > 0 && selectedCustomers.length > 0;
+
+  const step3Ready =
+    sms.campaignName.trim() && sms.mask.trim() && sms.content.trim();
+
+  const progressPercent = totalToSend
+    ? Math.round(((sentCount + failedCount) / totalToSend) * 100)
+    : 0;
+
+  const elapsedSeconds = startTime
+    ? Math.max((Date.now() - startTime) / 1000, 1)
+    : 1;
+
+  const processedCount = sentCount + failedCount;
+  const smsPerSecond = processedCount / elapsedSeconds;
+
+  const etaSeconds =
+    smsPerSecond > 0
+      ? Math.round((totalToSend - processedCount) / smsPerSecond)
+      : 0;
+
+  /* ================= NAVIGATION ================= */
+  const goNext = () => {
+    if (step === 1 && !step2Ready) {
+      return message.warning("Select at least one customer");
+    }
+
+    if (step === 2 && !step3Ready) {
+      return message.warning("Fill campaign name, mask, and message");
+    }
+
+    setStep((previous) => previous + 1);
+  };
+
+  const goBack = () => {
+    setStep((previous) => Math.max(previous - 1, 0));
+  };
+
+  /* ================= SEND TEST SMS ================= */
+  const handleSendTestSms = async () => {
+    const mobile = normalizeLK(testNumber);
+
+    if (!mobile) {
+      return message.error("Enter a valid Sri Lankan mobile number");
+    }
+
+    if (!sms.content || !sms.mask || !sms.campaignName) {
+      return message.warning("Fill campaign name, mask, and message first");
+    }
+
+    setTestSending(true);
+
+    try {
+      await axios.post(`${API_SMS}/sms/send`, {
+        campaignName: sms.campaignName,
+        mask: sms.mask,
+        numbers: mobile,
+        content: applyTemplate(sms.content, selectedCustomers[0] || {}),
+      });
+
+      message.success(`Test SMS sent to ${mobile}`);
+      setTestModalOpen(false);
+      setTestNumber("");
+    } catch (err) {
+      console.error(err);
+      message.error("Test SMS failed");
+    } finally {
+      setTestSending(false);
+    }
+  };
+
+  /* ================= SEND CAMPAIGN ================= */
+  const sendSms = async () => {
+    if (!selectedCustomers.length) {
+      return message.warning("No customers selected");
+    }
+
+    if (!step3Ready) {
+      return message.warning("Fill campaign name, mask, and message");
+    }
+
+    const targets = isTestMode
+      ? selectedCustomers.slice(0, 1)
+      : selectedCustomers;
+
+    setTotalToSend(targets.length);
+    setSentCount(0);
+    setFailedCount(0);
+    setCurrentNumber("");
+    setSending(true);
+    setStartTime(Date.now());
+
+    let success = 0;
+    let failed = 0;
+
+    for (const customer of targets) {
+      const mobile = isTestMode
+        ? normalizeLK("0718553224")
+        : getCustomerMobile(customer);
+
+      if (!mobile) {
+        failed += 1;
+        setFailedCount(failed);
+        continue;
+      }
+
+      setCurrentNumber(mobile);
+
+      try {
+        await axios.post(`${API_SMS}/sms/send`, {
+          campaignName: sms.campaignName,
+          mask: sms.mask,
+          numbers: mobile,
+          content: applyTemplate(sms.content, customer),
+        });
+
+        success += 1;
+        setSentCount(success);
+      } catch (err) {
+        console.error(err);
+        failed += 1;
+        setFailedCount(failed);
+      }
+    }
+
+    setSending(false);
+    setCurrentNumber("");
+
+    if (failed > 0) {
+      message.warning(
+        `Campaign completed. Success: ${success}, Failed: ${failed}`,
+      );
+    } else {
+      message.success("Campaign completed successfully");
+    }
+  };
+
+  /* ================= UPLOAD CARD ================= */
   const renderUpload = (title, accept, icon, text, onUpload) => (
     <Upload accept={accept} showUploadList={false} customRequest={onUpload}>
       <Card
@@ -246,241 +637,47 @@ winway.lk க்கு வரவேற்கிறோம்!
     </Upload>
   );
 
-  useEffect(() => {
-    if (!searchText) {
-      setFilteredCustomers(customers);
-      return;
-    }
-
-    const s = searchText.toLowerCase();
-
-    const filtered = customers.filter((row) =>
-      visibleColumns.some((key) => {
-        const value = key.split(".").reduce((o, i) => (o ? o[i] : ""), row);
-
-        return value && value.toString().toLowerCase().includes(s);
-      }),
-    );
-
-    setFilteredCustomers(filtered);
-  }, [customers, searchText, visibleColumns]);
-  /* ================= CSV UPLOAD ================= */
-  const handleCsvUpload = async ({ file }) => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setLoading(true);
-
-    try {
-      const res = await axios.post(`${API_BASE}/csv-upload-process`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const rows = res.data.data || [];
-
-      setCustomers(rows);
-      setFilteredCustomers(rows);
-
-      // ✅ FIXED HERE
-      setMobileColoum(
-        res.data.detected_columns?.mobile_column || "MobileNumber",
-      );
-
-      if (rows.length > 0) {
-        setVisibleColumns(Object.keys(rows[0]));
-      }
-
-      setSelectedCustomers([]);
-      setSelectedRowKeys([]);
-
-      message.success(`CSV loaded (${res.data.total_rows} rows)`);
-    } catch (err) {
-      console.error(err);
-      message.error("CSV upload failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-  // Fields you DON'T want as table columns
-  const EXCLUDED_FIELDS = ["id", "createdAt", "updatedAt", mobile_column];
-
-  const dynamicColumns = useMemo(() => {
-    return templateKeys
-      .filter(
-        (key) => !EXCLUDED_FIELDS.includes(key) && visibleColumns.includes(key),
-      )
-      .map((key) => ({
-        title: key,
-        dataIndex: key,
-        key,
-        render: (value) =>
-          value !== undefined && value !== null ? value.toString() : "-",
-      }));
-  }, [templateKeys, visibleColumns, mobile_column]);
-
-  const columns = useMemo(() => {
-    return [
-      {
-        title: "Mobile",
-        dataIndex: mobile_column,
-        key: mobile_column,
-        fixed: "left",
-      },
-
-      ...dynamicColumns,
-    ];
-  }, [dynamicColumns]);
-
-  /* ================= COMPUTED ================= */
-
-  const validNumbers = selectedCustomers
-    .map((c) => normalizeLK(c.MobileNumber))
-    .filter(Boolean);
-
-  const smsCount = IS_TEST_MODE
-    ? validNumbers.length > 0
-      ? 1
-      : 0
-    : validNumbers.length;
-
-  const step2Ready = customers.length && selectedCustomers.length;
-  const step3Ready =
-    sms.campaignName.trim() && sms.mask.trim() && sms.content.trim();
-
-  /* ================= NAV ================= */
-  const goNext = () => {
-    if (step === 1 && !step2Ready)
-      return message.warning("Select at least one customer");
-    if (step === 2 && !step3Ready)
-      return message.warning("Fill all SMS fields");
-    setStep((s) => s + 1);
-  };
-  const [testModalOpen, setTestModalOpen] = useState(false);
-  const [testNumber, setTestNumber] = useState("");
-  const [testSending, setTestSending] = useState(false);
-
-  const goBack = () => setStep((s) => s - 1);
-
-  const handleSendTestSms = async () => {
-    const mobile = normalizeLK(testNumber);
-
-    if (!mobile) {
-      return message.error("Enter a valid Sri Lankan mobile number");
-    }
-
-    if (!sms.content || !sms.mask || !sms.campaignName) {
-      return message.warning("Fill campaign name, mask, and message first");
-    }
-
-    setTestSending(true);
-
-    try {
-      await axios.post(`${API_SMS}/sms/send`, {
-        campaignName: sms.campaignName,
-        mask: sms.mask,
-        numbers: mobile,
-        content: applyTemplate(sms.content, selectedCustomers[0]),
-      });
-
-      message.success(`Test SMS sent to ${mobile}`);
-      setTestModalOpen(false);
-      setTestNumber("");
-    } catch (err) {
-      console.error(err);
-      message.error("Test SMS failed");
-    } finally {
-      setTestSending(false);
-    }
-  };
-
-  const sendSms = async () => {
-    if (!selectedCustomers.length)
-      return message.warning("No customers selected");
-
-    const targets = IS_TEST_MODE
-      ? selectedCustomers.slice(0, 1)
-      : selectedCustomers;
-
-    setTotalToSend(targets.length);
-    setSentCount(0);
-    setFailedCount(0);
-    setSending(true);
-    setStartTime(Date.now());
-
-    try {
-      let success = 0;
-      let failed = 0;
-
-      for (const c of targets) {
-        const mobile = getSendNumber(c);
-
-        if (!mobile) {
-          failed++;
-          setFailedCount(failed);
-          continue;
-        }
-
-        setCurrentNumber(mobile);
-
-        try {
-          await axios.post(`${API_SMS}/sms/send`, {
-            campaignName: sms.campaignName,
-            mask: sms.mask,
-            numbers: mobile,
-            content: applyTemplate(sms.content, c),
-          });
-
-          success++;
-          setSentCount(success);
-        } catch {
-          failed++;
-          setFailedCount(failed);
-        }
-      }
-
-      message.success("Campaign completed");
-    } catch (err) {
-      message.error("Error occurred while sending SMS");
-    } finally {
-      setSending(false);
-      setCurrentNumber("");
-    }
-  };
-  /* ================= TABLE ================= */
-
-  /* ================= UI ================= */
   return (
     <Card>
-      <Title level={3}>SMS Portal (MOBILENUMBER){IS_TEST_MODE && "(TEST MODE)"}</Title>
-      <Col xs={24} md={6} style={{ textAlign: "right" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 14px",
-            borderRadius: 12,
-            background: IS_TEST_MODE
-              ? "linear-gradient(90deg,#fff7e6,#fff1b8)"
-              : "linear-gradient(90deg,#e6f4ff,#bae0ff)",
-            border: `1px solid ${IS_TEST_MODE ? "#ffd591" : "#91caff"}`,
-          }}
-        >
-          <span
+      <Row justify="space-between" align="middle" gutter={[16, 16]}>
+        <Col>
+          <Title level={3} style={{ marginBottom: 0 }}>
+            SMS Portal {isTestMode && "(TEST MODE)"}
+          </Title>
+        </Col>
+
+        <Col>
+          <div
             style={{
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: 0.3,
-              color: IS_TEST_MODE ? "#d46b08" : "#0958d9",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 14px",
+              borderRadius: 12,
+              background: isTestMode
+                ? "linear-gradient(90deg,#fff7e6,#fff1b8)"
+                : "linear-gradient(90deg,#e6f4ff,#bae0ff)",
+              border: `1px solid ${isTestMode ? "#ffd591" : "#91caff"}`,
             }}
           >
-            {IS_TEST_MODE ? "TEST MODE ACTIVATED" : "LIVE MODE ACTIVATED"}
-          </span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: 0.3,
+                color: isTestMode ? "#d46b08" : "#0958d9",
+              }}
+            >
+              {isTestMode ? "TEST MODE ACTIVATED" : "LIVE MODE ACTIVATED"}
+            </span>
 
-          <Switch checked={IS_TEST_MODE} onChange={Set_IS_TEST_MODE} />
-        </div>
-      </Col>
+            <Switch checked={isTestMode} onChange={setIsTestMode} />
+          </div>
+        </Col>
+      </Row>
+
       <Divider />
+
       <Steps current={step} style={{ marginBottom: 24 }}>
         <Step title="Login" />
         <Step title="Customer Selection" />
@@ -510,8 +707,8 @@ winway.lk க்கு வரவேற்கிறோம்!
                       size="large"
                       value={login.username}
                       onChange={(e) =>
-                        setLogin((p) => ({
-                          ...p,
+                        setLogin((previous) => ({
+                          ...previous,
                           username: e.target.value,
                         }))
                       }
@@ -523,23 +720,34 @@ winway.lk க்கு வரவேற்கிறோம்!
                       size="large"
                       value={login.password}
                       onChange={(e) =>
-                        setLogin((p) => ({
-                          ...p,
+                        setLogin((previous) => ({
+                          ...previous,
                           password: e.target.value,
                         }))
                       }
                     />
                   </Form.Item>
 
-                  <Button
-                    type="primary"
-                    size="large"
-                    block
-                    loading={loading}
-                    onClick={handleLogin}
-                  >
-                    Login & Continue
-                  </Button>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Button
+                      type="primary"
+                      size="large"
+                      block
+                      loading={loading}
+                      onClick={handleLogin}
+                    >
+                      Login & Continue
+                    </Button>
+
+                    <Button
+                      size="large"
+                      block
+                      loading={loading}
+                      onClick={handleRefresh}
+                    >
+                      Refresh Session
+                    </Button>
+                  </Space>
                 </Form>
               </Space>
             </Card>
@@ -547,10 +755,9 @@ winway.lk க்கு வரவேற்கிறோம்!
         </Row>
       )}
 
-      {/* ================= STEP 2 ================= */}
+      {/* ================= STEP 2 : CUSTOMER SELECTION ================= */}
       {step === 1 && (
         <Card>
-          {/* ================= UPLOAD ================= */}
           <Row justify="center">
             <Col>
               {renderUpload(
@@ -563,47 +770,50 @@ winway.lk க்கு வரவேற்கிறோம்!
             </Col>
           </Row>
 
-          {/* ================= DATA PART ================= */}
           {customers.length > 0 && (
             <>
               <Divider />
 
-              {/* ===== STATS ===== */}
-              <Row gutter={16}>
-                <Col span={6}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={6}>
                   <Statistic
                     title="Customers Loaded"
                     value={customers.length}
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} md={6}>
                   <Statistic
                     title="Selected Customers"
                     value={selectedCustomers.length}
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} md={6}>
                   <Statistic
                     title="Valid Numbers"
                     value={validNumbers.length}
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} md={6}>
                   <Statistic title="SMS Count" value={smsCount} />
                 </Col>
               </Row>
 
               <Divider />
 
-              {/* ================= DYNAMIC FIELDS ================= */}
               <Card
                 size="small"
-                title="Available Dynamic Fields (Click to show / hide columns)"
+                title="Available Dynamic Fields"
                 style={{ marginBottom: 16, background: "#fafafa" }}
               >
                 <Space wrap>
                   {templateKeys
-                    .filter((key) => !EXCLUDED_FIELDS.includes(key))
+                    .filter(
+                      (key) =>
+                        !excludedFields.some(
+                          (excluded) =>
+                            normalizeKey(excluded) === normalizeKey(key),
+                        ),
+                    )
                     .map((key) => {
                       const active = visibleColumns.includes(key);
 
@@ -613,10 +823,10 @@ winway.lk க்கு வரவேற்கிறோம்!
                           color={active ? "blue" : "default"}
                           style={{ cursor: "pointer", userSelect: "none" }}
                           onClick={() =>
-                            setVisibleColumns((prev) =>
-                              prev.includes(key)
-                                ? prev.filter((k) => k !== key)
-                                : [...prev, key],
+                            setVisibleColumns((previous) =>
+                              previous.includes(key)
+                                ? previous.filter((item) => item !== key)
+                                : [...previous, key],
                             )
                           }
                         >
@@ -630,9 +840,10 @@ winway.lk க்கு வரவேற்கிறோம்!
                   type="secondary"
                   style={{ display: "block", marginTop: 8 }}
                 >
-                  Click a field to add or remove it from the table view.
+                  Click a field to show or hide it from the table.
                 </Text>
               </Card>
+
               <Card
                 size="small"
                 style={{ marginBottom: 16, background: "#fafafa" }}
@@ -641,36 +852,29 @@ winway.lk க்கு வரவேற்கிறோம்!
                   wrap
                   style={{ width: "100%", justifyContent: "space-between" }}
                 >
-                  {/* 🔍 Global Search */}
                   <Input.Search
                     placeholder="Search customers, mobile, or any field..."
                     allowClear
                     enterButton
                     style={{ maxWidth: 420 }}
+                    value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
+                    onSearch={(value) => setSearchText(value)}
                   />
 
-                  {/* Optional helper text / count */}
                   <Text type="secondary">
                     Showing {filteredCustomers.length} result(s)
                   </Text>
                 </Space>
-
-                <Text
-                  type="secondary"
-                  style={{ display: "block", marginTop: 8 }}
-                >
-                  Type to search across all visible columns.
-                </Text>
               </Card>
+
               <Space style={{ marginBottom: 12 }}>
                 <Button
                   type="primary"
                   onClick={() => {
                     const allKeys = filteredCustomers.map(
-                      (c, index) => `${c[mobile_column]}-${index}`,
+                      (customer) => customer._rowId,
                     );
-
                     setSelectedRowKeys(allKeys);
                     setSelectedCustomers(filteredCustomers);
                   }}
@@ -688,17 +892,17 @@ winway.lk க்கு வரவேற்கிறோம்!
                   Clear Selection
                 </Button>
               </Space>
-              {/* ================= TABLE ================= */}
+
               <Table
-                rowKey={(record, index) => `${record[mobile_column]}-${index}`}
+                rowKey="_rowId"
                 columns={columns}
                 dataSource={filteredCustomers}
                 rowSelection={{
                   selectedRowKeys,
-                  onChange: (k, r) => {
-                    console.log(r, k);
-                    setSelectedRowKeys(k);
-                    setSelectedCustomers(r);
+                  preserveSelectedRowKeys: true,
+                  onChange: (keys, rows) => {
+                    setSelectedRowKeys(keys);
+                    setSelectedCustomers(rows);
                   },
                 }}
                 pagination={{ pageSize: 10 }}
@@ -709,27 +913,32 @@ winway.lk க்கு வரவேற்கிறோம்!
         </Card>
       )}
 
-      {/* ================= STEP 3 ================= */}
+      {/* ================= STEP 3 : SMS COMPOSE ================= */}
       {step === 2 && (
         <Card>
-          <Row gutter={16}>
-            <Col span={6}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={6}>
               <Statistic
                 title="Selected Customers"
                 value={selectedCustomers.length}
               />
             </Col>
+            <Col xs={24} md={6}>
+              <Statistic title="Valid Numbers" value={validNumbers.length} />
+            </Col>
           </Row>
+
           <Divider />
-          <Row gutter={24}>
-            <Col span={14}>
+
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={14}>
               <Form layout="vertical">
                 <Form.Item label="Campaign Name">
                   <Input
                     value={sms.campaignName}
                     onChange={(e) =>
-                      setSms((p) => ({
-                        ...p,
+                      setSms((previous) => ({
+                        ...previous,
                         campaignName: e.target.value,
                       }))
                     }
@@ -740,11 +949,14 @@ winway.lk க்கு வரவேற்கிறோம்!
                   <Input
                     value={sms.mask}
                     onChange={(e) =>
-                      setSms((p) => ({ ...p, mask: e.target.value }))
+                      setSms((previous) => ({
+                        ...previous,
+                        mask: e.target.value,
+                      }))
                     }
                   />
                 </Form.Item>
-                {/* ================= WELCOME TEMPLATE SECTION ================= */}
+
                 <Divider />
 
                 <Form.Item label="Load WinWay Welcome Template">
@@ -762,8 +974,8 @@ winway.lk க்கு வரவேற்கிறோம்!
                     type="dashed"
                     block
                     onClick={() =>
-                      setSms((p) => ({
-                        ...p,
+                      setSms((previous) => ({
+                        ...previous,
                         content: getWelcomeTemplate(welcomeLang),
                       }))
                     }
@@ -773,43 +985,60 @@ winway.lk க்கு வரவேற்கிறோம்!
                 </Form.Item>
 
                 <Divider />
+
                 <Form.Item label="Insert Dynamic Field">
                   <Select
-                    onSelect={(v) =>
-                      setSms((p) => ({
-                        ...p,
-                        content: `${p.content} {{${v}}}`,
+                    placeholder="Select field to insert"
+                    onSelect={(value) =>
+                      setSms((previous) => ({
+                        ...previous,
+                        content: `${previous.content} {{${value}}}`,
                       }))
                     }
                   >
-                    {templateKeys.map((k) => (
-                      <Option key={k}>{k}</Option>
+                    {templateKeys.map((key) => (
+                      <Option key={key} value={key}>
+                        {key}
+                      </Option>
                     ))}
                   </Select>
                 </Form.Item>
 
                 <Form.Item label={`Message (${sms.content.length} characters)`}>
                   <Input.TextArea
-                    rows={6}
+                    rows={8}
                     value={sms.content}
                     onChange={(e) =>
-                      setSms((p) => ({ ...p, content: e.target.value }))
+                      setSms((previous) => ({
+                        ...previous,
+                        content: e.target.value,
+                      }))
                     }
                   />
                 </Form.Item>
               </Form>
             </Col>
 
-            <Col span={10}>
+            <Col xs={24} lg={10}>
               <Card size="small" title="📱 SMS Preview">
                 {selectedCustomers.length ? (
                   <Alert
                     type="info"
                     showIcon
-                    message={applyTemplate(
-                      sms.content || "Start typing...",
-                      selectedCustomers[0],
-                    )}
+                    message={
+                      <pre
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          margin: 0,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {applyTemplate(
+                          sms.content || "Start typing...",
+                          selectedCustomers[0],
+                        )}
+                      </pre>
+                    }
                   />
                 ) : (
                   <Alert
@@ -824,107 +1053,87 @@ winway.lk க்கு வரவேற்கிறோம்!
         </Card>
       )}
 
-      {/* ================= STEP 4 ================= */}
+      {/* ================= STEP 4 : SEND ================= */}
       {step === 3 && (
         <Card>
-          {IS_TEST_MODE && (
+          {isTestMode && (
             <Alert
               type="warning"
               showIcon
               message="TEST MODE ACTIVE"
-              description="Only one SMS will be sent"
+              description="Only one SMS will be sent to your fixed test number: 0718553224"
               style={{ marginBottom: 16 }}
             />
           )}
 
-          <Row gutter={16}>
-            <Col span={6}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={6}>
               <Statistic title="Customers Loaded" value={customers.length} />
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Statistic
                 title="Selected Customers"
                 value={selectedCustomers.length}
               />
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Statistic title="Valid Numbers" value={validNumbers.length} />
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Statistic title="SMS Count" value={smsCount} />
             </Col>
           </Row>
 
           <Divider />
-          {/* ===== ADVANCED PROGRESS ===== */}
-          {
-            <Card style={{ marginTop: 16, background: "#fafafa" }}>
-              <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                {/* 🔢 Main Stats */}
-                <Row gutter={16}>
-                  <Col span={6}>
-                    <Statistic title="Sent" value={sentCount} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic title="Failed" value={failedCount} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic title="Total" value={totalToSend} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="Success Rate"
-                      value={
-                        totalToSend
-                          ? Math.round((sentCount / totalToSend) * 100)
-                          : 0
-                      }
-                      suffix="%"
-                    />
-                  </Col>
-                </Row>
 
-                {/* 📊 Progress Bar */}
-                <Progress
-                  percent={Math.round(
-                    ((sentCount + failedCount) / totalToSend) * 100,
-                  )}
-                  status="active"
-                />
+          <Card style={{ marginTop: 16, background: "#fafafa" }}>
+            <Space direction="vertical" style={{ width: "100%" }} size={12}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={6}>
+                  <Statistic title="Sent" value={sentCount} />
+                </Col>
+                <Col xs={24} md={6}>
+                  <Statistic title="Failed" value={failedCount} />
+                </Col>
+                <Col xs={24} md={6}>
+                  <Statistic title="Total" value={totalToSend} />
+                </Col>
+                <Col xs={24} md={6}>
+                  <Statistic
+                    title="Success Rate"
+                    value={
+                      totalToSend
+                        ? Math.round((sentCount / totalToSend) * 100)
+                        : 0
+                    }
+                    suffix="%"
+                  />
+                </Col>
+              </Row>
 
-                {/* 📱 Current Sending */}
-                <Text>
-                  📤 Sending to: <b>{currentNumber || "Preparing..."}</b>
+              <Progress
+                percent={progressPercent}
+                status={sending ? "active" : "normal"}
+              />
+
+              <Text>
+                📤 Sending to: <b>{currentNumber || "Preparing..."}</b>
+              </Text>
+
+              {startTime && (
+                <Text type="secondary">
+                  ⏱ Speed: {smsPerSecond.toFixed(2)} SMS/sec | ETA:{" "}
+                  {Math.max(0, etaSeconds)} sec
                 </Text>
+              )}
+            </Space>
+          </Card>
 
-                {/* ⏱ Speed + ETA */}
-                {startTime && (
-                  <Text type="secondary">
-                    ⏱ Speed:{" "}
-                    {(
-                      (sentCount + failedCount) /
-                      ((Date.now() - startTime) / 1000 || 1)
-                    ).toFixed(2)}{" "}
-                    SMS/sec | ETA:{" "}
-                    {Math.max(
-                      0,
-                      Math.round(
-                        (totalToSend - (sentCount + failedCount)) /
-                          ((sentCount + failedCount) /
-                            ((Date.now() - startTime) / 1000 || 1)),
-                      ),
-                    )}{" "}
-                    sec
-                  </Text>
-                )}
-              </Space>
-            </Card>
-          }
-          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+          <Divider />
+
+          <Space style={{ width: "100%", justifyContent: "flex-end" }} wrap>
             <Button
-              type="default"
               size="large"
-              block
               onClick={() => setTestModalOpen(true)}
               disabled={sending}
             >
@@ -934,10 +1143,9 @@ winway.lk க்கு வரவேற்கிறோம்!
             <Button
               type="primary"
               size="large"
-              block
               loading={sending}
-              disabled={sending}
-              onClick={() => sendSms()}
+              disabled={sending || !smsCount}
+              onClick={sendSms}
             >
               {sending ? "Sending..." : "Run Campaign"}
             </Button>
@@ -945,8 +1153,7 @@ winway.lk க்கு வரவேற்கிறோம்!
         </Card>
       )}
 
-      {/* ================= FOOTER ================= */}
-      <Divider />
+      {/* ================= TEST MODAL ================= */}
       <Modal
         title="🧪 Test SMS"
         open={testModalOpen}
@@ -960,7 +1167,7 @@ winway.lk க்கு வரவேற்கிறோம்!
           <Form.Item
             label="Mobile Number"
             required
-            help="Supports 07XXXXXXXX, +94XXXXXXXXX"
+            help="Supports 07XXXXXXXX, +94XXXXXXXXX, or 947XXXXXXXX"
           >
             <Input
               placeholder="0712345678"
@@ -975,17 +1182,22 @@ winway.lk க்கு வரவேற்கிறோம்!
         </Form>
       </Modal>
 
-      <Space style={{ width: "100%", justifyContent: "space-between" }}>
-        <Button disabled={step === 0} onClick={goBack}>
-          Back
-        </Button>
+      {/* ================= FOOTER ================= */}
+      <Divider />
 
-        {step < 3 && (
-          <Button type="primary" onClick={goNext}>
-            Next
+      {step !== 0 && (
+        <Space style={{ width: "100%", justifyContent: "space-between" }}>
+          <Button disabled={step === 0 || sending} onClick={goBack}>
+            Back
           </Button>
-        )}
-      </Space>
+
+          {step < 3 && (
+            <Button type="primary" onClick={goNext}>
+              Next
+            </Button>
+          )}
+        </Space>
+      )}
     </Card>
   );
 }

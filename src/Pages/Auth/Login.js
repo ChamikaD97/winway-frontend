@@ -1,331 +1,382 @@
 import React, { useState } from "react";
 import { Card, Form, Input, Button, Typography, message } from "antd";
+import {
+  MailOutlined,
+  LockOutlined,
+  UserOutlined,
+  ArrowRightOutlined,
+} from "@ant-design/icons";
 import axios from "axios";
 import winwayLogo from "../../assets/logo.png";
 import winwayLeft from "../../assets/back.png";
 import { useNavigate } from "react-router-dom";
-import bcrypt from "bcryptjs";
-import { decryptData, encryptData } from "../../config/cryptoUtils";
 
-const API_BASE = "http://localhost:8001";
+import { ENV } from "../../config/env";
+
+const API_BASE = ENV.API_BASE_LOCAL;
+
 const { Title, Text } = Typography;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [isLogging, setIsLogging] = useState(true);
+
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
 
   const handleLogin = async (values) => {
     try {
       setLoading(true);
-      const users = await axios.get(`${API_BASE}/api/users/all`);
-      const s = users.data.data.find((d) => d.email == values.email);
-console.log(s);
 
-      if (s) {
-        const decrypted = decryptData(s.password);
+      const res = await axios.post(`${API_BASE}/users/login`, {
+        email: values.email,
+        password: values.password,
+      });
 
-        localStorage.setItem("name", s.name);
+      const data = res.data;
 
-        if (decrypted == values.password) {
-          messageApi.open({
-            type: "success",
-            content: "Welcome",
-          });
-          navigate("/dashboard");
-        } else {
-          messageApi.open({
-            type: "error",
-            content: "Login failed!, Invalid Credentials",
-          });
-        }
-      } else {
+      // ✅ First-time login: user must change sample password
+      if (data.requiresPasswordChange) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("name", data.name);
+        localStorage.setItem("email", data.email);
+        localStorage.setItem("role", data.role);
+        localStorage.setItem("status", data.status);
+
         messageApi.open({
-          type: "error",
- content: "Login failed!, User Not Found",        });
+          type: "warning",
+          content: "Please change your temporary password before continuing.",
+        });
+
+        navigate("/change-password", { replace: true });
+        return;
       }
+
+      // ✅ Normal login
+      localStorage.setItem("token", data.token);
+
+      if (data.id) {
+        localStorage.setItem("id", data.id);
+      }
+
+      localStorage.setItem("name", data.name);
+      localStorage.setItem("email", data.email);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("status", data.status);
+
+      // Clear temp token if old one exists
+      localStorage.removeItem("tempToken");
+
+      messageApi.open({
+        type: "success",
+        content: `Welcome ${data.name}`,
+      });
+
+      console.log(localStorage);
+      
+      navigate("/dashboard");
     } catch (err) {
+      console.error("Login error:", err);
+
       messageApi.open({
         type: "error",
-        content: "Login failed!, User Not Found",
+        content:
+          err.response?.data?.message || "Login failed! Please try again.",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegister = async (values) => {
-    try {
-      setLoading(true);
-
-      const users = await axios.get(`${API_BASE}/api/users/all`);
-
-      const s = users.data.data.find((d) => d.email == values.email);
-
-      if (!s) {
-        const res = await axios.post(`${API_BASE}/api/users/register`, {
-          name: values.name,
-          email: values.email,
-          password: encryptData(values.password),
-        });
-
-        message.success("Account created successfully!");
-        localStorage.setItem("name", res.data.name);
-        setLoading(true);
-      } else {
-        //show that user already
-      }
-    } catch (err) {
-      console.error("Register error:", err);
-      message.error(err.response?.data?.message || "Registration failed!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        backgroundColor: "#f5f5f5",
-      }}
-    >
+    <>
       {contextHolder}
-      {/* LEFT IMAGE SECTION */}
-      <div
-        style={{
-          flex: 1,
-          backgroundImage: `url(${winwayLeft})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: "100px",
-            background:
-              "linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 100%)",
-          }}
-        ></div>
-      </div>
 
-      {/* RIGHT FORM SECTION */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-        }}
-      >
-        <Card
-          hoverable
-          style={{
-            width: 380,
-            paddingTop: "20px",
-            borderRadius: "20px",
-            textAlign: "center",
-            background: "rgba(255,255,255,0.93)",
-            boxShadow: "0 8px 30px rgba(241,7,163,0.25)",
-            border: "1px solid rgba(255,255,255,0.5)",
-          }}
-        >
-          <img
-            src={winwayLogo}
-            alt="WinWay Logo"
-            style={{
-              width: 10,
-              marginBottom: 10,
-              borderRadius: 10,
-            }}
-          />
+      <style>
+        {`
+          .login-page {
+            min-height: 100vh;
+            display: flex;
+            background: radial-gradient(circle at top left, #fff0fb 0%, #ffffff 35%, #f8f5ff 100%);
+            overflow: hidden;
+          }
 
-          {isLogging ? (
-            <>
-              {/* LOGIN FORM */}
+          .login-left {
+            flex: 1.1;
+            position: relative;
+            background-image: url(${winwayLeft});
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: flex-end;
+            padding: 60px;
+            overflow: hidden;
+          }
+
+          .login-left::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0, 21, 41, 0.25), rgba(106, 27, 154, 0.28));
+          }
+
+          .login-left::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 180px;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0), #ffffff);
+          }
+
+          .left-content {
+            position: relative;
+            z-index: 2;
+            max-width: 460px;
+            color: white;
+          }
+
+          .left-card {
+            padding: 26px;
+            border-radius: 24px;
+            background: rgba(0, 21, 41, 0.48);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+          }
+
+          .login-right {
+            flex: 0.9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            position: relative;
+          }
+
+          .login-card {
+            width: 410px;
+            border-radius: 28px !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(255,255,255,0.75) !important;
+            box-shadow: 0 24px 70px rgba(123, 47, 247, 0.18), 0 10px 30px rgba(241, 7, 163, 0.12) !important;
+            backdrop-filter: blur(12px);
+          }
+
+          .login-logo-wrap {
+            width: 92px;
+            height: 92px;
+            border-radius: 24px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(123,47,247,0.10), rgba(241,7,163,0.10), rgba(255,215,64,0.20));
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+          }
+
+          .login-logo {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+          }
+
+          .switch-box {
+            display: flex;
+            background: #f4f0ff;
+            border-radius: 16px;
+            padding: 5px;
+            margin: 18px 0 26px;
+          }
+
+          .switch-btn {
+            flex: 1;
+            border: none;
+            height: 40px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+          }
+
+          .switch-btn.active {
+            background: linear-gradient(135deg, #7b2ff7, #f107a3);
+            color: white;
+            box-shadow: 0 8px 18px rgba(123,47,247,0.25);
+          }
+
+          .switch-btn.inactive {
+            background: transparent;
+            color: #6a1b9a;
+          }
+
+          .login-input {
+            border-radius: 14px !important;
+            padding: 11px 14px !important;
+            border: 1px solid #ddd !important;
+            background: #ffffff !important;
+          }
+
+          .main-action-btn {
+            height: 48px;
+            border-radius: 15px !important;
+            border: none !important;
+            color: #fff !important;
+            font-weight: 800 !important;
+            background: linear-gradient(135deg, #7b2ff7, #f107a3, #ffd740) !important;
+            box-shadow: 0 12px 24px rgba(241, 7, 163, 0.23);
+          }
+
+          .main-action-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.95;
+          }
+
+          @media (max-width: 900px) {
+            .login-page {
+              display: block;
+            }
+
+            .login-left {
+              display: none;
+            }
+
+            .login-right {
+              min-height: 100vh;
+              padding: 22px;
+            }
+
+            .login-card {
+              width: 100%;
+              max-width: 420px;
+            }
+          }
+        `}
+      </style>
+
+      <div className="login-page">
+        <div className="login-left">
+          <div className="left-content">
+            <div className="left-card">
               <Title
-                level={3}
+                level={2}
                 style={{
-                  color: "#6a1b9a",
-                  fontWeight: 800,
-                  marginTop: 5,
-                  marginBottom: 5,
+                  color: "#fff",
+                  marginBottom: 8,
+                  fontWeight: 900,
                 }}
+              >
+                WinWay Analytics
+              </Title>
+
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.88)",
+                  fontSize: 15,
+                  lineHeight: 1.7,
+                }}
+              >
+                Manage customer insights, loyalty performance, reports, and
+                communication tools from one secure dashboard.
+              </Text>
+            </div>
+          </div>
+        </div>
+
+        <div className="login-right">
+          <Card className="login-card" hoverable>
+            <div className="login-logo-wrap">
+              <img src={winwayLogo} alt="WinWay Logo" className="login-logo" />
+            </div>
+
+            <Title
+              level={3}
+              style={{
+                textAlign: "center",
+                color: "#32104f",
+                fontWeight: 900,
+                marginBottom: 4,
+              }}
+            >
+              Welcome Back
+            </Title>
+
+            <Text
+              style={{
+                display: "block",
+                textAlign: "center",
+                color: "#777",
+                marginBottom: 6,
+              }}
+            ></Text>
+
+            <Form layout="vertical" onFinish={handleLogin}>
+              <Form.Item
+                name="email"
+                label={<span style={{ color: "#333" }}>Email</span>}
+                rules={[
+                  {
+                    required: true,
+                    message: "Please enter your email.",
+                  },
+                  {
+                    type: "email",
+                    message: "Please enter a valid email.",
+                  },
+                ]}
+              >
+                <Input
+                  prefix={<MailOutlined style={{ color: "#7b2ff7" }} />}
+                  placeholder="you@example.com"
+                  size="large"
+                  className="login-input"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="password"
+                label={<span style={{ color: "#333" }}>Password</span>}
+                rules={[
+                  {
+                    required: true,
+                    message: "Please enter your password.",
+                  },
+                ]}
+              >
+                <Input.Password
+                  prefix={<LockOutlined style={{ color: "#7b2ff7" }} />}
+                  placeholder="Enter your password"
+                  size="large"
+                  className="login-input"
+                />
+              </Form.Item>
+
+              <Button
+                htmlType="submit"
+                loading={loading}
+                block
+                size="large"
+                className="main-action-btn"
+                icon={<ArrowRightOutlined />}
+                iconPosition="end"
               >
                 Sign In
-              </Title>
+              </Button>
+            </Form>
 
-              <Form
-                layout="vertical"
-                onFinish={handleLogin}
-                style={{ marginTop: 30, textAlign: "left" }}
-              >
-                <Form.Item
-                  name="email"
-                  label={<span style={{ color: "#333" }}>Email</span>}
-                  rules={[{ required: true, type: "email" }]}
-                >
-                  <Input
-                    placeholder="you@example.com"
-                    size="large"
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid #ccc",
-                      padding: "10px 14px",
-                    }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  name="password"
-                  label={<span style={{ color: "#333" }}>Password</span>}
-                  rules={[{ required: true }]}
-                >
-                  <Input.Password
-                    placeholder="••••••••"
-                    size="large"
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid #ccc",
-                      padding: "10px 14px",
-                    }}
-                  />
-                </Form.Item>
-
-                <Button
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  size="large"
-                  style={{
-                    background:
-                      "linear-gradient(135deg,#7b2ff7,#f107a3,#ffd740)",
-                    border: "none",
-                    color: "#fff",
-                    fontWeight: 600,
-                    borderRadius: 12,
-                    marginTop: 10,
-                  }}
-                >
-                  Login
-                </Button>
-              </Form>
-
-              <div style={{ textAlign: "center", marginTop: 20 }}>
-                <Text>Don’t have an account? </Text>
-                <a
-                  href="#"
-                  onClick={() => setIsLogging(false)}
-                  style={{
-                    color: "#7b2ff7",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                  }}
-                >
-                  Register Now
-                </a>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* REGISTER FORM */}
-              <Title
-                level={3}
-                style={{
-                  color: "#6a1b9a",
-                  fontWeight: 800,
-                  marginTop: 5,
-                  marginBottom: 5,
-                }}
-              >
-                Register
-              </Title>
-
-              <Form layout="vertical" onFinish={handleRegister}>
-                <Form.Item
-                  name="name"
-                  label={<span style={{ color: "#333" }}>Full Name</span>}
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="John Doe" size="large" />
-                </Form.Item>
-
-                <Form.Item
-                  name="email"
-                  label={<span style={{ color: "#333" }}>Email</span>}
-                  rules={[{ required: true, type: "email" }]}
-                >
-                  <Input placeholder="you@example.com" size="large" />
-                </Form.Item>
-
-                <Form.Item
-                  name="password"
-                  label={<span style={{ color: "#333" }}>Password</span>}
-                  rules={[{ required: true, min: 6 }]}
-                >
-                  <Input.Password placeholder="••••••••" size="large" />
-                </Form.Item>
-
-                <Button
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  size="large"
-                  style={{
-                    background: "linear-gradient(135deg,#f107a3,#ffd740)",
-                    border: "none",
-                    color: "#fff",
-                    fontWeight: 600,
-                    borderRadius: 12,
-                    boxShadow: "0 4px 12px rgba(241,7,163,0.25)",
-                    marginTop: 10,
-                  }}
-                >
-                  Register
-                </Button>
-              </Form>
-
-              <div style={{ textAlign: "center", marginTop: 20 }}>
-                <Text>Already have an account? </Text>
-                <a
-                  href="#"
-                  onClick={() => setIsLogging(true)}
-                  style={{
-                    color: "#f107a3",
-                    fontWeight: 600,
-                  }}
-                >
-                  Login
-                </a>
-              </div>
-            </>
-          )}
-
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 30,
-              fontSize: 12,
-              color: "#999",
-            }}
-          >
-            © {new Date().getFullYear()} WinWay. All rights reserved.
-          </div>
-        </Card>
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 24,
+                fontSize: 12,
+                color: "#999",
+              }}
+            >
+              © {new Date().getFullYear()} WinWay. All rights reserved.
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -55,7 +55,7 @@ const { Search } = Input;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://localhost:8000";
 
 function FileManager() {
   const [files, setFiles] = useState([]);

@@ -29,7 +29,7 @@ const { Step } = Steps;
 const { Option } = Select;
 
 /* ================= CONFIG ================= */
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://localhost:8000";
 const API_SMS = "http://localhost:8001";
 
 /* 🔁 SWITCH MODE HERE */
@@ -44,8 +44,8 @@ function CustomSMS() {
 
   /* Login */
   const [login, setLogin] = useState({
-    username: "chamika@winway.lk",
-    password: "iq_!85PB",
+    username: "",
+    password: "",
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 

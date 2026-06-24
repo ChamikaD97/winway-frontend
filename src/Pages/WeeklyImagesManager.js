@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Table,
@@ -31,8 +32,10 @@ import {
 import axios from "axios";
 import { saveAs } from "file-saver";
 
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
+
 const { Title, Text } = Typography;
-const API_BASE = "http://localhost:8001";
 
 function WeeklyImagesManager() {
   const [files, setFiles] = useState([]);
@@ -40,11 +43,12 @@ function WeeklyImagesManager() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
-  // ADD THESE STATES
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+
   const fetchFiles = async () => {
     setLoading(true);
+
     try {
       const res = await axios.get(`${API_BASE}/weekly-images`);
       setFiles(res.data?.files || []);
@@ -62,7 +66,8 @@ function WeeklyImagesManager() {
   // ---------------- METRICS ----------------
   const totalSizeKB = useMemo(() => {
     if (!files.length) return 0;
-    return (files.reduce((sum, f) => sum + f.size_bytes, 0) / 1024).toFixed(2);
+
+    return (files.reduce((sum, file) => sum + file.size_bytes, 0) / 1024).toFixed(2);
   }, [files]);
 
   // ---------------- FILE ICON ----------------
@@ -74,11 +79,14 @@ function WeeklyImagesManager() {
       case ".gif":
       case ".webp":
         return <FileImageOutlined style={{ color: "#faad14" }} />;
+
       case ".csv":
       case ".xlsx":
         return <FileExcelOutlined style={{ color: "#52c41a" }} />;
+
       case ".zip":
         return <FileZipOutlined style={{ color: "#722ed1" }} />;
+
       default:
         return <FileTextOutlined style={{ color: "#8c8c8c" }} />;
     }
@@ -87,12 +95,13 @@ function WeeklyImagesManager() {
   const isImage = (ext) =>
     [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext);
 
-  // ---------------- DELETE ----------------
+  // ---------------- DELETE SINGLE FILE ----------------
   const deleteFile = async (filename) => {
     try {
       await axios.delete(
-        `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`,
+        `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`
       );
+
       message.success("File deleted successfully");
       fetchFiles();
     } catch {
@@ -100,7 +109,7 @@ function WeeklyImagesManager() {
     }
   };
 
-  // ---------------- DOWNLOAD ZIP ----------------
+  // ---------------- DOWNLOAD SELECTED AS ZIP ----------------
   const downloadZip = async () => {
     if (!selectedRowKeys.length) {
       message.warning("No files selected");
@@ -111,7 +120,7 @@ function WeeklyImagesManager() {
       const res = await axios.post(
         `${API_BASE}/weekly-images/download-zip`,
         { files: selectedRowKeys },
-        { responseType: "blob" },
+        { responseType: "blob" }
       );
 
       saveAs(res.data, `weekly_files_${Date.now()}.zip`);
@@ -120,6 +129,7 @@ function WeeklyImagesManager() {
       message.error("ZIP download failed");
     }
   };
+
   // ---------------- DELETE SELECTED ----------------
   const deleteSelected = async () => {
     if (!selectedRowKeys.length) {
@@ -132,7 +142,7 @@ function WeeklyImagesManager() {
 
       for (const filename of selectedRowKeys) {
         await axios.delete(
-          `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`,
+          `${API_BASE}/weekly-images/${encodeURIComponent(filename)}`
         );
       }
 
@@ -146,16 +156,36 @@ function WeeklyImagesManager() {
       setLoading(false);
     }
   };
+
+  // ---------------- EMAIL ALL WEEKLY FILES ----------------
+  const emailAllWeeklyFiles = async () => {
+    try {
+      setSendingEmail(true);
+
+      await axios.post(`${API_BASE}/email/all-weekly-files`);
+
+      message.success(
+        "📧 Weekly files sent successfully to chamikadeshan97@gmail.com"
+      );
+
+      setEmailModalOpen(false);
+    } catch {
+      message.error("Failed to send weekly files");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   // ---------------- TABLE ----------------
   const columns = [
     {
       title: "Preview",
       width: 120,
       align: "center",
-      render: (record) =>
+      render: (_, record) =>
         isImage(record.extension) ? (
           <img
-            src={`${API_BASE}/weekly-images/view/${record.name}`}
+            src={`${API_BASE}/weekly-images/view/${encodeURIComponent(record.name)}`}
             alt={record.name}
             style={{
               width: 80,
@@ -166,7 +196,9 @@ function WeeklyImagesManager() {
               border: "1px solid #f0f0f0",
             }}
             onClick={() => {
-              setPreviewImage(`${API_BASE}/weekly-images/view/${record.name}`);
+              setPreviewImage(
+                `${API_BASE}/weekly-images/view/${encodeURIComponent(record.name)}`
+              );
               setPreviewOpen(true);
             }}
           />
@@ -183,6 +215,7 @@ function WeeklyImagesManager() {
             {getFileIcon(record.extension)}
             <Text strong>{name}</Text>
           </Space>
+
           <div style={{ fontSize: 12, color: "#999" }}>
             {record.modified
               ? `Modified: ${new Date(record.modified).toLocaleDateString()}`
@@ -194,14 +227,14 @@ function WeeklyImagesManager() {
     {
       title: "Size",
       align: "center",
-      render: (record) => (
+      render: (_, record) => (
         <Tag color="blue">{(record.size_bytes / 1024).toFixed(2)} KB</Tag>
       ),
     },
     {
       title: "Actions",
       align: "center",
-      render: (record) => (
+      render: (_, record) => (
         <Space>
           {isImage(record.extension) && (
             <Tooltip title="Preview">
@@ -210,7 +243,7 @@ function WeeklyImagesManager() {
                 icon={<EyeOutlined />}
                 onClick={() => {
                   setPreviewImage(
-                    `${API_BASE}/weekly-images/view/${record.name}`,
+                    `${API_BASE}/weekly-images/view/${encodeURIComponent(record.name)}`
                   );
                   setPreviewOpen(true);
                 }}
@@ -223,7 +256,7 @@ function WeeklyImagesManager() {
               type="text"
               icon={<DownloadOutlined />}
               href={`${API_BASE}/weekly-images/download/${encodeURIComponent(
-                record.name,
+                record.name
               )}`}
             />
           </Tooltip>
@@ -231,6 +264,8 @@ function WeeklyImagesManager() {
           <Popconfirm
             title="Delete this file?"
             onConfirm={() => deleteFile(record.name)}
+            okText="Yes"
+            cancelText="No"
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -287,27 +322,7 @@ function WeeklyImagesManager() {
         >
           Refresh
         </Button>
-        {/* <Button
-          style={{
-            marginLeft: 10,
-            background: "#722ed1",
-            borderColor: "#722ed1",
-          }}
-          type="primary"
-          onClick={async () => {
-            try {
-              await axios.post("http://localhost:8001/email/all-weekly-files");
-              message.success(
-                "📧 Weekly files sent to chamikadeshan97@gmail.com",
-              );
-            } catch {
-              message.error("Failed to send weekly files");
-            }
-          }}
-        >
-          Email All Weekly Files
-        </Button> */}
-        
+
         <Button
           style={{
             marginLeft: 10,
@@ -329,6 +344,7 @@ function WeeklyImagesManager() {
         >
           Download ZIP
         </Button>
+
         <Popconfirm
           title={`Delete ${selectedRowKeys.length} selected file(s)?`}
           onConfirm={deleteSelected}
@@ -426,25 +442,7 @@ function WeeklyImagesManager() {
                 background: "#722ed1",
                 borderColor: "#722ed1",
               }}
-              onClick={async () => {
-                try {
-                  setSendingEmail(true);
-
-                  await axios.post(
-                    "http://localhost:8001/email/all-weekly-files",
-                  );
-
-                  message.success(
-                    "📧 Weekly files sent successfully to chamikadeshan97@gmail.com",
-                  );
-
-                  setEmailModalOpen(false);
-                } catch {
-                  message.error("Failed to send weekly files");
-                } finally {
-                  setSendingEmail(false);
-                }
-              }}
+              onClick={emailAllWeeklyFiles}
             >
               Confirm & Send
             </Button>

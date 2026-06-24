@@ -56,14 +56,18 @@ import {
   getCombinedCustomers,
   getMonthlyUpgrades,
   getSettings,
+  removeCustomer,
+  formatMobileNumber,
 } from "../api/endPoints";
 import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
 import EvaluationHistoryModal from "../componets/EvaluationHistoryModal";
+import { ENV } from "../config/env";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
 
-const API_BASE = "http://localhost:8001";
+
+const API_BASE = ENV.API_BASE_LOCAL;
 
 function LoyaltyCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -121,6 +125,7 @@ function LoyaltyCustomers() {
     Warning: "#FFA500", // Bright amber-orange for visibility
     Removed: "#E63946", // Clear red for danger state
     Rejected: "#6b7280", // Gray for removed customers
+    "Removed Done": "#8f0000", // Gray for removed customers
   };
   const tierColorsFade = {
     Platinum: "rgba(155, 93, 229, 0.2)", // Elegant purple tone (modern premium look)
@@ -130,6 +135,7 @@ function LoyaltyCustomers() {
     Warning: "rgba(255, 165, 0, 0.2)", // Bright amber-orange for visibility
     Removed: "rgba(230, 57, 70, 0.2)", // Clear red for danger state
     Rejected: "rgba(107, 114, 128, 0.2)", // Gray for removed customers
+    "Removed Done": "rgba(242, 8, 8, 0.2)", // Gray for removed customers
   };
 
   const tierIcons = {
@@ -139,6 +145,7 @@ function LoyaltyCustomers() {
     Blue: <RiseOutlined />,
     Warning: <WarningOutlined />,
     Rejected: <DragOutlined />,
+    Removed_Done: <DragOutlined />,
   };
   const openCustomerModal = (mobile) => {
     const history = raw
@@ -167,7 +174,9 @@ function LoyaltyCustomers() {
       } else {
         formData.append(
           "to",
-          customer.CustomerInfo.Email ? customer.CustomerInfo.Email : "",
+          customer.CustomerInfo.Email
+            ? customer.CustomerInfo.Email
+            : "chamikadeshan97@gmail.com",
         );
         if (i <= 5 && customer.CustomerInfo.Email) {
           formData.append("cc", "info@winway.lk");
@@ -209,6 +218,73 @@ function LoyaltyCustomers() {
       return { status: "failed" };
     } finally {
       setSingleEmailModelVisible(false);
+    }
+  };
+
+  const handleSendRemovalDoneEmails = async () => {
+    setSendingMailAll(true);
+    setLogModalVisible(true);
+    setLogList([]);
+    setProgress(0);
+    pausedRef.current = false;
+    stoppedRef.current = false;
+    const removedDoneCustomers = filtered.filter(
+      (c) => c.CustomerInfo.Current_Loyalty_Tier === "Removed Done",
+    );
+
+    const total = IS_TEST_MODE ? 10 : removedDoneCustomers.length;
+    let sentCount = 0;
+    for (let i = 0; i < 8; i++) {
+      const customer = removedDoneCustomers[i];
+      if (stoppedRef.current) break;
+      // Pause behaviour
+      while (pausedRef.current && !stoppedRef.current) {
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      setLogList((prev) => [
+        ...prev,
+        {
+          name: `${customer.CustomerInfo?.FirstName} ${customer.CustomerInfo?.LastName}`,
+          email: customer.CustomerInfo?.Email,
+          status: "sending",
+        },
+      ]);
+      // Actual send      console.log(i);
+      const result = await sendLoyaltyEmail(customer, "Removed Done", i);
+      sentCount++;
+      setProgress(Math.round((sentCount / total) * 100));
+      // Update log
+      setLogList((prev) =>
+        prev.map((l) =>
+          l.email === customer.CustomerInfo?.Email
+            ? { ...l, status: result.status }
+            : l,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 500)); // Rate limit
+    }
+    setSendingMailAll(false);
+  };
+
+  const handleDeleteAllCustomers = async () => {
+    try {
+      setLoading(true);
+      const removedDoneCustomers = filtered.filter(
+        (c) => c.CustomerInfo.Current_Loyalty_Tier === "Removed Done",
+      );
+
+      for (const customer of removedDoneCustomers) {
+        await removeCustomer(customer.MobileNumber);
+      }
+
+      message.success("All customers removed successfully");
+      fetchCustomers();
+    } catch (error) {
+      console.error(error);
+      message.error("Failed to remove customers");
+    } finally {
+      refresh();
+      setLoading(false);
     }
   };
   const [groupedUpgrades, setGroupedUpgrades] = useState({});
@@ -424,22 +500,46 @@ function LoyaltyCustomers() {
     }
   };
   const [evaluationSummary, setEvaluationSummary] = useState([]);
-
+const getToken = () => {
+  return localStorage.getItem("token");
+};
   const fetchSummery = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(
-        `${API_BASE}/loyalCustomer/monthly-upgrade-summery`,
-      );
+  setLoading(true);
 
-      setEvaluationSummary(res.data || []);
-    } catch (e) {
-      console.error(e);
-      message.error("Failed to load loyalty history");
-    } finally {
-      setLoading(false);
+  try {
+    const token = getToken(); 
+
+    if (!token) {
+      message.error("Please login again");
+      return;
     }
-  };
+
+    const res = await axios.get(
+      `${API_BASE}/loyalCustomer/monthly-upgrade-summery`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setEvaluationSummary(res.data || []);
+  } catch (e) {
+    console.error("❌ Failed to load loyalty history:", e);
+
+    if (e.response?.status === 401) {
+      message.error("Session expired. Please login again.");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return;
+    }
+
+    message.error("Failed to load loyalty history");
+  } finally {
+    setLoading(false);
+  }
+};
+
   const formatEvaluationName = (value) => {
     if (!value) return "-";
     if (value === "First Evaluation") return "First Evaluation";
@@ -869,7 +969,7 @@ function LoyaltyCustomers() {
         <Divider />
 
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} md={4}>
             <Card
               hoverable
               style={{
@@ -895,7 +995,7 @@ function LoyaltyCustomers() {
                   <Text
                     style={{ fontSize: 14, color: "#1976d2", fontWeight: 600 }}
                   >
-                    Total Customers
+                    Loyalty Customers
                   </Text>
                 }
                 value={summary.totalCustomers}
@@ -917,7 +1017,7 @@ function LoyaltyCustomers() {
             const isActive = selectedTier === tier;
 
             return (
-              <Col xs={24} sm={12} md={3} key={tier}>
+              <Col xs={24} sm={12} md={4} key={tier}>
                 <Tooltip title={`Filter by ${tier}`}>
                   <Card
                     hoverable
@@ -1299,7 +1399,44 @@ function LoyaltyCustomers() {
               </Button>
             </Col>
           )}
+
+          {selectedTier === "Removed Done" && (
+            <Col>
+              <Button
+                loading={sendingMailAll}
+                icon={<MailOutlined />}
+                type="primary"
+                style={{
+                  marginLeft: 10,
+                  background: "#7b2ff7",
+                  borderColor: "#7b2ff7",
+                }}
+                onClick={() => handleSendRemovalDoneEmails()}
+              >
+                Send Removal Done Emails
+              </Button>
+            </Col>
+          )}
+
+          {selectedTier === "Removed Done" && (
+            <Col>
+              <Button
+                loading={sendingMailAll}
+                icon={<MailOutlined />}
+                type="primary"
+                style={{
+                  marginLeft: 10,
+                  background: "#7b2ff7",
+                  borderColor: "#7b2ff7",
+                }}
+                onClick={() => handleDeleteAllCustomers()}
+              >
+                Delete All Customers
+              </Button>
+            </Col>
+          )}
         </Row>
+
         <Divider />
         <Table
           columns={columns}

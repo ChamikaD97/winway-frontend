@@ -60,11 +60,15 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import CustomerModel from "../componets/CustomerModel";
 import dayjs from "dayjs";
-import { getCombinedCustomers, getSettings } from "../api/endPoints";
+import {
+  getCombinedCustomers,
+  getSettings,
+  formatMobileNumber,
+} from "../api/endPoints";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://localhost:8000";
 const API_BASE_Local = "http://localhost:8001";
 
 function MonthlyUpgrade() {
@@ -325,6 +329,8 @@ function MonthlyUpgrade() {
 
   const sendLoyaltyWelcomeEmail = async (customer, i) => {
     try {
+      const respo = await formatMobileNumber();
+      console.log("Formatted mobile number response:", respo);
       const formData = new FormData();
 
       // formData.append(
@@ -440,7 +446,7 @@ function MonthlyUpgrade() {
       message.warning("No processed data available to save!");
       return;
     }
-
+    const respo = await formatMobileNumber();
     try {
       console.log(summary);
 
@@ -718,6 +724,7 @@ function MonthlyUpgrade() {
   }, []);
 
   const handleSubmit1 = async () => {
+    const respo = await formatMobileNumber();
     if (!files.zip_file || !files.customers_file) {
       message.warning("⚠️ Please upload both ZIP and Customer CSV files!");
       return;
@@ -1105,7 +1112,7 @@ function MonthlyUpgrade() {
         Last_Update_Summery: Last_Update,
         New_Customers: summary2.loyal_customers,
         Last_Update: "Entry",
-        current_count:496,
+        current_count: 496,
       });
 
       if (res.data.success) {

@@ -54,8 +54,11 @@ import {
 } from "recharts";
 import { Switch } from "antd";
 
+import { ENV } from "../config/env";
+const API_BASE = ENV.API_BASE_LOCAL;
+
 const { Text } = Typography;
-const API_BASE = "http://localhost:8001";
+
 
 function ResultsView({ results, lotteryPrizes }) {
   const [customerPage, setCustomerPage] = useState(1);
@@ -234,7 +237,7 @@ const handleDownloadNoEmailList = async () => {
   }.csv`;
 
   try {
-    await axios.post("http://127.0.0.1:8001/weekly-files/save-no-email-csv", {
+    await axios.post("http://localhost:8001/weekly-files/save-no-email-csv", {
       fileName,
       content: csvContent,
     });
