@@ -39,10 +39,11 @@ function App() {
   // Check auth when app loads
   useEffect(() => {
     const token = localStorage.getItem("token");
-
+    console.log(token);
     if (token) {
       setIsAuthenticated(true);
     } else {
+      navigate("/login");
       setIsAuthenticated(false);
     }
   }, []);

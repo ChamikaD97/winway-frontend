@@ -26,10 +26,7 @@ import {
   GiftOutlined,
 } from "@ant-design/icons";
 
-import {
-  getCombinedCustomers,
-  getMonthlyUpgrades,
-} from "../api/endPoints";
+import { getCombinedCustomers, getMonthlyUpgrades } from "../api/endPoints";
 
 const { Title, Text } = Typography;
 
@@ -119,8 +116,8 @@ function DashboardPage() {
 
       setStats(summary);
     } catch (err) {
-      console.error(err);
-      message.error("Failed to load loyalty dashboard");
+     message.error("Failed to load loyalty dashboard");
+      
     } finally {
       setLoading(false);
     }
@@ -129,7 +126,10 @@ function DashboardPage() {
   const retentionRate =
     stats.totalCustomers > 0
       ? Number(
-          (((stats.totalCustomers - stats.removed) / stats.totalCustomers) * 100).toFixed(1)
+          (
+            ((stats.totalCustomers - stats.removed) / stats.totalCustomers) *
+            100
+          ).toFixed(1),
         )
       : 0;
 
@@ -148,9 +148,9 @@ function DashboardPage() {
                   stats.removed) /
                   stats.totalCustomers) *
                 100
-              ).toFixed(0)
-            )
-          )
+              ).toFixed(0),
+            ),
+          ),
         )
       : 0;
 
@@ -182,7 +182,7 @@ function DashboardPage() {
       .sort(
         (a, b) =>
           Number(b.CustomerInfo?.Current_Ticket_Count || 0) -
-          Number(a.CustomerInfo?.Current_Ticket_Count || 0)
+          Number(a.CustomerInfo?.Current_Ticket_Count || 0),
       )
       .slice(0, 10);
   }, [customers]);
@@ -191,7 +191,7 @@ function DashboardPage() {
     return customers.filter(
       (c) =>
         c.CustomerInfo?.Current_Loyalty_Tier === "Warning" ||
-        c.CustomerInfo?.Evaluation_Status === "Down"
+        c.CustomerInfo?.Evaluation_Status === "Down",
     );
   }, [customers]);
 
@@ -236,18 +236,14 @@ function DashboardPage() {
     {
       title: "Mobile",
       dataIndex: "MobileNumber",
-      render: (value) => value?.startsWith("+") ? value.substring(1) : value,
+      render: (value) => (value?.startsWith("+") ? value.substring(1) : value),
     },
     {
       title: "Tier",
       render: (_, record) => {
         const tier = record.CustomerInfo?.Current_Loyalty_Tier || "-";
 
-        return (
-          <Tag color={tierColors[tier] || "default"}>
-            {tier}
-          </Tag>
-        );
+        return <Tag color={tierColors[tier] || "default"}>{tier}</Tag>;
       },
     },
     {
@@ -268,7 +264,8 @@ function DashboardPage() {
       title: "Platinum",
       dataIndex: "Platinum",
       align: "center",
-    },      {
+    },
+    {
       title: "Gold",
       dataIndex: "Gold",
       align: "center",
@@ -279,7 +276,7 @@ function DashboardPage() {
       align: "center",
     },
 
-  {
+    {
       title: "Blue",
       dataIndex: "Blue",
       align: "center",
@@ -321,13 +318,18 @@ function DashboardPage() {
   return (
     <Spin spinning={loading} tip="Loading loyalty dashboard...">
       <div style={{ paddingBottom: 30 }}>
-        <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
+        <Row
+          justify="space-between"
+          align="middle"
+          style={{ marginBottom: 20 }}
+        >
           <Col>
             <Title level={2} style={{ marginBottom: 0 }}>
               Loyalty Dashboard
             </Title>
             <Text type="secondary">
-              Overview of loyalty members, tier movement, retention, and ticket contribution.
+              Overview of loyalty members, tier movement, retention, and ticket
+              contribution.
             </Text>
           </Col>
 
@@ -356,7 +358,7 @@ function DashboardPage() {
               color="#16a34a"
             />
           </Col>
-{localStorage.getItem("tempToken")}
+          {localStorage.getItem("tempToken")}
           <Col xs={24} sm={12} md={8} lg={4}>
             <KpiCard
               title="Upgrades"
@@ -403,16 +405,32 @@ function DashboardPage() {
             >
               <Row gutter={[16, 16]}>
                 <Col xs={12}>
-                  <Statistic title="Blue" value={stats.blue} valueStyle={{ color: "#1677ff" }} />
+                  <Statistic
+                    title="Blue"
+                    value={stats.blue}
+                    valueStyle={{ color: "#1677ff" }}
+                  />
                 </Col>
                 <Col xs={12}>
-                  <Statistic title="Silver" value={stats.silver} valueStyle={{ color: "#8c8c8c" }} />
+                  <Statistic
+                    title="Silver"
+                    value={stats.silver}
+                    valueStyle={{ color: "#8c8c8c" }}
+                  />
                 </Col>
                 <Col xs={12}>
-                  <Statistic title="Gold" value={stats.gold} valueStyle={{ color: "#d4b106" }} />
+                  <Statistic
+                    title="Gold"
+                    value={stats.gold}
+                    valueStyle={{ color: "#d4b106" }}
+                  />
                 </Col>
                 <Col xs={12}>
-                  <Statistic title="Platinum" value={stats.platinum} valueStyle={{ color: "#722ed1" }} />
+                  <Statistic
+                    title="Platinum"
+                    value={stats.platinum}
+                    valueStyle={{ color: "#722ed1" }}
+                  />
                 </Col>
               </Row>
 
@@ -421,10 +439,44 @@ function DashboardPage() {
               <Text strong>Visual Tier Share</Text>
 
               <div style={{ marginTop: 16 }}>
-                <Progress percent={stats.totalCustomers ? Math.round((stats.blue / stats.totalCustomers) * 100) : 0} strokeColor="#1677ff" format={() => `Blue ${stats.blue}`} />
-                <Progress percent={stats.totalCustomers ? Math.round((stats.silver / stats.totalCustomers) * 100) : 0} strokeColor="#8c8c8c" format={() => `Silver ${stats.silver}`} />
-                <Progress percent={stats.totalCustomers ? Math.round((stats.gold / stats.totalCustomers) * 100) : 0} strokeColor="#d4b106" format={() => `Gold ${stats.gold}`} />
-                <Progress percent={stats.totalCustomers ? Math.round((stats.platinum / stats.totalCustomers) * 100) : 0} strokeColor="#722ed1" format={() => `Platinum ${stats.platinum}`} />
+                <Progress
+                  percent={
+                    stats.totalCustomers
+                      ? Math.round((stats.blue / stats.totalCustomers) * 100)
+                      : 0
+                  }
+                  strokeColor="#1677ff"
+                  format={() => `Blue ${stats.blue}`}
+                />
+                <Progress
+                  percent={
+                    stats.totalCustomers
+                      ? Math.round((stats.silver / stats.totalCustomers) * 100)
+                      : 0
+                  }
+                  strokeColor="#8c8c8c"
+                  format={() => `Silver ${stats.silver}`}
+                />
+                <Progress
+                  percent={
+                    stats.totalCustomers
+                      ? Math.round((stats.gold / stats.totalCustomers) * 100)
+                      : 0
+                  }
+                  strokeColor="#d4b106"
+                  format={() => `Gold ${stats.gold}`}
+                />
+                <Progress
+                  percent={
+                    stats.totalCustomers
+                      ? Math.round(
+                          (stats.platinum / stats.totalCustomers) * 100,
+                        )
+                      : 0
+                  }
+                  strokeColor="#722ed1"
+                  format={() => `Platinum ${stats.platinum}`}
+                />
               </div>
             </Card>
           </Col>
@@ -441,8 +493,8 @@ function DashboardPage() {
                   healthScore >= 80
                     ? "success"
                     : healthScore >= 60
-                    ? "active"
-                    : "exception"
+                      ? "active"
+                      : "exception"
                 }
                 strokeWidth={12}
               />
@@ -492,19 +544,31 @@ function DashboardPage() {
                 />
 
                 <Progress
-                  percent={stats.blue ? Math.round((stats.silver / stats.blue) * 100) : 0}
+                  percent={
+                    stats.blue
+                      ? Math.round((stats.silver / stats.blue) * 100)
+                      : 0
+                  }
                   strokeColor="#8c8c8c"
                   format={() => `Silver Members (${stats.silver})`}
                 />
 
                 <Progress
-                  percent={stats.silver ? Math.round((stats.gold / stats.silver) * 100) : 0}
+                  percent={
+                    stats.silver
+                      ? Math.round((stats.gold / stats.silver) * 100)
+                      : 0
+                  }
                   strokeColor="#d4b106"
                   format={() => `Gold Members (${stats.gold})`}
                 />
 
                 <Progress
-                  percent={stats.gold ? Math.round((stats.platinum / stats.gold) * 100) : 0}
+                  percent={
+                    stats.gold
+                      ? Math.round((stats.platinum / stats.gold) * 100)
+                      : 0
+                  }
                   strokeColor="#722ed1"
                   format={() => `Platinum Members (${stats.platinum})`}
                 />
@@ -527,17 +591,23 @@ function DashboardPage() {
           </Col>
 
           <Col xs={24} lg={12}>
-            <Card title="Ticket Contribution by Tier" style={{ borderRadius: 16 }}>
+            <Card
+              title="Ticket Contribution by Tier"
+              style={{ borderRadius: 16 }}
+            >
               {Object.entries(tierTicketContribution).map(([tier, value]) => (
                 <div key={tier} style={{ marginBottom: 14 }}>
                   <Row justify="space-between">
                     <Col>
                       <Text strong>
-                        <CrownOutlined style={{ color: tierColors[tier] }} /> {tier}
+                        <CrownOutlined style={{ color: tierColors[tier] }} />{" "}
+                        {tier}
                       </Text>
                     </Col>
                     <Col>
-                      <Text strong>{Number(value).toLocaleString()} tickets</Text>
+                      <Text strong>
+                        {Number(value).toLocaleString()} tickets
+                      </Text>
                     </Col>
                   </Row>
 

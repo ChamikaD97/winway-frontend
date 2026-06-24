@@ -156,3 +156,22 @@ export const getCustomersByDateRange = async (file, startDate, endDate) => {
     throw error;
   }
 };
+
+
+export const uploadArchive = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return pyApi.post('/upload-dbf-archive', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const splitLottery = (data) => {
+  // data: { session_id, lottery_name, draw_number, assignments: [{agent_name, count}] }
+  return pyApi.post('/split', data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+export const downloadZip = (sessionId) =>
+  pyApi.get(`/download-zip/${sessionId}`, { responseType: 'blob' });

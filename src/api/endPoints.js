@@ -25,8 +25,6 @@ export const localApi = axios.create({
 localApi.interceptors.request.use(
   (config) => {
     const token = getToken();
-console.log(token);
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -110,4 +108,12 @@ export const formatMobileNumber = (mobileNumber) => {
   return localApi.post("/loyalCustomer/format-mobile", {
     mobileNumber,
   });
+};
+
+/* ------------------------------------------
+   Loyalty Monthly Upgrades History API
+------------------------------------------ */
+export const getMonthlyUpgradeSummary = async () => {
+  const res = await localApi.get("/loyalCustomer/monthly-upgrade-summery");
+  return res.data;
 };

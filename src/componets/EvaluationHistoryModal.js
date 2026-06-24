@@ -8,6 +8,7 @@ import {
   MinusOutlined,
 } from "@ant-design/icons";
 import { ENV } from "../config/env";
+import { getMonthlyUpgrades, getMonthlyUpgradeSummary } from "../api/endPoints";
 const API_BASE = ENV.API_BASE_LOCAL;
 
 const removeUnderscore = (text) => text?.replace(/_/g, " ");
@@ -27,9 +28,7 @@ const EvaluationHistoryModal = ({ open, onClose }) => {
     setLoading(true);
 
     try {
-      const res = await axios.get(
-        `${API_BASE}/loyalCustomer/monthly-upgrade-summery`
-      );
+   const res = await getMonthlyUpgradeSummary();
 
       const data = Array.isArray(res.data)
         ? res.data

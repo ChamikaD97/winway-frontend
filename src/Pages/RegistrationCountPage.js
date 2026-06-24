@@ -59,7 +59,7 @@ function RegistrationCountView() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [chartType, setChartType] = useState("line");
+  const [chartType, setChartType] = useState("bar");
   const [reportType, setReportType] = useState("daily");
 
   const summaryRef = useRef(null);
@@ -783,6 +783,12 @@ function RegistrationCountView() {
 
             <Tabs.TabPane tab="Charts" key="charts">
               <Space style={{ marginBottom: 20 }}>
+                 <Button
+                  type={chartType === "bar" ? "primary" : "default"}
+                  onClick={() => setChartType("bar")}
+                >
+                  Bar
+                </Button>
                 <Button
                   type={chartType === "line" ? "primary" : "default"}
                   onClick={() => setChartType("line")}
@@ -790,12 +796,7 @@ function RegistrationCountView() {
                   Line
                 </Button>
 
-                <Button
-                  type={chartType === "bar" ? "primary" : "default"}
-                  onClick={() => setChartType("bar")}
-                >
-                  Bar
-                </Button>
+               
               </Space>
 
               <div ref={summaryRef}>
@@ -873,7 +874,7 @@ function RegistrationCountView() {
 
                           <YAxis
                             tick={{ fontSize: 14, fill: "#000000" }}
-                            domain={[0, "dataMax + 300"]}
+                            domain={[0, "dataMax + 10"]}
                             label={{
                               value:
                                 reportType === "daily"

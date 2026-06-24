@@ -58,6 +58,7 @@ import {
   getSettings,
   removeCustomer,
   formatMobileNumber,
+  getMonthlyUpgradeSummary,
 } from "../api/endPoints";
 import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
 import EvaluationHistoryModal from "../componets/EvaluationHistoryModal";
@@ -65,7 +66,6 @@ import { ENV } from "../config/env";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
-
 
 const API_BASE = ENV.API_BASE_LOCAL;
 
@@ -470,7 +470,7 @@ function LoyaltyCustomers() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/loyalCustomer/monthly-upgrades`);
+      const res = await getMonthlyUpgrades();
       const uniqueMonthsArr = [
         ...new Set(res.data.data.map((r) => r.Last_Update)),
       ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
@@ -499,46 +499,38 @@ function LoyaltyCustomers() {
       setLoading(false);
     }
   };
+
   const [evaluationSummary, setEvaluationSummary] = useState([]);
-const getToken = () => {
-  return localStorage.getItem("token");
-};
+  const getToken = () => {
+    return localStorage.getItem("token");
+  };
   const fetchSummery = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const token = getToken(); 
+    try {
+      const token = getToken();
 
-    if (!token) {
-      message.error("Please login again");
-      return;
-    }
-
-    const res = await axios.get(
-      `${API_BASE}/loyalCustomer/monthly-upgrade-summery`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      if (!token) {
+        message.error("Please login again");
+        return;
       }
-    );
+      const res = await getMonthlyUpgradeSummary();
+      setEvaluationSummary(res.data || []);
+    } catch (e) {
+      console.error("❌ Failed to load loyalty history:", e);
 
-    setEvaluationSummary(res.data || []);
-  } catch (e) {
-    console.error("❌ Failed to load loyalty history:", e);
+      if (e.response?.status === 401) {
+        message.error("Session expired. Please login again.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        return;
+      }
 
-    if (e.response?.status === 401) {
-      message.error("Session expired. Please login again.");
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      return;
+      message.error("Failed to load loyalty history");
+    } finally {
+      setLoading(false);
     }
-
-    message.error("Failed to load loyalty history");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const formatEvaluationName = (value) => {
     if (!value) return "-";

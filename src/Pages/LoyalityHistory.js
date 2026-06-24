@@ -45,7 +45,6 @@ const { Search } = Input;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-
 import { ENV } from "../config/env";
 const API_BASE = ENV.API_BASE_LOCAL;
 
@@ -215,37 +214,37 @@ function LoyaltyHistory() {
 
   const fetchHistory = async () => {
     setLoading(true);
+
     try {
-      const res = await axios.get(
-        `${API_BASE}/api/loyalCustomer/monthly-upgrades`
-      );
-      const uniqueMonthsArr = [
-        ...new Set(res.data.data.map((r) => r.Last_Update)),
-      ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
-      console.log("Unique Last_Update months:", uniqueMonthsArr);
+      const data = await getMonthlyUpgrades();
 
-      setUniqueMonths(uniqueMonthsArr);
+      if (data?.success && Array.isArray(data.data)) {
+        const uniqueMonthsArr = [
+          ...new Set(data.data.map((r) => r.Last_Update).filter(Boolean)),
+        ].sort((a, b) => monthStrToDate(a) - monthStrToDate(b));
 
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        const rows = res.data.data.slice().sort((a, b) => {
+        console.log("Unique Last_Update months:", uniqueMonthsArr);
+        setUniqueMonths(uniqueMonthsArr);
+
+        const rows = data.data.slice().sort((a, b) => {
           const d =
             monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update);
+
           if (d !== 0) return d;
+
           return (a.MobileNumber || "").localeCompare(b.MobileNumber || "");
         });
 
         setRaw(rows);
 
-        // 🔽 GROUP + FORMAT
         const formattedHistory = groupMonthlyHistoryByMobile(rows);
-
-        // ✅ SAVE TO STATE
         setGroupedHistory(formattedHistory);
 
         message.success("Loyalty history loaded");
       } else {
         setRaw([]);
         setGroupedHistory([]);
+        setUniqueMonths([]);
         message.warning("No data found");
       }
     } catch (e) {
@@ -306,10 +305,10 @@ function LoyaltyHistory() {
             tier === "Platinum"
               ? "purple"
               : tier === "Gold"
-              ? "gold"
-              : tier === "Silver"
-              ? "blue"
-              : "default"
+                ? "gold"
+                : tier === "Silver"
+                  ? "blue"
+                  : "default"
           }
         >
           {tier}
@@ -356,7 +355,7 @@ function LoyaltyHistory() {
         (r) =>
           (r.MobileNumber || "").toLowerCase().includes(q) ||
           (r.Month_Tier || "").toLowerCase().includes(q) ||
-          (r.Last_Update || "").toLowerCase().includes(q)
+          (r.Last_Update || "").toLowerCase().includes(q),
       );
     }
     return rows;
@@ -368,7 +367,7 @@ function LoyaltyHistory() {
       totalRecords: filteredRows.length,
       totalTickets: filteredRows.reduce(
         (acc, r) => acc + numeric(r.Monthly_Ticket_Count),
-        0
+        0,
       ),
       tierCounts: {},
     };
@@ -392,12 +391,12 @@ function LoyaltyHistory() {
     const out = [];
     m.forEach((arr, mobile) => {
       arr.sort(
-        (a, b) => monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update)
+        (a, b) => monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update),
       );
       const latest = arr[arr.length - 1];
       const sumTickets = arr.reduce(
         (acc, r) => acc + numeric(r.Monthly_Ticket_Count),
-        0
+        0,
       );
       out.push({
         MobileNumber: mobile,
@@ -410,7 +409,7 @@ function LoyaltyHistory() {
     });
     // sort by latest month desc by default
     out.sort(
-      (a, b) => monthStrToDate(b.Latest_Month) - monthStrToDate(a.Latest_Month)
+      (a, b) => monthStrToDate(b.Latest_Month) - monthStrToDate(a.Latest_Month),
     );
     return out;
   }, [filteredRows]);
@@ -427,13 +426,13 @@ function LoyaltyHistory() {
 
   const deleteAll = async () => {
     const ok = window.confirm(
-      "Delete all monthly-upgrade rows? This cannot be undone."
+      "Delete all monthly-upgrade rows? This cannot be undone.",
     );
     if (!ok) return;
     try {
       setLoading(true);
       await axios.delete(
-        `${API_BASE}/api/monthly-upgrade/delete-all?confirm=true`
+        `${API_BASE}/api/monthly-upgrade/delete-all?confirm=true`,
       );
       setRaw([]);
       message.success("All records deleted");
@@ -449,7 +448,7 @@ function LoyaltyHistory() {
     const history = raw
       .filter((r) => r.MobileNumber === mobile)
       .sort(
-        (a, b) => monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update)
+        (a, b) => monthStrToDate(a.Last_Update) - monthStrToDate(b.Last_Update),
       );
     if (!history.length) {
       message.warning("No history for this customer.");
@@ -568,45 +567,48 @@ function LoyaltyHistory() {
 
         {/* Summary Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
-  {/* Loyalty Customers */}
-  <Col xs={24} sm={12} md={4}>
-    <Card>
-      <Statistic
-        title="Loyalty Customers"
-        value={groupedByCustomer.length || 0}
-        prefix={<TeamOutlined />}
-      />
-    </Card>
-  </Col>
+          {/* Loyalty Customers */}
+          <Col xs={24} sm={12} md={4}>
+            <Card>
+              <Statistic
+                title="Loyalty Customers"
+                value={groupedByCustomer.length || 0}
+                prefix={<TeamOutlined />}
+              />
+            </Card>
+          </Col>
 
-  {/* Evaluation Flow */}
-  <Col xs={24} sm={12} md={18}>
-    <Card>
-      {uniqueMonths && uniqueMonths.length ? (
-        <Space wrap size="small">
-          {uniqueMonths.map((month, index) => (
-            <React.Fragment key={month}>
-              <Tag
-                color={index === uniqueMonths.length - 1 ? "green" : "blue"}
-                style={{ fontSize: 13, padding: "4px 10px" }}
-              >
-                {month}
-              </Tag>
+          {/* Evaluation Flow */}
+          <Col xs={24} sm={12} md={18}>
+            <Card>
+              {uniqueMonths && uniqueMonths.length ? (
+                <Space wrap size="small">
+                  {uniqueMonths.map((month, index) => (
+                    <React.Fragment key={month}>
+                      <Tag
+                        color={
+                          index === uniqueMonths.length - 1 ? "green" : "blue"
+                        }
+                        style={{ fontSize: 13, padding: "4px 10px" }}
+                      >
+                        {month}
+                      </Tag>
 
-              {/* Arrow between tags */}
-              {index < uniqueMonths.length - 1 && (
-                <span style={{ color: "#999", fontWeight: "bold" }}>→</span>
+                      {/* Arrow between tags */}
+                      {index < uniqueMonths.length - 1 && (
+                        <span style={{ color: "#999", fontWeight: "bold" }}>
+                          →
+                        </span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </Space>
+              ) : (
+                <Text type="secondary">No evaluation history</Text>
               )}
-            </React.Fragment>
-          ))}
-        </Space>
-      ) : (
-        <Text type="secondary">No evaluation history</Text>
-      )}
-    </Card>
-  </Col>
-</Row>
-
+            </Card>
+          </Col>
+        </Row>
 
         {/* Tier Summary */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -649,7 +651,7 @@ function LoyaltyHistory() {
                   </Tooltip>
                 </Col>
               );
-            }
+            },
           )}
         </Row>
 

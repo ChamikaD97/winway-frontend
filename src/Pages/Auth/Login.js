@@ -36,16 +36,12 @@ const Login = () => {
 
       // ✅ First-time login: user must change sample password
       if (data.requiresPasswordChange) {
-        localStorage.setItem("token", data.token);
+        localStorage.setItem("tempToken", data.token);
         localStorage.setItem("name", data.name);
         localStorage.setItem("email", data.email);
         localStorage.setItem("role", data.role);
         localStorage.setItem("status", data.status);
 
-        messageApi.open({
-          type: "warning",
-          content: "Please change your temporary password before continuing.",
-        });
 
         navigate("/change-password", { replace: true });
         return;
@@ -71,7 +67,8 @@ const Login = () => {
         content: `Welcome ${data.name}`,
       });
 
-      console.log(localStorage);
+     
+      
       
       navigate("/dashboard");
     } catch (err) {
@@ -371,7 +368,7 @@ const Login = () => {
                 color: "#999",
               }}
             >
-              © {new Date().getFullYear()} WinWay. All rights reserved.
+             +++++++++++++++++++++++++++++++++
             </div>
           </Card>
         </div>
