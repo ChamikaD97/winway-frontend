@@ -38,10 +38,11 @@ import axios from "axios";
 import ResultsView from "./ResultsView";
 import logo from "../assets/logo.png";
 import { getSettings, saveSettingsGroup } from "../api/endPoints";
+import { ENV } from "../config/env";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
-const API_BASE = "http://localhost:8000";
+const API_BASE = ENV.API_BASE_LOCAL;
 
 function FileUploadForm() {
   // ---------------- STATE ----------------

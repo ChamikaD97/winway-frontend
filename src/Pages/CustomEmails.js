@@ -62,14 +62,16 @@ import {
   DollarCircleFilled,
   ReloadOutlined,
 } from "@ant-design/icons";
+import { ENV } from "../config/env";
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
-/* ================= CONFIG ================= */
-const API_BASE = "http://localhost:8000";
-const API_EMAIL = "http://localhost:8001";
+
+
+const API_BASE = ENV.REACT_APP_API_BASE_PY;
+const API_EMAIL = ENV.API_BASE_LOCAL;
 
 /* ================= HELPERS ================= */
 const normalizeKey = (key = "") =>

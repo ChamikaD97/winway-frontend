@@ -40,12 +40,16 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import CustomerModel from "../componets/CustomerModel";
+import { ENV } from "../config/env";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 const { Search } = Input;
-const API_BASE = "http://localhost:8000";
-const API_BASE_Local = "http://localhost:8001";
+
+
+
+const API_BASE = ENV.REACT_APP_API_BASE_PY;
+const API_BASE_Local = ENV.API_BASE_LOCAL;
 
 function LoyalityUpgrade() {
   // ---------------- STATE ----------------

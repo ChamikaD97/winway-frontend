@@ -23,14 +23,14 @@ import {
 } from "antd";
 import axios from "axios";
 import { UploadOutlined } from "@ant-design/icons";
-
+import { ENV } from "../config/env";
 const { Title, Text } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
 /* ================= CONFIG ================= */
-const API_BASE = "http://localhost:8000";
-const API_SMS = "http://localhost:8001";
+const API_BASE = ENV.REACT_APP_API_BASE_PY;
+const API_SMS = ENV.API_BASE_LOCAL;
 
 /* 🔁 SWITCH MODE HERE */
 

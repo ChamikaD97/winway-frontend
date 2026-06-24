@@ -51,11 +51,15 @@ import EmailModal from "../componets/EmailModel";
 import headerLogo from "../assets/logo.png";
 import footerLogo from "../assets/nlb_logo.png";
 import { getCombinedCustomers, getSettings } from "../api/endPoints";
+import { ENV } from "../config/env";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
 
-const API_BASE_LOCAL = "http://localhost:8001";
+
+
+const API_BASE = ENV.REACT_APP_API_BASE_PY;
+const API_BASE_LOCAL = ENV.API_BASE_LOCAL;
 
 function LoyaltyEmails() {
   const [customers, setCustomers] = useState([]);

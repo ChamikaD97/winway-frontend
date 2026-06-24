@@ -50,12 +50,12 @@ import {
 } from "@ant-design/icons";
 import axios from "axios";
 import { saveAs } from "file-saver";
-
+import { ENV } from "../config/env";
 const { Search } = Input;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = ENV.API_BASE_LOCAL;
 
 function FileManager() {
   const [files, setFiles] = useState([]);
