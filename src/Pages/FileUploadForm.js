@@ -42,7 +42,7 @@ import { ENV } from "../config/env";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
-const API_BASE = ENV.API_BASE_LOCAL;
+const API_BASE = ENV.REACT_APP_API_BASE_PY;
 
 function FileUploadForm() {
   // ---------------- STATE ----------------
