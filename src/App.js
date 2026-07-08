@@ -20,6 +20,7 @@ import FileManager from "./Pages/FileManager.js";
 import WeeklyImagesManager from "./Pages/WeeklyImagesManager.js";
 import RegistrationCountPage from "./Pages/RegistrationCountPage.js";
 import DailySalesSummery from "./Pages/DailySalesSummery.js";
+import DailyFullSummaryRecc from "./Pages/DailyFullSummaryRecc.js";
 import SmsWelcome from "./SMS/SmsWelcome.js";
 import ReconciliationSummary from "./Pages/DailyLastSoldTime.js";
 import DailyFullSummary from "./Pages/DailyFullSummary.js";
@@ -132,6 +133,7 @@ function App() {
               {activeTab === "9-2" && <DailySalesSummery />}
               {activeTab === "9-3" && <ReconciliationSummary />}
               {activeTab === "9-4" && <DailyFullSummary />}
+              {activeTab === "9-5" && <DailyFullSummaryRecc />}
 
               {activeTab === "11" && <SuperAdminUsersPage />}
             </DashboardLayout>

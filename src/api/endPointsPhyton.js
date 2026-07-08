@@ -94,7 +94,7 @@ export const getReconciliationSummary = async (zipFile) => {
     const formData = new FormData();
     formData.append("zip_file", zipFile);
 
-    const response = await pyApi.post("/reconciliation/summary", formData, {
+    const response = await pyApi.post("/reconciliation/winning-summary", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

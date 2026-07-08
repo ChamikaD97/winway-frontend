@@ -110,6 +110,9 @@ export const formatMobileNumber = (mobileNumber) => {
   });
 };
 
+export const normalizeNumbers = () => {
+  return localApi.put("/loyalCustomer/normalize-mobile-numbers");
+};
 /* ------------------------------------------
    Loyalty Monthly Upgrades History API
 ------------------------------------------ */

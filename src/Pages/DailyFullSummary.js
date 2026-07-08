@@ -131,7 +131,7 @@ function DailyFullSummary() {
         isTotal: false,
         lottery_name: r.lottery_name === "Jaya" ? "NLB Jaya" : r.lottery_name,
         draw_no: r.draw_no ?? "N/A",
-
+        draw_date: r.draw_date ?? "N/A",
         purchased_qty: purchasedQty,
         returned_qty: returnedQty,
         total_qty: orderQty,
@@ -238,13 +238,13 @@ function DailyFullSummary() {
       align: "center",
       render: (v, r) => (r.isTotal ? "" : v),
     },
-
     {
-      title: "Order Qty",
-      dataIndex: "total_qty",
-      align: "right",
-      render: (v) => formatNum(v),
+      title: "Draw Date",
+      dataIndex: "draw_date",
+      align: "center",
+      render: (v, r) => (r.isTotal ? "" : v),
     },
+   
     {
       title: "Sold",
       dataIndex: "sold_qty",
@@ -254,6 +254,11 @@ function DailyFullSummary() {
     {
       title: "Unsold",
       dataIndex: "unsold_qty",
+      align: "right",
+      render: (v) => formatNum(v),
+    }, {
+      title: "Total Qty",
+      dataIndex: "total_qty",
       align: "right",
       render: (v) => formatNum(v),
     },

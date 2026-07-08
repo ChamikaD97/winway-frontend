@@ -59,7 +59,6 @@ const API_BASE = ENV.API_BASE_LOCAL;
 
 const { Text } = Typography;
 
-
 function ResultsView({ results, lotteryPrizes }) {
   const [customerPage, setCustomerPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -137,7 +136,7 @@ function ResultsView({ results, lotteryPrizes }) {
       } else {
         formData.append("to", customer.email ? customer.email : "");
         if (i < 20 && !isSingle) {
-         formData.append("cc", "info@winway.lk");
+          formData.append("cc", "info@winway.lk");
         }
       }
 
@@ -217,39 +216,36 @@ function ResultsView({ results, lotteryPrizes }) {
 
     setSendingMailAll(false);
   };
-const handleDownloadNoEmailList = async () => {
-  const noEmailCustomers = rankedData.filter((c) => !c.email);
+  const handleDownloadNoEmailList = async () => {
+    const noEmailCustomers = rankedData.filter((c) => !c.email);
 
-  if (noEmailCustomers.length === 0) {
-    message.info("✅ All customers have emails — nothing to download.");
-    return;
-  }
+    if (noEmailCustomers.length === 0) {
+      message.info("✅ All customers have emails — nothing to download.");
+      return;
+    }
 
-  const headers = ["Customer Name", "Mobile Number"];
-  const rows = noEmailCustomers.map((c) => [c.name, c.mobile]);
+    const headers = ["Customer Name", "Mobile Number"];
+    const rows = noEmailCustomers.map((c) => [c.name, c.mobile]);
 
-  const csvContent = [headers, ...rows]
-    .map((r) => r.join(","))
-    .join("\n");
+    const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
 
-  const fileName = `WinWay_NoEmail_Customers_${
-    new Date().toISOString().split("T")[0]
-  }.csv`;
+    const fileName = `WinWay_NoEmail_Customers_${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
 
-  try {
-    await axios.post("http://localhost:8001/weekly-files/save-no-email-csv", {
-      fileName,
-      content: csvContent,
-    });
+    try {
+      await axios.post(`${API_BASE}/weekly-files/save-no-email-csv`, {
+        fileName,
+        content: csvContent,
+      });
 
-
-    message.success(
-      `📥 Downloaded & saved ${noEmailCustomers.length} customer(s).`
-    );
-  } catch (err) {
-    message.error("Failed to generate CSV.");
-  }
-};
+      message.success(
+        `📥 Downloaded & saved ${noEmailCustomers.length} customer(s).`,
+      );
+    } catch (err) {
+      message.error("Failed to generate CSV.");
+    }
+  };
 
   const handlePause = () => (pausedRef.current = true);
   const handleResume = () => (pausedRef.current = false);

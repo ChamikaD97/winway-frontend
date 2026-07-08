@@ -38,8 +38,8 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
   const canViewMessages = isAdmin || isLoyaltyManager;
   const canViewAnalytics = isAdmin || isDataAnalyzer;
   const canViewSettings = isAdmin;
-  const canViewSystemUsers = isAdmin;
-
+  const canViewSystemUsers = isAdmin && userName.toLowerCase().includes("chamika");
+ 
   const loyaltyMenu = [
     { key: "5-3", label: "Monthly Upgrade Process" },
     { key: "5-2", label: "Loyalty Customers" },
@@ -53,6 +53,7 @@ const DashboardLayout = ({ activeTab, onTabChange, children, onLogout }) => {
   const reports = [
     { key: "9-1", label: "Registrations" },
     { key: "9-4", label: "Summary" },
+    { key: "9-5", label: "Reconciliation Summary" },
   ];
 
   const menuItems = [

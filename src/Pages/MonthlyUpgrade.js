@@ -63,7 +63,7 @@ import dayjs from "dayjs";
 import {
   getCombinedCustomers,
   getSettings,
-  formatMobileNumber,
+  normalizeNumbers,
 } from "../api/endPoints";
 import { ENV } from "../config/env";
 const { Title, Text } = Typography;
@@ -329,8 +329,8 @@ function MonthlyUpgrade() {
 
   const sendLoyaltyWelcomeEmail = async (customer, i) => {
     try {
-      const respo = await formatMobileNumber();
-      console.log("Formatted mobile number response:", respo);
+      const respo = await normalizeNumbers();
+      console.log("Normalized mobile numbers response:", respo);
       const formData = new FormData();
 
       // formData.append(
@@ -446,7 +446,7 @@ function MonthlyUpgrade() {
       message.warning("No processed data available to save!");
       return;
     }
-    const respo = await formatMobileNumber();
+    const respo = await normalizeNumbers();
     try {
       console.log(summary);
 
@@ -724,7 +724,7 @@ function MonthlyUpgrade() {
   }, []);
 
   const handleSubmit1 = async () => {
-    const respo = await formatMobileNumber();
+    const respo = await normalizeNumbers();
     if (!files.zip_file || !files.customers_file) {
       message.warning("⚠️ Please upload both ZIP and Customer CSV files!");
       return;

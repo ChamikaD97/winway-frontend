@@ -63,6 +63,7 @@ import {
 import CustomerLoyaltyModal from "../componets/CustomerLoyaltyModal";
 import EvaluationHistoryModal from "../componets/EvaluationHistoryModal";
 import { ENV } from "../config/env";
+import userEvent from "@testing-library/user-event";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -95,6 +96,8 @@ function LoyaltyCustomers() {
 
   const firstStages = uniqueMonths?.slice(0, 1) || [];
   const lastStages = uniqueMonths?.slice(-1) || [];
+  const storedName = localStorage.getItem("name");
+  const storedRole = localStorage.getItem("role");
 
   const showViewAll = uniqueMonths?.length > 2;
   const [modalOpen, setModalOpen] = useState(false);
@@ -692,7 +695,7 @@ function LoyaltyCustomers() {
       );
       if (!confirmDelete) return;
       setLoading(true);
-      await axios.delete(`${API_BASE}/loyalCustomer/delete-all?confirm=true`);
+      //await axios.delete(`${API_BASE}/loyalCustomer/delete-all?confirm=true`);
       setCustomers([]);
       setFiltered([]);
       setSummary({});
@@ -1481,7 +1484,8 @@ function LoyaltyCustomers() {
             style={{ marginLeft: 10 }}
             onClick={handleDownloadData}
           >
-            Download All
+            Download All {storedName.toLocaleLowerCase} Data
+            {storedRole}
           </Button>
           <Button
             icon={<DownloadOutlined />}
